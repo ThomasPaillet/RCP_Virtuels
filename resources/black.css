@@ -1,8 +1,12 @@
+/* Buttons */
+
 @define-color button_border #444444;
 
 button:disabled {
     border-color: #b2b2b2;
 }
+
+/* Scale */
 
 scale trough {
     background-color: #444444;
