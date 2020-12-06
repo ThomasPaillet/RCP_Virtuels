@@ -1,0 +1,15 @@
+/* Buttons */
+
+@define-color button_bg_a shade(@theme_bg_color, 1.36);
+@define-color button_bg_b shade(@theme_bg_color, 1.18);
+
+/* Scale */
+
+scale trough {
+    background-color: #ffffff;
+}
+
+scale trough:disabled {
+    background-color: @theme_bg_color;
+}
+
