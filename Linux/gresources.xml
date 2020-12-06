@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/RCP-Virtuels">
+    <file>images/icon.png</file>
+    <file>images/grille_1_light.png</file>
+    <file>images/grille_2_light.png</file>
+    <file>images/grille_1_dark.png</file>
+    <file>images/grille_2_dark.png</file>
+    <file>images/logo_light.png</file>
+    <file>images/logo_dark.png</file>
+  </gresource>
+</gresources>
+
