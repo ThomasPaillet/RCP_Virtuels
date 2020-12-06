@@ -1,0 +1,18 @@
+/* Buttons */
+
+@define-color button_border #00ff00;
+
+button:disabled {
+    border-color: #b2b2b2;
+}
+
+/* Scale */
+
+scale trough {
+    background-color: #00ff00;
+}
+
+scale trough:disabled {
+    background-color: @theme_bg_color;
+}
+
