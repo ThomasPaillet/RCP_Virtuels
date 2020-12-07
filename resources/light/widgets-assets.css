@@ -1,0 +1,68 @@
+/*******************
+ * check and radio *
+ *******************/
+
+check,
+check row:selected,
+check row:selected:focus {
+    -gtk-icon-source: -gtk-scaled(url("assets/checkbox-unchecked.png"), url("assets/checkbox-unchecked@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+check:disabled,
+check row:selected:disabled,
+check row:selected:focus:disabled {
+    -gtk-icon-source: -gtk-scaled(url("assets/checkbox-unchecked-insensitive.png"), url("assets/checkbox-unchecked-insensitive@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+check:checked,
+check row:selected:checked,
+check row:selected:focus:checked {
+    -gtk-icon-source: -gtk-scaled(url("assets/checkbox-checked.png"), url("assets/checkbox-checked@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+check:checked:disabled,
+check row:selected:checked:disabled,
+check row:selected:focus:checked:disabled {
+    -gtk-icon-source: -gtk-scaled(url("assets/checkbox-checked-insensitive.png"), url("assets/checkbox-checked-insensitive@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+radio,
+radio row:selected,
+radio row:selected:focus {
+    -gtk-icon-source: -gtk-scaled(url("assets/radio-unselected.png"), url("assets/radio-unselected@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+radio:disabled,
+radio row:selected:disabled,
+radio row:selected:focus:disabled {
+    -gtk-icon-source: -gtk-scaled(url("assets/radio-unselected-insensitive.png"), url("assets/radio-unselected-insensitive@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+radio:checked,
+radio row:selected:checked,
+radio row:selected:focus:checked {
+    -gtk-icon-source: -gtk-scaled(url("assets/radio-selected.png"), url("assets/radio-selected@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+radio:checked:disabled,
+radio row:selected:checked:disabled,
+radio row:selected:focus:checked:disabled {
+    -gtk-icon-source: -gtk-scaled(url("assets/radio-selected-insensitive.png"), url("assets/radio-selected-insensitive@2.png"));
+    -gtk-icon-shadow: none;
+}
+
+combobox arrow {
+    -gtk-icon-source: url("./assets/pan-down-symbolic.png");
+}
+
+combobox arrow:disabled {
+    -gtk-icon-source: url("./assets/pan-down-symbolic-insensitive.png");
+}
+
