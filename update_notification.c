@@ -229,6 +229,7 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	return G_SOURCE_REMOVE;
 }
 
+
 #define IHM_UPDATE_TOGGLE_BUTTON(l,p) \
 	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -237,7 +238,24 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget->value = &rcp->current_scene.l; \
 	int_widget->post_action = p; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_toggle_button, int_widget);
+	g_idle_add ((GSourceFunc)update_toggle_button, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->current_scene.l = rcp->current_scene.l; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->widget = other_rcp->l##_toggle_button; \
+		int_widget->handler_id = other_rcp->l##_handler_id; \
+		int_widget->value = &other_rcp->current_scene.l; \
+		int_widget->post_action = p; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_toggle_button, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_TOGGLE_BUTTON_2(l,p) \
 	gettimeofday (&rcp->last_time, NULL); \
@@ -247,7 +265,24 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget->value = &rcp->l; \
 	int_widget->post_action = p; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_toggle_button, int_widget);
+	g_idle_add ((GSourceFunc)update_toggle_button, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->l = rcp->l; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->widget = other_rcp->l##_toggle_button; \
+		int_widget->handler_id = other_rcp->l##_handler_id; \
+		int_widget->value = &other_rcp->l; \
+		int_widget->post_action = p; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_toggle_button, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_COMBO_BOX(l,p) \
 	gettimeofday (&rcp->last_time, NULL); \
@@ -257,7 +292,24 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget->value = &rcp->current_scene.l; \
 	int_widget->post_action = p; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+	g_idle_add ((GSourceFunc)update_combo_box, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->current_scene.l = rcp->current_scene.l; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->widget = other_rcp->l##_combo_box; \
+		int_widget->handler_id = other_rcp->l##_handler_id; \
+		int_widget->value = &other_rcp->current_scene.l; \
+		int_widget->post_action = p; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_combo_box, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_SCALE(l,p) \
 	gettimeofday (&rcp->last_time, NULL); \
@@ -267,7 +319,24 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget->value = &rcp->current_scene.l; \
 	int_widget->post_action = p; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_scale, int_widget);
+	g_idle_add ((GSourceFunc)update_scale, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->current_scene.l = rcp->current_scene.l; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->widget = other_rcp->l##_scale; \
+		int_widget->handler_id = other_rcp->l##_handler_id; \
+		int_widget->value = &other_rcp->current_scene.l; \
+		int_widget->post_action = p; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_scale, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_LINEAR_MATRIX_SCALE(l,p) { \
 	sscanf (buffer + 7, "%x", &rcp->current_scene.linear_matrix.l); \
@@ -279,7 +348,24 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget->value = &rcp->current_scene.linear_matrix.l; \
 	int_widget->post_action = p; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_scale, int_widget); }
+	g_idle_add ((GSourceFunc)update_scale, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->current_scene.linear_matrix.l = rcp->current_scene.linear_matrix.l; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->widget = other_rcp->linear_matrix_##l##_scale; \
+		int_widget->handler_id = other_rcp->linear_matrix_##l##_handler_id; \
+		int_widget->value = &other_rcp->current_scene.linear_matrix.l; \
+		int_widget->post_action = p; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_scale, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex); }
 
 #define IHM_UPDATE_CC_SATURATION(l) { \
 	sscanf (buffer + 7, "%x", &data); \
@@ -289,7 +375,21 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->post_action = l; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_saturation_color_correction_frame, int_widget); }
+	g_idle_add ((GSourceFunc)update_saturation_color_correction_frame, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->current_scene.cc_saturation[l] = rcp->current_scene.cc_saturation[l]; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->post_action = l; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_saturation_color_correction_frame, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex); }
 
 #define IHM_UPDATE_CC_PHASE(l) { \
 	sscanf (buffer + 7, "%x", &data); \
@@ -299,7 +399,22 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->post_action = l; \
 	int_widget->rcp = rcp; \
-	g_idle_add ((GSourceFunc)update_phase_color_correction_frame, int_widget); }
+	g_idle_add ((GSourceFunc)update_phase_color_correction_frame, int_widget); \
+ \
+	g_mutex_lock (&rcp->other_rcp_mutex); \
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
+		other_rcp = (rcp_t*)(gslist_itr->data); \
+ \
+		other_rcp->last_time = rcp->last_time; \
+		other_rcp->current_scene.cc_phase[l] = rcp->current_scene.cc_phase[l]; \
+ \
+		int_widget = g_malloc (sizeof (int_widget_t)); \
+		int_widget->post_action = l; \
+		int_widget->rcp = other_rcp; \
+		g_idle_add ((GSourceFunc)update_phase_color_correction_frame, int_widget); \
+	} \
+	g_mutex_unlock (&rcp->other_rcp_mutex); }
+
 
 gboolean ABB_rcp_work_end (rcp_t *rcp)
 {
@@ -434,8 +549,9 @@ gpointer ask_format (rcp_t *rcp)
 void proceed_update_notification (rcp_t *rcp, const char *buffer)
 {
 	int data;
-	GSList *gslist_itr;
 	int_widget_t *int_widget;
+	GSList *gslist_itr;
+	rcp_t *other_rcp;
 #ifdef RCP_ELECTRO
 	int i;
 #endif
@@ -873,9 +989,11 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 
 				g_mutex_lock (&rcp->other_rcp_mutex);
 				for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
-					if ((((rcp_t*)(gslist_itr->data))->error_code != 0x30) && (((rcp_t*)(gslist_itr->data))->error_code != 0x00)) g_idle_add ((GSourceFunc)clear_rcp_error, rcp);
-					g_idle_add ((GSourceFunc)set_rcp_off, (rcp_t*)(gslist_itr->data));
-					g_idle_add ((GSourceFunc)decrease_on_standby_count, ((rcp_t*)(gslist_itr->data))->camera_set);
+					other_rcp = (rcp_t*)(gslist_itr->data);
+
+					if ((other_rcp->error_code != 0x30) && (other_rcp->error_code != 0x00)) g_idle_add ((GSourceFunc)clear_rcp_error, rcp);
+					g_idle_add ((GSourceFunc)set_rcp_off, other_rcp);
+					g_idle_add ((GSourceFunc)decrease_on_standby_count, other_rcp->camera_set);
 				}
 				g_mutex_unlock (&rcp->other_rcp_mutex);
 			}
@@ -949,11 +1067,9 @@ gpointer receive_update_notification (gpointer data)
 	while (update_notification_started) {
 		addrlen = sizeof (struct sockaddr_in);
 		src_socket = accept (update_notification_socket, (struct sockaddr *)&src_addr, &addrlen);
-#ifdef _WIN32
+
 		if (src_socket == INVALID_SOCKET) break;
-#elif defined (__linux)
-		if (src_socket == -1) break;
-#endif
+
 		recv (src_socket, buffer, 556, 0);
 		closesocket (src_socket);
 
@@ -1016,4 +1132,3 @@ void stop_update_notification (void)
 //	if (update_notification_thread != NULL) g_thread_join (update_notification_thread);
 	update_notification_thread = NULL;
 }
-
