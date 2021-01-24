@@ -1,4 +1,5 @@
 @define-color borders rgb(27,31,32);
+@define-color button_border rgb(27,31,32);
 @define-color content_view_bg rgb(35,39,41);
 @define-color error_color rgb(204,0,0);
 @define-color insensitive_base_color rgb(35,39,41);
@@ -168,18 +169,8 @@ button {
 	padding: 4px 7px;
 	border-image: none;
 	border-radius: 3px;
+	border: 1px solid @button_border;
   border-bottom-color: rgb(11,12,12);
-  border-bottom-style: solid;
-  border-bottom-width: 1px;
-  border-left-color: rgb(27,31,32);
-  border-left-style: solid;
-  border-left-width: 1px;
-  border-right-color: rgb(27,31,32);
-  border-right-style: solid;
-  border-right-width: 1px;
-  border-top-color: rgb(27,31,32);
-  border-top-style: solid;
-  border-top-width: 1px;
   box-shadow: 0 1px rgba(255,255,255,0.05) inset;
   color: rgb(238,238,236);
   outline-color: rgba(238,238,236,0.3);
@@ -308,12 +299,12 @@ radio
 	background-image: none;
 	transition: none;
 	box-shadow: none;
-	border-width: 0;
+	border: none;
 	min-height: 16px;
 	min-width: 16px;
 	transition: none;
-  outline-color: rgba(238,238,236,0.3);
-  text-shadow: 0 -1px rgba(0,0,0,0.827451);
+	outline: none;
+	text-shadow: none;
 }
 
 radio {
@@ -357,7 +348,7 @@ separator {
   background-size: auto;
   min-height: 1px;
   min-width: 1px;
-	border: none;
+/*	border: none;*/
 }
 
 list {
@@ -631,10 +622,7 @@ notebook {
 
 notebook.frame {
     border: 1px solid @border;
-    border-image-repeat: initial;
-    border-image-slice: initial;
-    border-image-source: initial;
-    border-image-width: initial;
+	border-image: none;
 }
 
 notebook.frame > header {
@@ -712,6 +700,7 @@ notebook > header.top > tabs > tab {
     margin-right: 2px;
     border: 1px solid @border;
     border-radius: 4px 4px 0 0;
+	border-image: none;
     color: @theme_fg_color;
     background-color: transparent;
     background-image: linear-gradient(to bottom,
@@ -726,6 +715,7 @@ notebook > header.bottom > tabs > tab {
     margin-right: 2px;
     border: 1px solid @border;
     border-radius: 0 0 4px 4px;
+	border-image: none;
     color: @theme_fg_color;
     background-color: transparent;
     background-image: linear-gradient(to top,
@@ -1038,6 +1028,7 @@ scale trough {
   border-top-style: solid;
   border-top-width: 1px;
 	box-shadow: none;
+	background-image: none;
 }
 
 progressbar progress {
@@ -1107,13 +1098,13 @@ scale slider {
 	min-width: 16px;
 }
 
-scale trough {
+/*scale trough {
   -gtk-outline-bottom-left-radius: 5px;
   -gtk-outline-bottom-right-radius: 5px;
   -gtk-outline-top-left-radius: 5px;
   -gtk-outline-top-right-radius: 5px;
   outline-offset: 2px;
-}
+}*/
 
 scale fill {
   background-color: rgb(27,31,32);

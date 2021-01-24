@@ -55,7 +55,7 @@ const char *warning_txt = "Attention !";
 
 GtkCssProvider *css_provider_gain_red, *css_provider_gain_green, *css_provider_gain_blue;
 GtkCssProvider *css_provider_pedestal_red, *css_provider_pedestal_green, *css_provider_pedestal_blue;
-GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz;
+GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz, *css_provider_store;
 
 
 gboolean digit_key_press (GtkEntry *entry, GdkEventKey *event)
@@ -579,6 +579,11 @@ int main (int argc, char** argv)
 	css_provider_raz = gtk_css_provider_new ();
 	file = g_file_new_for_path ("resources" G_DIR_SEPARATOR_S "raz.css");
 	gtk_css_provider_load_from_file (css_provider_raz, file, NULL);
+	g_object_unref (file);
+
+	css_provider_store = gtk_css_provider_new ();
+	file = g_file_new_for_path ("resources" G_DIR_SEPARATOR_S "store.css");
+	gtk_css_provider_load_from_file (css_provider_store, file, NULL);
 	g_object_unref (file);
 
 	create_main_window ();

@@ -23,6 +23,9 @@
 #include <unistd.h>
 
 
+extern GtkCssProvider *css_provider_store;
+
+
 gpointer start_camera (rcp_t *rcp)
 {
 	if (rcp->error_code == 0x30) send_update_start_cmd (rcp);
@@ -575,6 +578,7 @@ void create_rcp_widgets (rcp_t *rcp)
 		gtk_box_pack_start (GTK_BOX (box1), box2, FALSE, FALSE, 0);
 
 		widget = gtk_toggle_button_new_with_label ("S");
+		gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_store), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
 		gtk_box_pack_end (GTK_BOX (box1), widget, FALSE, FALSE, 0);
 		rcp->store_toggle_button = widget;
 	gtk_container_add (GTK_CONTAINER (frame), box1);

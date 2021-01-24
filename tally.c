@@ -48,16 +48,16 @@ gboolean name_draw (GtkWidget *widget, cairo_t *cr, rcp_t *rcp)
 		if ((rcp->tally_data & 0x10) && !(rcp->tally_data & 0x20)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
 		else if ((rcp->tally_data & 0x20) && !(rcp->tally_data & 0x10)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
 		else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
-	} else if (rcp == rcp_vision) cairo_set_source_rgb (cr, 0.0, 0.9, 0.9);
+	} else if (rcp == rcp_vision) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.933333333);
 	else if (rcp->tally_data & 0x03) {
 		if (!rcp->tally_1_is_on) {
 			if ((rcp->tally_data & 0x01) && !(rcp->tally_data & 0x02)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
 			else if ((rcp->tally_data & 0x02) && !(rcp->tally_data & 0x01)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
 			else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
 		}
-	} else if (rcp == rcp_pgm) cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
-	else if (rcp == rcp_pvw) cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
-	else if (theme) cairo_set_source_rgb (cr, 0.92549, 0.92549, 0.92549);
+	} else if (rcp == rcp_pgm) cairo_set_source_rgb (cr, 0.933333333, 0.0, 0.0);
+	else if (rcp == rcp_pvw) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.0);
+	else if (theme) cairo_set_source_rgb (cr, 0.925490196, 0.925490196, 0.925490196);
 	else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
 
 	cairo_paint (cr);
@@ -88,17 +88,19 @@ gboolean tally_draw (GtkWidget *widget, cairo_t *cr, rcp_t *rcp)
 		if ((rcp->tally_data & 0x10) && !(rcp->tally_data & 0x20)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
 		else if ((rcp->tally_data & 0x20) && !(rcp->tally_data & 0x10)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
 		else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
-	} else if (rcp == rcp_vision) cairo_set_source_rgb (cr, 0.0, 0.9, 0.9);
+	} else if (rcp == rcp_vision) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.933333333);
 	else if (rcp->tally_data & 0x03) {
 		if (!rcp->tally_1_is_on) {
 			if ((rcp->tally_data & 0x01) && !(rcp->tally_data & 0x02)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
 			else if ((rcp->tally_data & 0x02) && !(rcp->tally_data & 0x01)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
 			else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
 		}
-	} else if (rcp == rcp_pgm) cairo_set_source_rgb (cr, 1.0, 0.0, 0.0);
-	else if (rcp == rcp_pvw) cairo_set_source_rgb (cr, 0.0, 1.0, 0.0);
-	else if (theme) cairo_set_source_rgb (cr, 0.92549, 0.92549, 0.92549);
-	else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
+	} else if (rcp == rcp_pgm) cairo_set_source_rgb (cr, 0.933333333, 0.0, 0.0);
+	else if (rcp == rcp_pvw) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.0);
+	else {
+		if (theme) cairo_set_source_rgb (cr, 0.925490196, 0.925490196, 0.925490196);
+		else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
+	}
 
 	cairo_paint (cr);
 

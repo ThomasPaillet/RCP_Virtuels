@@ -1,18 +1,24 @@
 /* Buttons */
 
-@define-color button_border #ff0000;
+button {
+	border: 1px solid shade(#ff0000, 0.95);
+	border-top-color: #ff0000;
+	border-bottom-color: shade(#ff0000, 0.9);
+}
 
 button:disabled {
-    border-color: #b2b2b2;
+	border: 1px solid shade(@button_border, 0.95);
+	border-top-color: @button_border;
+	border-bottom-color: shade(@button_border, 0.9);
 }
 
 /* Scale */
 
 scale trough {
-    background-color: #ff0000;
+	background-color: #ff0000;
 }
 
-scale trough:disabled {
-    background-color: @theme_bg_color;
+scale:disabled trough {
+	background-color: shade(@theme_bg_color, 0.98);
 }
 

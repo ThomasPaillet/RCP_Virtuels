@@ -1,0 +1,6 @@
+button:active,
+button:checked {
+	background-color: #ffae00;
+	background-image: none;
+}
+
