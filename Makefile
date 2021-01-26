@@ -14,7 +14,7 @@ PIXBUF = $(wildcard Pixbufs/*.h)
 $(PROG): Linux/gresources.o Linux/Linux.o $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-Linux/gresources.o: Linux/gresources.xml
+Linux/gresources.o: Linux/gresources.xml $(shell glib-compile-resources --generate-dependencies Linux/gresources.xml)
 	@(cd Linux && $(MAKE) gresources.o)
 
 Linux/Linux.o: Linux/Linux.c rcp.h
@@ -62,6 +62,8 @@ tally.o: rcp.h
 
 sw_p_08.o: rcp.h
 
+physical_rcp.o: rcp.h
+
 main_window.o: rcp.h
 
 error.o: rcp.h
@@ -72,7 +74,7 @@ error.o: rcp.h
 Pixbufs/pixbufs.o: Pixbufs/pixbufs.c $(PNG) $(PIXBUF)
 	@(cd Pixbufs && $(MAKE))
 
-$(PROG).exe: $(OBJS) Pixbufs/pixbufs.o  Win32.o
+$(PROG).exe: $(OBJS) Pixbufs/pixbufs.o Win32.o
 	$(CC) -o $@ $^ $(LDFLAGS) -lwsock32
 
 Win32.o: Win32/Win32.c rcp.h

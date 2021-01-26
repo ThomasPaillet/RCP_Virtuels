@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -32,7 +32,7 @@
  \
 	gettimeofday (&current_time, NULL); \
 	time = localtime (&current_time.tv_sec); \
-	fprintf (error_log_file, "%02dh %02dm %02ds: Camera %s (%s) -> %s\n", time->tm_hour, time->tm_min, time->tm_sec, rcp->name, rcp->ip_adresse, s); \
+	fprintf (error_log_file, "%02dh %02dm %02ds: Camera %s (%s) -> %s\n", time->tm_hour, time->tm_min, time->tm_sec, rcp->name, rcp->ip_address, s); \
  \
 	return G_SOURCE_REMOVE; \
 }
@@ -51,7 +51,7 @@ gboolean clear_rcp_error(rcp_t *rcp)
 
 	gettimeofday (&current_time, NULL);
 	time = localtime (&current_time.tv_sec);
-	fprintf (error_log_file, "%02dh %02dm %02ds: Camera %s (%s) -> Normal\n", time->tm_hour, time->tm_min, time->tm_sec, rcp->name, rcp->ip_adresse);
+	fprintf (error_log_file, "%02dh %02dm %02ds: Camera %s (%s) -> Normal\n", time->tm_hour, time->tm_min, time->tm_sec, rcp->name, rcp->ip_address);
 
 	return G_SOURCE_REMOVE;
 }
@@ -82,7 +82,7 @@ gboolean camera_is_unreachable (rcp_t *rcp)	//error_code = 0x30
 	gettimeofday (&rcp->last_time, NULL);
 
 	time = localtime (&rcp->last_time.tv_sec);
-	fprintf (error_log_file, "%02dh %02dm %02ds: La caméra %s (%s) n'est pas connectée au réseau\n", time->tm_hour, time->tm_min, time->tm_sec, rcp->name, rcp->ip_adresse);
+	fprintf (error_log_file, "%02dh %02dm %02ds: La caméra %s (%s) n'est pas connectée au réseau\n", time->tm_hour, time->tm_min, time->tm_sec, rcp->name, rcp->ip_address);
 
 	return G_SOURCE_REMOVE;
 }

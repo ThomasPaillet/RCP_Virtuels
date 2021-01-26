@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -33,7 +33,9 @@ typedef struct {
 } tsl_umd_v5_packet_t;
 
 
-struct sockaddr_in tsl_umd_v5_adresse;
+gboolean send_ip_tally = FALSE;
+
+struct sockaddr_in tsl_umd_v5_address;
 SOCKET tsl_umd_v5_socket;
 
 GThread *tsl_umd_v5_thread = NULL;
@@ -120,10 +122,10 @@ gboolean g_source_rcp_queue_draw (rcp_t *rcp)
 
 void init_tally (void)
 {
-	memset (&tsl_umd_v5_adresse, 0, sizeof (struct sockaddr_in));
-	tsl_umd_v5_adresse.sin_family = AF_INET;
-	tsl_umd_v5_adresse.sin_port = htons (TSL_UMD_V5_UDP_PORT);
-	tsl_umd_v5_adresse.sin_addr.s_addr = inet_addr (my_ip_adresse);
+	memset (&tsl_umd_v5_address, 0, sizeof (struct sockaddr_in));
+	tsl_umd_v5_address.sin_family = AF_INET;
+	tsl_umd_v5_address.sin_port = htons (TSL_UMD_V5_UDP_PORT);
+	tsl_umd_v5_address.sin_addr.s_addr = inet_addr (my_ip_address);
 }
 
 gpointer receive_tsl_umd_v5_msg (gpointer data)
@@ -132,6 +134,7 @@ gpointer receive_tsl_umd_v5_msg (gpointer data)
 	tsl_umd_v5_packet_t packet;
 	cameras_set_t *cameras_set_itr;
 	rcp_t *rcp;
+	GSList *gslist_itr;
 
 	while ((msg_len = recv (tsl_umd_v5_socket, (char*)&packet, 2048, 0)) > 1) {
 		for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
@@ -144,8 +147,19 @@ gpointer receive_tsl_umd_v5_msg (gpointer data)
 				else if (packet.control & 0x40) rcp->tally_brightness = 0.6;
 				else rcp->tally_brightness = 0.4;
 
-				if (packet.control & 0x30) rcp->tally_1_is_on = TRUE;
-				else rcp->tally_1_is_on = FALSE;
+				if (packet.control & 0x30) {
+					if (current_camera_set != NULL) {
+						if (send_ip_tally && !rcp->tally_1_is_on && rcp->camera_is_on) send_ptz_control_command (rcp, "#DA1");
+						for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) ((rcp_t*)(gslist_itr->data))->tally_1_is_on = TRUE;
+					}
+					rcp->tally_1_is_on = TRUE;
+				} else {
+					if (current_camera_set != NULL) {
+						if (send_ip_tally && rcp->tally_1_is_on && rcp->camera_is_on) send_ptz_control_command (rcp, "#DA0");
+						for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) ((rcp_t*)(gslist_itr->data))->tally_1_is_on = FALSE;
+					}
+					rcp->tally_1_is_on = FALSE;
+				}
 
 				g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
 			}
@@ -158,7 +172,7 @@ gpointer receive_tsl_umd_v5_msg (gpointer data)
 void start_tally (void)
 {
 	tsl_umd_v5_socket = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	bind (tsl_umd_v5_socket, (struct sockaddr *)&tsl_umd_v5_adresse, sizeof (struct sockaddr_in));
+	bind (tsl_umd_v5_socket, (struct sockaddr *)&tsl_umd_v5_address, sizeof (struct sockaddr_in));
 	tsl_umd_v5_thread = g_thread_new (NULL, receive_tsl_umd_v5_msg, NULL);
 }
 

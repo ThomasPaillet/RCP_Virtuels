@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -44,7 +44,7 @@ int rs_try = 0;
 gboolean ip_rs = TRUE;
 
 SOCKET sw_p_08_socket;
-struct sockaddr_in sw_p_08_adresse;
+struct sockaddr_in sw_p_08_address;
 
 gboolean sw_p_08_tcp_server_started = FALSE;
 
@@ -326,12 +326,20 @@ gpointer listen_to_rs_port (void)
 								tally_vision = rcp_vision->matrix_source_number;
 							} else tally_vision = 0;
 						} else if (buffer[2] == 1) {
-							if (rcp_pgm != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
+							if (rcp_pgm != NULL) {
+								if (send_ip_tally && rcp_pgm->tally_1_is_on && rcp_pgm->ip_address_is_valid && (rcp_pgm->error_code != 0x30)) send_ptz_control_command (rcp_pgm, "#DA0");
+								rcp_pgm->tally_1_is_on = FALSE;
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
+							}
 
 							rcp_pgm = rcp;
 
-							if (rcp_pgm != NULL) tally_pgm = rcp_pgm->matrix_source_number;
-							else tally_pgm = 0;
+							if (rcp_pgm != NULL) {
+								if (send_ip_tally && !rcp_pgm->tally_1_is_on && rcp_pgm->ip_address_is_valid && (rcp_pgm->error_code != 0x30)) send_ptz_control_command (rcp_pgm, "#DA1");
+								rcp_pgm->tally_1_is_on = TRUE;
+
+								tally_pgm = rcp_pgm->matrix_source_number;
+							} else tally_pgm = 0;
 						} else if (buffer[2] == 2) {
 							if (rcp_pvw != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pvw);
 
@@ -523,12 +531,20 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 								tally_vision = rcp_vision->matrix_source_number;
 							} else tally_vision = 0;
 						} else if (buffer[2] == 1) {
-							if (rcp_pgm != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
+							if (rcp_pgm != NULL) {
+								if (send_ip_tally && rcp_pgm->tally_1_is_on && rcp_pgm->camera_is_on) send_ptz_control_command (rcp_pgm, "#DA0");
+								rcp_pgm->tally_1_is_on = FALSE;
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
+							}
 
 							rcp_pgm = rcp;
 
-							if (rcp_pgm != NULL) tally_pgm = rcp_pgm->matrix_source_number;
-							else tally_pgm = 0;
+							if (rcp_pgm != NULL) {
+								if (send_ip_tally && !rcp_pgm->tally_1_is_on && rcp_pgm->camera_is_on) send_ptz_control_command (rcp_pgm, "#DA1");
+								rcp_pgm->tally_1_is_on = TRUE;
+
+								tally_pgm = rcp_pgm->matrix_source_number;
+							} else tally_pgm = 0;
 						} else if (buffer[2] == 2) {
 							if (rcp_pvw != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pvw);
 
@@ -623,10 +639,10 @@ void init_sw_p_08 (void)
 {
 	g_mutex_init (&sw_p_08_mutex);
 
-	memset (&sw_p_08_adresse, 0, sizeof (struct sockaddr_in));
-	sw_p_08_adresse.sin_family = AF_INET;
-	sw_p_08_adresse.sin_port = htons (SW_P_08_TCP_PORT);
-	sw_p_08_adresse.sin_addr.s_addr = inet_addr (my_ip_adresse);
+	memset (&sw_p_08_address, 0, sizeof (struct sockaddr_in));
+	sw_p_08_address.sin_family = AF_INET;
+	sw_p_08_address.sin_port = htons (SW_P_08_TCP_PORT);
+	sw_p_08_address.sin_addr.s_addr = inet_addr (my_ip_address);
 
 	remote_devices[0].src_socket = INVALID_SOCKET;
 	remote_devices[0].connected_label = NULL;
@@ -657,7 +673,7 @@ gboolean start_sw_p_08_tcp_server (void)
 {
 	sw_p_08_socket = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	if (bind (sw_p_08_socket, (struct sockaddr *)&sw_p_08_adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (bind (sw_p_08_socket, (struct sockaddr *)&sw_p_08_address, sizeof (struct sockaddr_in)) == 0) {
 		if (listen (sw_p_08_socket, 2) == 0) {
 			sw_p_08_thread = g_thread_new (NULL, (GThreadFunc)sw_p_08_tcp_server, NULL);
 			return TRUE;

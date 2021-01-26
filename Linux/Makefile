@@ -17,3 +17,4 @@ clean:
 	rm -f gresources.h
 	rm -f gresources.c
 	rm -f *.o
+

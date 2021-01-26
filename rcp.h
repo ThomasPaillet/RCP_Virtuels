@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -21,7 +21,7 @@
 #define __RCP_H
 
 
-//#define RCP_ELECTRO
+//#define MAIN_SETTINGS_READ_ONLY
 
 
 #ifdef _WIN32
@@ -156,9 +156,9 @@ typedef struct {
 typedef struct {
 	char name[3];
 	gboolean active;
-	char ip_adresse[16];
-	char new_ip_adresse[16];
-	gboolean ip_adresse_is_valid;
+	char ip_address[16];
+	char new_ip_address[16];
+	gboolean ip_address_is_valid;
 
 	int matrix_source_number;
 
@@ -170,10 +170,10 @@ typedef struct {
 	int last_ctrl_cmd_len;
 	GMutex cmd_mutex;
 
-	struct sockaddr_in adresse;
+	struct sockaddr_in address;
 
 	GMutex other_rcp_mutex;
-	GSList *other_rcp;	//with_the_same_ip_adresse;
+	GSList *other_rcp;	//with_the_same_ip_address;
 
 	gboolean camera_is_on;
 	gboolean camera_is_working;
@@ -594,6 +594,8 @@ extern int number_of_cameras_sets;
 
 extern cameras_set_t *cameras_sets;
 
+extern cameras_set_t *current_camera_set;
+
 extern cameras_set_t *new_cameras_set;
 
 extern cameras_set_t *cameras_set_with_error;
@@ -639,7 +641,7 @@ extern GMutex rcp_start_glist_mutex;
 extern GList *rcp_start_glist;
 extern GList *ghost_rcp_glist;
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 extern parameter_t format_parameters_array_pal[6];
 extern char *format_answers_array_pal[6];
 extern parameter_t format_parameters_array_ntsc[8];
@@ -668,7 +670,7 @@ extern GtkWidget *ip_connected_label_2;
 extern GtkWidget *rs_ok_label;
 
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 extern gboolean camera_settings_checked;
 
 gboolean update_osd_mix (void);
@@ -716,7 +718,7 @@ void create_scenes_page (void);
 
 
 //protocol.h
-extern char my_ip_adresse[16];
+extern char my_ip_address[16];
 
 
 void init_protocol (void);
@@ -758,7 +760,7 @@ gpointer send_jpeg_image_request_cmd (rcp_t *rcp);
 #define UPDATE_NOTIFICATION_TCP_PORT 31004
 
 
-extern struct sockaddr_in update_notification_adresse;
+extern struct sockaddr_in update_notification_address;
 
 
 void init_update_notification (void);
@@ -835,7 +837,9 @@ int receive_from_rs_port (char *buffer, unsigned long buffer_len);
 #define TSL_UMD_V5_UDP_PORT 8900
 
 
-extern struct sockaddr_in tsl_umd_v5_adresse;
+extern gboolean send_ip_tally;
+
+extern struct sockaddr_in tsl_umd_v5_address;
 
 
 gboolean name_draw (GtkWidget *widget, cairo_t *cr, rcp_t *rcp);
@@ -870,7 +874,7 @@ extern GMutex sw_p_08_mutex;
 
 extern gboolean ip_rs;
 
-extern struct sockaddr_in sw_p_08_adresse;
+extern struct sockaddr_in sw_p_08_address;
 
 extern remote_device_t remote_devices[2];
 
@@ -900,6 +904,15 @@ gboolean start_rs_communication (void);
 void stop_sw_p_08_tcp_server (void);
 
 void stop_rs_communication (void);
+
+
+//physical_rcp.h
+extern struct sockaddr_in remote_rcp_address;
+
+
+void init_physical_rcp (void);
+
+void start_physical_rcp (void);
 
 
 //error.h

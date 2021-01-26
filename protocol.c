@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -57,7 +57,7 @@ char *http_header;
 int http_header_size;
 int full_http_header_size;
 
-char my_ip_adresse[16];
+char my_ip_address[16];
 
 char user_id[16];
 int user_id_len = 0;
@@ -88,7 +88,7 @@ void init_protocol (void)
 	host = gethostbyname (host_name);
 
 	for (pp = host->h_addr_list; *pp != NULL; pp++) {
-		strcpy (my_ip_adresse, inet_ntoa (*(struct in_addr *)*pp));
+		strcpy (my_ip_address, inet_ntoa (*(struct in_addr *)*pp));
 	}
 #elif defined (__linux)
 	SOCKET sock;
@@ -103,12 +103,12 @@ void init_protocol (void)
 	ioctl (sock, SIOCGIFCONF, &ip_interfaces);
 
 	for (i = 0; i < ip_interfaces.ifc_len / sizeof (struct ifreq); i++) {
-		strcpy (my_ip_adresse, inet_ntoa (((struct sockaddr_in *)&ip_interfaces.ifc_req[i].ifr_addr)->sin_addr));
+		strcpy (my_ip_address, inet_ntoa (((struct sockaddr_in *)&ip_interfaces.ifc_req[i].ifr_addr)->sin_addr));
 	}
 #endif
 
 	http_header = g_malloc (152);
-	http_header_size = sprintf (http_header, "%s%s%s%s", my_ip_adresse, http_header_2, my_ip_adresse, http_header_3);
+	http_header_size = sprintf (http_header, "%s%s%s%s", my_ip_address, http_header_2, my_ip_address, http_header_3);
 	full_http_header_size = http_header_size + 101;
 }
 
@@ -151,7 +151,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 		index = 0;
@@ -198,7 +198,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 		index = 0;
@@ -248,7 +248,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -290,7 +290,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -328,7 +328,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 1 + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -370,7 +370,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 2 + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -413,7 +413,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 3 + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -445,7 +445,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 		index = 0;
@@ -498,7 +498,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 		index = 0;
@@ -548,7 +548,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -591,7 +591,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 3 + full_http_header_size, 0);
 
 COMMAND_FUNC_END
@@ -615,7 +615,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, 104 + http_header_size, 0);
 
 		gettimeofday (&rcp->last_time, NULL);
@@ -641,7 +641,7 @@ void send_update_start_cmd (rcp_t *rcp)
 g_mutex_lock (&rcp->cmd_mutex);
 
 	memcpy (buffer, http_update_start_cmd, 41);
-	index = 41 + sprintf (buffer + 41, "%hu", ntohs (update_notification_adresse.sin_port));
+	index = 41 + sprintf (buffer + 41, "%hu", ntohs (update_notification_address.sin_port));
 	memcpy (buffer + index, http_update_header, 6);
 	index += 6;
 	memcpy (buffer + index, http_header_1, 71);
@@ -656,7 +656,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
 
 		if (rcp->error_code == 0x30) {
@@ -676,7 +676,7 @@ void send_update_stop_cmd (rcp_t *rcp)
 g_mutex_lock (&rcp->cmd_mutex);
 
 	memcpy (buffer, http_update_stop_cmd, 40);
-	index = 40 + sprintf (buffer + 40, "%hu", ntohs (update_notification_adresse.sin_port));
+	index = 40 + sprintf (buffer + 40, "%hu", ntohs (update_notification_address.sin_port));
 	memcpy (buffer + index, http_update_header, 6);
 	index += 6;
 	memcpy (buffer + index, http_header_1, 71);
@@ -691,7 +691,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
 
 COMMAND_FUNC_END
@@ -721,7 +721,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	timersub (&current_time, &rcp->last_time, &elapsed_time);
 	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
 
-	if (connect (sock, (struct sockaddr *) &rcp->adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, 122 + size + http_header_size, 0);
 
 		time = localtime (&current_time.tv_sec);

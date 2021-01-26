@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -23,7 +23,7 @@
 
 
 SOCKET update_notification_socket;
-struct sockaddr_in update_notification_adresse;
+struct sockaddr_in update_notification_address;
 
 gboolean update_notification_started = FALSE;
 
@@ -231,7 +231,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 
 
 #define IHM_UPDATE_TOGGLE_BUTTON(l,p) \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->widget = rcp->l##_toggle_button; \
 	int_widget->handler_id = rcp->l##_handler_id; \
@@ -244,7 +243,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->current_scene.l = rcp->current_scene.l; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -258,7 +256,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_TOGGLE_BUTTON_2(l,p) \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->widget = rcp->l##_toggle_button; \
 	int_widget->handler_id = rcp->l##_handler_id; \
@@ -271,7 +268,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->l = rcp->l; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -285,7 +281,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_COMBO_BOX(l,p) \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->widget = rcp->l##_combo_box; \
 	int_widget->handler_id = rcp->l##_handler_id; \
@@ -298,7 +293,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->current_scene.l = rcp->current_scene.l; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -312,7 +306,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 #define IHM_UPDATE_SCALE(l,p) \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->widget = rcp->l##_scale; \
 	int_widget->handler_id = rcp->l##_handler_id; \
@@ -325,7 +318,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->current_scene.l = rcp->current_scene.l; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -341,7 +333,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 #define IHM_UPDATE_LINEAR_MATRIX_SCALE(l,p) { \
 	sscanf (buffer + 7, "%x", &rcp->current_scene.linear_matrix.l); \
  \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->widget = rcp->linear_matrix_##l##_scale; \
 	int_widget->handler_id = rcp->linear_matrix_##l##_handler_id; \
@@ -354,7 +345,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->current_scene.linear_matrix.l = rcp->current_scene.linear_matrix.l; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -371,7 +361,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	sscanf (buffer + 7, "%x", &data); \
 	rcp->current_scene.cc_saturation[l] = data - 0x80; \
  \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->post_action = l; \
 	int_widget->rcp = rcp; \
@@ -381,7 +370,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->current_scene.cc_saturation[l] = rcp->current_scene.cc_saturation[l]; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -395,7 +383,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	sscanf (buffer + 7, "%x", &data); \
 	rcp->current_scene.cc_phase[l] = data - 0x80; \
  \
-	gettimeofday (&rcp->last_time, NULL); \
 	int_widget = g_malloc (sizeof (int_widget_t)); \
 	int_widget->post_action = l; \
 	int_widget->rcp = rcp; \
@@ -405,7 +392,6 @@ gboolean update_phase_color_correction_frame (int_widget_t *int_widget)
 	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) { \
 		other_rcp = (rcp_t*)(gslist_itr->data); \
  \
-		other_rcp->last_time = rcp->last_time; \
 		other_rcp->current_scene.cc_phase[l] = rcp->current_scene.cc_phase[l]; \
  \
 		int_widget = g_malloc (sizeof (int_widget_t)); \
@@ -478,7 +464,7 @@ gboolean decrease_on_standby_count (cameras_set_t *cameras_set)
 	return G_SOURCE_REMOVE;
 }
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 #define UPDATE_COMBO_BOX_TEXT_FUNC(l,i) \
 gboolean update_##l##_combo_box_text (void) \
 { \
@@ -519,7 +505,7 @@ gboolean update_format_parameter (void)
 gpointer ask_format (rcp_t *rcp)
 {
 	char response[8];
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 	int i;
 #endif
 
@@ -529,7 +515,7 @@ gpointer ask_format (rcp_t *rcp)
 
 	send_cam_request_command_string (rcp, settings_array[1].query_cmd, response);
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 	for (i = 0; i < settings_array[1].nb_parameters; i++) {
 		if (strcmp (settings_array[1].answers[i], response) == 0) {
 			settings_parameters_indexes_array[1] = i;
@@ -552,7 +538,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 	int_widget_t *int_widget;
 	GSList *gslist_itr;
 	rcp_t *other_rcp;
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 	int i;
 #endif
 	if ((buffer[0] == 'd') && (buffer[1] == '6')) {	//Option switch Day/Night
@@ -565,7 +551,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 			else rcp->mire = FALSE;
 			IHM_UPDATE_TOGGLE_BUTTON_2(mire,NO_POST_ACTION)
 		} else if ((buffer[2] == 'S') && (buffer[3] == ':')) {	//Color bar setup level
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 			for (i = 0; i < settings_array[3].nb_parameters; i++) {
 				if (buffer[4] == settings_array[3].answers[i][0]) {
 					settings_parameters_indexes_array[3] = i;
@@ -602,7 +588,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 		if (buffer[1] == 'A') {
 			if (buffer[2] == 'S') g_idle_add ((GSourceFunc)ABB_rcp_work_end, rcp);	//ABB execution successful
 			else if ((buffer[2] == 'W') && (buffer[3] == ':')) {	//White Balance Mode
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 				for (i = 0; i < settings_array[5].nb_parameters; i++) {
 					if (buffer[4] == settings_array[5].answers[i][0]) {
 						settings_parameters_indexes_array[5] = i;
@@ -667,7 +653,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 						sscanf (buffer + 7, "%x", &rcp->current_scene.knee_slope);
 						IHM_UPDATE_SCALE(knee_slope,KNEE_SLOPE_POST_ACTION)
 					} else if ((buffer[5] == 'A') && (buffer[6] == ':')) {	//White Clip Level
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						for (i = 0; i < settings_array[7].nb_parameters; i++) {
 							if ((buffer[7] == settings_array[7].answers[i][0]) && (buffer[8] == settings_array[7].answers[i][1])) {
 								settings_parameters_indexes_array[7] = i;
@@ -683,7 +669,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 						rcp->current_scene.knee_settings = (int)buffer[7] - 48;
 						IHM_UPDATE_COMBO_BOX(knee_settings,KNEE_SETTINGS_POST_ACTION)
 					} else if ((buffer[5] == 'E') && (buffer[6] == ':')) {	//White Clip settings
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						for (i = 0; i < settings_array[6].nb_parameters; i++) {
 							if (buffer[7] == settings_array[6].answers[i][0]) {
 								settings_parameters_indexes_array[6] = i;
@@ -701,7 +687,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 					IHM_UPDATE_SCALE(master_detail,MASTER_DETAIL_POST_ACTION)
 				} else if (buffer[4] == '6') {
 					if ((buffer[5] == '5') && (buffer[6] == ':')) {	//Frame mix
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						for (i = 0; i < settings_array[9].nb_parameters; i++) {
 							if ((buffer[7] == settings_array[9].answers[i][0]) && (buffer[8] == settings_array[9].answers[i][1])) {
 								settings_parameters_indexes_array[9] = i;
@@ -719,7 +705,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 						IHM_UPDATE_COMBO_BOX(gamma,NO_POST_ACTION)
 					}
 				} else if ((buffer[4] == '8') && (buffer[5] == '7') && (buffer[6] == ':')) {	//Format
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 					if (buffer[7] == '1') {
 						for (i = 0; i < settings_array[1].nb_parameters; i++) {
 							if (settings_array[1].answers[i][0] == '1') {
@@ -746,7 +732,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 						send_cam_control_command_string (rcp, settings_array[1].control_cmd, settings_array[1].parameters[settings_parameters_indexes_array[1]].value);
 #endif
 				} else if ((buffer[4] == 'D') && (buffer[5] == '3') && (buffer[6] == ':')) {	//Tally Brightness settings
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 					for (i = 0; i < settings_array[11].nb_parameters; i++) {
 						if (buffer[7] == settings_array[11].answers[i][0]) {
 							settings_parameters_indexes_array[11] = i;
@@ -764,7 +750,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 					sscanf (buffer + 7, "%x", &rcp->current_scene.noise_suppress);
 					IHM_UPDATE_SCALE(noise_suppress,NOISE_SUPPRESS_POST_ACTION)
 				} else if ((buffer[4] == '3') && (buffer[5] == 'A') && (buffer[6] == ':') && (buffer[7] == '0')) {	//Digital noise reduction
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 					for (i = 0; i < settings_array[10].nb_parameters; i++) {
 						if (buffer[8] == settings_array[10].answers[i][1]) {
 							settings_parameters_indexes_array[10] = i;
@@ -778,14 +764,14 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 #endif
 				} else if ((buffer[4] == '4') && (buffer[5] == '8') && (buffer[6] == ':')) {	//Picture level Iris offset
 					sscanf (buffer + 7, "%x", &data);
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 					picture_level = data - 0x32;
 					g_idle_add ((GSourceFunc)update_picture_level_scale, NULL);
 #else
 					if (picture_level != (data - 0x32)) send_cam_control_command_2_digits (rcp, "OSD:48:", picture_level + 0x32, TRUE);
 #endif
 				} else if ((buffer[4] == '6') && (buffer[5] == '9') && (buffer[6] == ':') && (buffer[7] == '0')) {	//AGC maximum gain value
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 					for (i = 0; i < settings_array[8].nb_parameters; i++) {
 						if (buffer[8] == settings_array[8].answers[i][1]) {
 							settings_parameters_indexes_array[8] = i;
@@ -859,7 +845,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 				}
 			} else if ((buffer[2] == 'E') && (buffer[3] == ':')) {
 				if ((buffer[4] == '2') && (buffer[5] == '0') && (buffer[6] == ':')) {	//Down-conversion mode
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 					for (i = 0; i < settings_array[2].nb_parameters; i++) {
 						if (buffer[7] == settings_array[2].answers[i][0]) {
 							settings_parameters_indexes_array[2] = i;
@@ -882,7 +868,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 					}
 				} else if (buffer[4] == '7') {
 					if ((buffer[5] == '1') && (buffer[6] == ':')) {	//Preset playback range
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						for (i = 0; i < settings_array[4].nb_parameters; i++) {
 							if (buffer[7] == settings_array[4].answers[i][0]) {
 								settings_parameters_indexes_array[4] = i;
@@ -898,7 +884,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 						sscanf (buffer + 7, "%x", &rcp->current_scene.gamma_type);
 						IHM_UPDATE_COMBO_BOX(gamma_type,NO_POST_ACTION)
 					} else if ((buffer[5] == '5') && (buffer[6] == ':')) {	//OSD Off With TALLY
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						for (i = 0; i < settings_array[12].nb_parameters; i++) {
 							if (buffer[7] == settings_array[12].answers[i][0]) {
 								settings_parameters_indexes_array[12] = i;
@@ -911,7 +897,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 							send_cam_control_command_string (rcp, settings_array[12].control_cmd, settings_array[12].parameters[settings_parameters_indexes_array[12]].value);
 #endif
 					} else if ((buffer[5] == '7') && (buffer[6] == ':')) {	//Frequency
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						for (i = 0; i < settings_array[0].nb_parameters; i++) {
 							if (buffer[7] == settings_array[0].answers[i][0]) {
 								settings_parameters_indexes_array[0] = i;
@@ -945,7 +931,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 						}
 #endif
 					} else if ((buffer[5] == 'B') && (buffer[6] == ':')) {	//OSD Mix
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 						sscanf (buffer + 7, "%x", &osd_mix);
 						g_idle_add ((GSourceFunc)update_osd_mix, NULL);
 #else
@@ -1000,7 +986,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 		} else if (buffer[1] == '1') {
 			if (rcp->camera_is_on == FALSE) {
 				rcp_work_start (rcp, (GThreadFunc)start_rcp);
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 				if (camera_settings_checked == FALSE) {
 					camera_settings_checked = TRUE;
 					g_thread_new (NULL, (GThreadFunc)check_camera_settings_ro, rcp);
@@ -1034,7 +1020,7 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 		}
 	} else if (buffer[0] == 't') {
 		if ((buffer[1] == 'A') && (buffer[2] == 'E')) {	//Tally input
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 			tally_input = buffer[3] - 48;
 			g_idle_add ((GSourceFunc)update_tally_input_combo_box_text, NULL);
 #else
@@ -1050,6 +1036,9 @@ void proceed_update_notification (rcp_t *rcp, const char *buffer)
 	}
 }
 
+#include <stdio.h>
+FILE *un_file;
+
 gpointer receive_update_notification (gpointer data)
 {
 #ifdef _WIN32
@@ -1062,7 +1051,9 @@ gpointer receive_update_notification (gpointer data)
 	GList *glist_itr;
 	rcp_t *rcp;
 	SOCKET src_socket;
-	int memcmp_rcp_last_crtl_cmd;
+	int memcmp_rcp_last_ctrl_cmd;
+
+int msg_len;
 
 	while (update_notification_started) {
 		addrlen = sizeof (struct sockaddr_in);
@@ -1070,20 +1061,23 @@ gpointer receive_update_notification (gpointer data)
 
 		if (src_socket == INVALID_SOCKET) break;
 
-		recv (src_socket, buffer, 556, 0);
+		msg_len = recv (src_socket, buffer, 556, 0);
+fprintf (un_file, "%d\n", msg_len);
+fwrite (buffer, 1, msg_len, un_file);
+fflush (un_file);
 		closesocket (src_socket);
 
 		g_mutex_lock (&rcp_start_glist_mutex);
 		for (glist_itr = rcp_start_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 			rcp = (rcp_t*)(glist_itr->data);
 
-			if (rcp->adresse.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
+			if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 				g_mutex_lock (&rcp->cmd_mutex);
-				if (rcp->last_ctrl_cmd_len == 0) memcmp_rcp_last_crtl_cmd = 1;
-				else memcmp_rcp_last_crtl_cmd = memcmp (buffer + 30, rcp->last_ctrl_cmd, rcp->last_ctrl_cmd_len);
+				if (rcp->last_ctrl_cmd_len == 0) memcmp_rcp_last_ctrl_cmd = 1;
+				else memcmp_rcp_last_ctrl_cmd = memcmp (buffer + 30, rcp->last_ctrl_cmd, rcp->last_ctrl_cmd_len);
 				g_mutex_unlock (&rcp->cmd_mutex);
 
-				if (memcmp_rcp_last_crtl_cmd == 0) {
+				if (memcmp_rcp_last_ctrl_cmd == 0) {
 					rcp->last_ctrl_cmd[0] = '\0';
 					rcp->last_ctrl_cmd_len = 0;
 				} else proceed_update_notification (rcp, buffer + 30);
@@ -1099,17 +1093,19 @@ gpointer receive_update_notification (gpointer data)
 
 void init_update_notification (void)
 {
-	memset (&update_notification_adresse, 0, sizeof (struct sockaddr_in));
-	update_notification_adresse.sin_family = AF_INET;
-	update_notification_adresse.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
-	update_notification_adresse.sin_addr.s_addr = inet_addr (my_ip_adresse);
+	memset (&update_notification_address, 0, sizeof (struct sockaddr_in));
+	update_notification_address.sin_family = AF_INET;
+	update_notification_address.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
+	update_notification_address.sin_addr.s_addr = inet_addr (my_ip_address);
+
+un_file = fopen ("update_notification.txt", "w");
 }
 
 void start_update_notification (void)
 {
 	update_notification_socket = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	if (bind (update_notification_socket, (struct sockaddr *)&update_notification_adresse, sizeof (struct sockaddr_in)) == 0) {
+	if (bind (update_notification_socket, (struct sockaddr *)&update_notification_address, sizeof (struct sockaddr_in)) == 0) {
 		if (listen (update_notification_socket, MAX_CAMERAS * MAX_CAMERAS_SET) == 0) {
 			update_notification_started = TRUE;
 			update_notification_thread = g_thread_new (NULL, receive_update_notification, NULL);
@@ -1132,3 +1128,4 @@ void stop_update_notification (void)
 //	if (update_notification_thread != NULL) g_thread_join (update_notification_thread);
 	update_notification_thread = NULL;
 }
+

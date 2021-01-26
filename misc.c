@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -27,12 +27,12 @@ void init_rcp (rcp_t *rcp)
 	int i, j;
 
 	rcp->active = TRUE;
-	rcp->ip_adresse[0] = '\0';
-	rcp->ip_adresse_is_valid = FALSE;
+	rcp->ip_address[0] = '\0';
+	rcp->ip_address_is_valid = FALSE;
 
-	memset (&rcp->adresse, 0, sizeof (struct sockaddr_in));
-	rcp->adresse.sin_family = AF_INET;
-	rcp->adresse.sin_port = htons (80);
+	memset (&rcp->address, 0, sizeof (struct sockaddr_in));
+	rcp->address.sin_family = AF_INET;
+	rcp->address.sin_port = htons (80);
 
 	init_rcp_cmd_buffer (rcp);
 
@@ -367,7 +367,7 @@ gpointer start_rcp (rcp_t *rcp)
 	}
 	g_mutex_unlock (&rcp->other_rcp_mutex);
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 #else
 	check_camera_settings (rcp);
 #endif

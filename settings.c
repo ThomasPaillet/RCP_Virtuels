@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -99,7 +99,7 @@ char color_bar_setup_level_tooltip[] = "Cette option est activée uniquement lor
 char agc_max_gain_tooltip[] = "Quantité maximum d’augmentation du gain lorsque\nle paramètre [Gain] des caméras est réglé sur [Auto].";
 char frame_mix_tooltip[] = "Sélectionner la quantité d’adjonction d’images (augmentation du gain grâce à la mémoire de capteur).\nQuand l’adjonction d’images est réalisée, le film apparaît comme s’il manquait quelques images.\nCeci ne peut pas être configuré lorsque le format est 1080/29.97p, 1080/23.98p, 1080/29.97PsF, 1080/23.98PsF, 1080/25p ou 1080/25PsF.\n[Frame Mix] ne peut pas être réglé sur [18dB] ou [24dB] lorsque [Iris Mode], [Gain] ou [Focus Mode] est réglé sur [Auto].\n(Avec [Frame Mix] sur [18dB] ou [24dB], régler [Iris Mode] et [Focus Mode] sur [Manual] et régler [Gain] sur un autre réglage que [Auto].)";
 char dnr_tooltip[] = "La fonction \"réduction du bruit numérique (Digital Noise Reduction)\"\npermet de pouvoir sortir des images lumineuses, claires et sans bruit,\nmême la nuit et dans des conditions de faible éclairage.\nNéanmoins, un décalage d'image peut se produire.";
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 char preset_scope_tooltip[] = "Etendue des modifications lorsqu'une mémoire est rappelée:\nMode A: Pan, Tilt, Zoom (y compris zoom numérique), Focus, Iris, Gain, valeur de réglage de la balance des blancs.\nMode B: Pan, Tilt, Zoom (y compris zoom numérique), Focus, Iris.\nMode C: Pan, Tilt, Zoom (y compris zoom numérique), Focus.";
 #else
 char preset_scope_tooltip[] = "Mode C: lorsque les OPVs rappelent une mémoire, ils ne rappellent que les valeurs de Pan, Tilt, Zoom (y compris zoom numérique) et Focus mais pas les valeurs d'Iris, de Gain, ni la valeur de réglage de la balance des blancs.";
@@ -160,7 +160,7 @@ GtkWidget *format_combo_box;
 GtkWidget *picture_level_value_label;
 char picture_level_tooltip[] = "Détermine la luminosité de l’image à atteindre avec la compensation automatique de l’exposition si [Iris Mode] est réglé sur [Auto] ou [Shutter Mode] est réglé sur [ELC] ou [Gain] est réglé sur [Auto].\nEn gros, c'est la luminosité quand on est en \"diaph auto\".";
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 GtkWidget *picture_level_scale;
 GtkWidget *tally_input_combo_box_text;
 GtkWidget *OSD_Mix_SDI_toggle_button, *OSD_Mix_HDMI_toggle_button, *OSD_Mix_Video_toggle_button, *OSD_Mix_IP_toggle_button;
@@ -177,7 +177,7 @@ char *sw_p_08_grid_txt = "Grille Snell SW-P-08";
 char *sw_p_08_rs_parameters_txt = "38400 baud, 8 bit data, no parity, one stop bit";
 
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 gboolean update_settings_parameters (void)
 {
 	int i;
@@ -635,16 +635,23 @@ void update_notification_tcp_port_entry_activate (GtkEntry *entry, GtkEntryBuffe
 	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%d", &port_sscanf);
 	port = (guint16)port_sscanf;
 
-	if ((port_sscanf < 1024) || (port_sscanf > 65535) || (port == ntohs (sw_p_08_adresse.sin_port))) {
-		update_notification_adresse.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
+	if ((port_sscanf < 1024) || (port_sscanf > 65535) || (port == ntohs (sw_p_08_address.sin_port))) {
+		update_notification_address.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
 		gtk_entry_buffer_set_text (entry_buffer, "31004", 5);
-	} else update_notification_adresse.sin_port = htons (port);
+	} else update_notification_address.sin_port = htons (port);
 
 	start_update_notification ();
 
 	for (glist_itr = rcp_start_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 		if (((rcp_t*)(glist_itr->data))->error_code != 0x30) send_update_start_cmd ((rcp_t*)(glist_itr->data));
 	}
+
+	backup_needed = TRUE;
+}
+
+void send_ip_tally_check_button_toggled (GtkToggleButton *togglebutton)
+{
+	send_ip_tally = gtk_toggle_button_get_active (togglebutton);
 
 	backup_needed = TRUE;
 }
@@ -667,9 +674,9 @@ void tsl_umd_v5_udp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_
 	port = (guint16)port_sscanf;
 
 	if ((port_sscanf < 1024) || (port_sscanf > 65535)) {
-		tsl_umd_v5_adresse.sin_port = htons (TSL_UMD_V5_UDP_PORT);
+		tsl_umd_v5_address.sin_port = htons (TSL_UMD_V5_UDP_PORT);
 		gtk_entry_buffer_set_text (entry_buffer, "8900", 5);
-	} else tsl_umd_v5_adresse.sin_port = htons (port);
+	} else tsl_umd_v5_address.sin_port = htons (port);
 
 	start_tally ();
 
@@ -698,7 +705,7 @@ void show_matrix_window (void)
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
 
-	sprintf (text, "Paramètres de liaison TCP/IP : %s:%s", my_ip_adresse, gtk_entry_get_text (GTK_ENTRY (tcp_port_entry)));
+	sprintf (text, "Paramètres de liaison TCP/IP : %s:%s", my_ip_address, gtk_entry_get_text (GTK_ENTRY (tcp_port_entry)));
 	widget = gtk_label_new (text);
 	gtk_widget_set_margin_top (widget, WINDOW_MARGIN_VALUE);
 	gtk_widget_set_margin_bottom (widget, WINDOW_MARGIN_VALUE);
@@ -787,7 +794,7 @@ void show_matrix_window (void)
 		gtk_grid_attach (GTK_GRID (grid), widget, j, 3, 1, 3);
 	}
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 	widget = gtk_label_new (" 1: CTRL ELECTRO");
 #else
 	widget = gtk_label_new (" 1: CTRL VISION");
@@ -870,10 +877,10 @@ void sw_p_08_tcp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_buf
 	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%d", &port_sscanf);
 	port = (guint16)port_sscanf;
 
-	if ((port_sscanf < 1024) || (port_sscanf > 65535) || (port == ntohs (update_notification_adresse.sin_port))) {
-		sw_p_08_adresse.sin_port = htons (SW_P_08_TCP_PORT);
+	if ((port_sscanf < 1024) || (port_sscanf > 65535) || (port == ntohs (update_notification_address.sin_port))) {
+		sw_p_08_address.sin_port = htons (SW_P_08_TCP_PORT);
 		gtk_entry_buffer_set_text (entry_buffer, "8000", 4);
-	} else sw_p_08_adresse.sin_port = htons (port);
+	} else sw_p_08_address.sin_port = htons (port);
 
 	if (start_sw_p_08_tcp_server ()) gtk_widget_show (ip_waiting_label);
 
@@ -948,10 +955,11 @@ void show_about_window (void)
 
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	gtk_container_set_border_width (GTK_CONTAINER (box), WINDOW_MARGIN_VALUE);
-		widget = gtk_label_new (application_name_txt);
+		widget = gtk_label_new (NULL);
+		gtk_label_set_markup (GTK_LABEL (widget), "<b>RCP virtuels pour caméras Panasonic AW-HE130</b>");
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
-		widget = gtk_label_new ("Version 2.0");
+		widget = gtk_label_new ("Version 3.0");
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 #ifdef _WIN32
@@ -984,7 +992,7 @@ void show_about_window (void)
 		widget = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
-		widget = gtk_label_new ("Copyright (c) 2018 2019 2020 Thomas Paillet");
+		widget = gtk_label_new ("Copyright (c) 2018-2021 Thomas Paillet");
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_label_new ("GNU General Public License version 3");
@@ -1014,7 +1022,7 @@ void create_settings_page (void)
 		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
 		gtk_container_set_border_width (GTK_CONTAINER (frame), SETTINGS_MARGIN_VALUE);
 		box2 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 		gtk_widget_set_sensitive (box2, FALSE);
 			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
@@ -1164,7 +1172,7 @@ void create_settings_page (void)
 					widget =  gtk_label_new ("Update Notification Port TCP/IP :");
 					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
 
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_adresse.sin_port)));
+					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_address.sin_port)));
 					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
 					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
 					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
@@ -1217,12 +1225,24 @@ void create_settings_page (void)
 				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
 
 				widget = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -50.0, +50.0, 1.0);
+				gtk_widget_set_margin_bottom (widget, 7);
 				gtk_scale_set_draw_value (GTK_SCALE (widget), FALSE);
 				gtk_scale_set_has_origin (GTK_SCALE (widget), FALSE);
 				gtk_range_set_value (GTK_RANGE (widget), picture_level);
 				g_signal_connect (G_OBJECT (widget), "value-changed", G_CALLBACK (picture_level_value_changed), NULL);
 				gtk_widget_set_tooltip_text (widget, picture_level_tooltip);
 				gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+
+				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					widget =  gtk_label_new ("Envoyer les tally aux caméras via IP :");
+					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+
+					widget = gtk_check_button_new ();
+					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), send_ip_tally);
+					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (send_ip_tally_check_button_toggled), NULL);
+					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
 			gtk_container_add (GTK_CONTAINER (box2), box3);
 
 			widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
@@ -1324,7 +1344,7 @@ void create_settings_page (void)
 		frame = gtk_frame_new (cameras_set_label);
 		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
 		gtk_container_set_border_width (GTK_CONTAINER (frame), SETTINGS_MARGIN_VALUE);
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 		box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 		gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
 		box2 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
@@ -1356,15 +1376,27 @@ void create_settings_page (void)
 				if (number_of_cameras_sets == 0) gtk_widget_set_sensitive (settings_delete_button, FALSE);
 				gtk_box_pack_start (GTK_BOX (box3), settings_delete_button, FALSE, FALSE, 0);
 			gtk_box_pack_end (GTK_BOX (box2), box3, FALSE, FALSE, 0);
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 			gtk_box_pack_start (GTK_BOX (box4), box2, FALSE, FALSE, 0);
+
+				box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+				gtk_widget_set_margin_top (box3, SETTINGS_MARGIN_VALUE);
+					widget =  gtk_label_new ("Envoyer les tally aux caméras via IP :");
+					gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+
+					widget = gtk_check_button_new ();
+					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), send_ip_tally);
+					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (send_ip_tally_check_button_toggled), NULL);
+					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_end (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+				gtk_box_pack_end (GTK_BOX (box4), box3, FALSE, FALSE, 0);
 
 				box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 				gtk_widget_set_margin_top (box3, SETTINGS_MARGIN_VALUE);
 					widget =  gtk_label_new ("Update Notification Port TCP/IP :");
 					gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
 
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_adresse.sin_port)));
+					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_address.sin_port)));
 					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
 					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
 					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
@@ -1393,7 +1425,7 @@ void create_settings_page (void)
 					gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
 					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
 
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (tsl_umd_v5_adresse.sin_port)));
+					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (tsl_umd_v5_address.sin_port)));
 					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
 					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
 					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
@@ -1419,11 +1451,11 @@ void create_settings_page (void)
 
 				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, my_ip_adresse);
+				gtk_widget_set_tooltip_text (box4, my_ip_address);
 					ip_radio_button = gtk_radio_button_new_with_label (NULL, "Port TCP/IP :");
 					gtk_box_pack_start (GTK_BOX (box4), ip_radio_button, FALSE, FALSE, 0);
 
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (sw_p_08_adresse.sin_port)));
+					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (sw_p_08_address.sin_port)));
 					tcp_port_entry = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
 					gtk_entry_set_input_purpose (GTK_ENTRY (tcp_port_entry), GTK_INPUT_PURPOSE_DIGITS);
 					gtk_entry_set_max_length (GTK_ENTRY (tcp_port_entry), 5);
@@ -1549,7 +1581,7 @@ void load_settings_from_config_file (void)
 	config_file = fopen (config_file_name, "rb");
 	if (config_file == NULL) return;
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 #else
 	fread (settings_parameters_indexes_array, sizeof (int), NB_SETTINGS, config_file);
 
@@ -1584,19 +1616,24 @@ void load_settings_from_config_file (void)
 	osd_mix &= 0x1B;
 #endif
 
-	fread (&update_notification_adresse.sin_port, sizeof (guint16), 1, config_file);
-	if (ntohs (update_notification_adresse.sin_port) < 1024) update_notification_adresse.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
+	fread (&update_notification_address.sin_port, sizeof (guint16), 1, config_file);
+	if (ntohs (update_notification_address.sin_port) < 1024) update_notification_address.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
 
-	fread (&sw_p_08_adresse.sin_port, sizeof (guint16), 1, config_file);
-	if ((ntohs (sw_p_08_adresse.sin_port) < 1024) || (sw_p_08_adresse.sin_port == update_notification_adresse.sin_port))
-		sw_p_08_adresse.sin_port = htons (SW_P_08_TCP_PORT);
+	fread (&send_ip_tally, sizeof (gboolean), 1, config_file);
+
+	fread (&sw_p_08_address.sin_port, sizeof (guint16), 1, config_file);
+	if ((ntohs (sw_p_08_address.sin_port) < 1024) || (sw_p_08_address.sin_port == update_notification_address.sin_port))
+		sw_p_08_address.sin_port = htons (SW_P_08_TCP_PORT);
 
 	fread (rs_port_name, sizeof (char), 16, config_file);
 	rs_port_name[15] = '\0';
 
 	fread (&ip_rs, sizeof (gboolean), 1, config_file);
 
-	fread (&tsl_umd_v5_adresse.sin_port, sizeof (guint16), 1, config_file);
+	fread (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
+
+	fread (&remote_rcp_address.sin_addr.s_addr, sizeof (in_addr_t), 1, config_file);
+	fread (&remote_rcp_address.sin_port, sizeof (guint16), 1, config_file);
 
 	fread (&theme, sizeof (gboolean), 1, config_file);
 
@@ -1664,23 +1701,23 @@ void load_cameras_set_from_config_file (void)
 			if (rcp->active) {
 				create_rcp_widgets (rcp);
 
-				fread (rcp->ip_adresse, sizeof (char), 16, config_file);
-				rcp->ip_adresse[15] = '\0';
+				fread (rcp->ip_address, sizeof (char), 16, config_file);
+				rcp->ip_address[15] = '\0';
 
 				fread (rcp->scenes, sizeof (scene_t), NB_SCENES, config_file);
 
-				rcp->adresse.sin_addr.s_addr = inet_addr (rcp->ip_adresse);
+				rcp->address.sin_addr.s_addr = inet_addr (rcp->ip_address);
 
-				if (rcp->adresse.sin_addr.s_addr == INADDR_NONE) {
-					rcp->ip_adresse_is_valid = FALSE;
-					rcp->ip_adresse[0] = '\0';
+				if (rcp->address.sin_addr.s_addr == INADDR_NONE) {
+					rcp->ip_address_is_valid = FALSE;
+					rcp->ip_address[0] = '\0';
 					g_idle_add ((GSourceFunc)set_rcp_off, rcp);
 					gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
 					cameras_set_with_error = cameras_set_tmp;
 				} else {
-					rcp->ip_adresse_is_valid = TRUE;
+					rcp->ip_address_is_valid = TRUE;
 					for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
-						if (strcmp (((rcp_t*)(glist_itr->data))->ip_adresse, rcp->ip_adresse) == 0) {
+						if (strcmp (((rcp_t*)(glist_itr->data))->ip_address, rcp->ip_address) == 0) {
 							rcp->other_rcp = g_slist_prepend (rcp->other_rcp, glist_itr->data);
 							((rcp_t*)(glist_itr->data))->other_rcp = g_slist_prepend (((rcp_t*)(glist_itr->data))->other_rcp, rcp);
 						}
@@ -1764,7 +1801,7 @@ void save_settings_and_cameras_sets_to_config_file (void)
 
 	config_file = fopen (config_file_name, "wb");
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 #else
 	fwrite (settings_parameters_indexes_array, sizeof (int), NB_SETTINGS, config_file);
 
@@ -1775,15 +1812,20 @@ void save_settings_and_cameras_sets_to_config_file (void)
 	fwrite (&osd_mix, sizeof (int), 1, config_file);
 #endif
 
-	fwrite (&update_notification_adresse.sin_port, sizeof (guint16), 1, config_file);
+	fwrite (&update_notification_address.sin_port, sizeof (guint16), 1, config_file);
 
-	fwrite (&sw_p_08_adresse.sin_port, sizeof (guint16), 1, config_file);
+	fwrite (&send_ip_tally, sizeof (gboolean), 1, config_file);
+
+	fwrite (&sw_p_08_address.sin_port, sizeof (guint16), 1, config_file);
 
 	fwrite (rs_port_name, sizeof (char), 16, config_file);
 
 	fwrite (&ip_rs, sizeof (gboolean), 1, config_file);
 
-	fwrite (&tsl_umd_v5_adresse.sin_port, sizeof (guint16), 1, config_file);
+	fwrite (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
+
+	fwrite (&remote_rcp_address.sin_addr.s_addr, sizeof (in_addr_t), 1, config_file);
+	fwrite (&remote_rcp_address.sin_port, sizeof (guint16), 1, config_file);
 
 	fwrite (&theme, sizeof (gboolean), 1, config_file);
 
@@ -1806,7 +1848,7 @@ void save_settings_and_cameras_sets_to_config_file (void)
 			fwrite (&rcp->active, sizeof (gboolean), 1, config_file);
 			fwrite (&rcp->matrix_source_number, sizeof (int), 1, config_file);
 			if (rcp->active) {
-				fwrite (rcp->ip_adresse, sizeof (char), 16, config_file);
+				fwrite (rcp->ip_address, sizeof (char), 16, config_file);
 				fwrite (rcp->scenes, sizeof (scene_t), NB_SCENES, config_file);
 			}
 		}

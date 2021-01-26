@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -41,7 +41,6 @@ GtkCssProvider *dark_css_provider;
 
 GtkWidget *main_window;
 GtkWidget *main_window_notebook;
-int switch_page_handler_id;
 
 gboolean fullscreen = TRUE;
 gboolean simple_ihm = FALSE;
@@ -49,7 +48,7 @@ gboolean simple_ihm = FALSE;
 gboolean triggered_by_master_rcp = FALSE;
 
 const char *application_name_txt = "RCP virtuels pour caméras Panasonic AW-HE130";
-const char *key_info_1_txt = "PGM -> CTRL VISION (Echap) | CAM 1 ... x -> CTRL VISION (F1 ... Fx) | Plein écran (F, Entrée) | Affichage simplifié (S, Espace) | Instantané(s) (I) | Quitter (Q, ALT + F4)";
+const char *key_info_1_txt = "PGM -> CTRL VISION (Echap) | CAM 1 ... x -> CTRL VISION (F1 ... Fx) | Plein écran (F) | Affichage simplifié (S, Espace) | Instantané(s) (I) | Quitter (Q, ALT + F4)";
 const char *key_info_2_txt = "Plein écran (F) | Quitter (Q, ALT + F4)";
 const char *warning_txt = "Attention !";
 
@@ -105,7 +104,6 @@ void show_rs_connection_error_window (void)
 
 void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, guint page_num)
 {
-	cameras_set_t *cameras_set_itr;
 	int i;
 	rcp_t *rcp, *updated_rcp, *other_rcp;
 	GSList *gslist_itr;
@@ -118,34 +116,34 @@ void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, g
 			gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->camera_set))->master_rcp.root_widget), FALSE);
 		}
 	}
+
 	if (backup_needed) save_settings_and_cameras_sets_to_config_file ();
-	if (page == scenes_page) return;
-	if (page == settings_page) return;
 
-	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-		if (cameras_set_itr->page_num == page_num) {
-			for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-				rcp = cameras_set_itr->rcp_ptr_array[i];
+	for (current_camera_set = cameras_sets; current_camera_set != NULL; current_camera_set = current_camera_set->next) {
+		if (current_camera_set->page == page) break;
+	}
 
-				if (rcp->camera_is_working) continue;
+	if (current_camera_set == NULL) return;
 
-				if (rcp->other_rcp != NULL) {
-					updated_rcp = (rcp_t*)(rcp->other_rcp->data);
+	for (i = 0; i < current_camera_set->number_of_cameras; i++) {
+		rcp = current_camera_set->rcp_ptr_array[i];
 
-					for (gslist_itr = rcp->other_rcp->next; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
-						other_rcp = (rcp_t*)(gslist_itr->data);
+		if (rcp->camera_is_working) continue;
 
-						if (other_rcp->last_time.tv_sec > updated_rcp->last_time.tv_sec) updated_rcp = other_rcp;
-						else if ((other_rcp->last_time.tv_sec == updated_rcp->last_time.tv_sec) && \
-							(other_rcp->last_time.tv_usec > updated_rcp->last_time.tv_usec)) updated_rcp = other_rcp;
-					}
+		if (rcp->other_rcp != NULL) {
+			updated_rcp = (rcp_t*)(rcp->other_rcp->data);
 
-					if (updated_rcp->last_time.tv_sec > rcp->last_time.tv_sec) copy_rcp (rcp, updated_rcp);
-					else if ((updated_rcp->last_time.tv_sec == rcp->last_time.tv_sec) && \
-						(updated_rcp->last_time.tv_usec > rcp->last_time.tv_usec)) copy_rcp (rcp, updated_rcp);
-				}
+			for (gslist_itr = rcp->other_rcp->next; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
+				other_rcp = (rcp_t*)(gslist_itr->data);
+
+				if (other_rcp->last_time.tv_sec > updated_rcp->last_time.tv_sec) updated_rcp = other_rcp;
+				else if ((other_rcp->last_time.tv_sec == updated_rcp->last_time.tv_sec) && \
+					(other_rcp->last_time.tv_usec > updated_rcp->last_time.tv_usec)) updated_rcp = other_rcp;
 			}
-			break;
+
+			if (updated_rcp->last_time.tv_sec > rcp->last_time.tv_sec) copy_rcp (rcp, updated_rcp);
+			else if ((updated_rcp->last_time.tv_sec == rcp->last_time.tv_sec) && \
+				(updated_rcp->last_time.tv_usec > rcp->last_time.tv_usec)) copy_rcp (rcp, updated_rcp);
 		}
 	}
 
@@ -163,6 +161,7 @@ void main_window_notebook_page_reordered (GtkNotebook *notebook)
 	GList *list_tmp, *list_box_row_list;
 	cameras_set_t *cameras_set_itr;
 	int i;
+	gint current_page;
 
 	if (knee_matrix_detail_popup) {
 		knee_matrix_detail_popup = FALSE;
@@ -188,7 +187,8 @@ void main_window_notebook_page_reordered (GtkNotebook *notebook)
 	gtk_list_box_invalidate_sort (GTK_LIST_BOX (source_cameras_set_list_box));
 	gtk_list_box_invalidate_sort (GTK_LIST_BOX (destination_cameras_set_list_box));
 
-	main_window_notebook_switch_page (NULL, NULL, gtk_notebook_get_current_page (GTK_NOTEBOOK (main_window_notebook)));
+	current_page = gtk_notebook_get_current_page (GTK_NOTEBOOK (main_window_notebook));
+	main_window_notebook_switch_page (NULL, gtk_notebook_get_nth_page (GTK_NOTEBOOK (main_window_notebook), current_page), current_page);
 
 	backup_needed = TRUE;
 }
@@ -252,17 +252,12 @@ gboolean show_quit_confirmation_window (void)
 
 gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 {
-	gint current_page;
-	GtkWidget *page;
 	int rcp_num, i;
 	GList *glist_itr;
 	rcp_t *rcp;
 	cameras_set_t *cameras_set_itr;
 
 	static GdkEventButton event_button = {GDK_BUTTON_PRESS, NULL, TRUE, 0, 0.0, 0.0, NULL, GDK_BUTTON1_MASK, GDK_BUTTON_PRIMARY, NULL, 0.0, 0.0};
-
-	current_page = gtk_notebook_get_current_page (GTK_NOTEBOOK (main_window_notebook));
-	page = gtk_notebook_get_nth_page (GTK_NOTEBOOK (main_window_notebook), current_page);
 
 	if ((event->keyval == GDK_KEY_q) || (event->keyval == GDK_KEY_Q)) show_quit_confirmation_window ();
 	else if ((event->keyval == GDK_KEY_f) || (event->keyval == GDK_KEY_F)) {
@@ -273,39 +268,21 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 			gtk_window_fullscreen (GTK_WINDOW (main_window));
 			fullscreen = TRUE;
 		}
-	} else if ((page != scenes_page) && (page != settings_page)) {
+	} else if (current_camera_set != NULL) {
 		if (event->keyval == GDK_KEY_Escape) ask_to_connect_pgm_to_ctrl_vision ();
 		else if ((GDK_KEY_F1 <= event->keyval) && (event->keyval <= GDK_KEY_F15)) {
-			for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-				if (cameras_set_itr->page_num == current_page) {
-					rcp_num = event->keyval - GDK_KEY_F1;
-					if (rcp_num >= cameras_set_itr->number_of_cameras) rcp_num = cameras_set_itr->number_of_cameras - 1;
-					rcp_button_press_event (NULL, NULL, cameras_set_itr->rcp_ptr_array[rcp_num]);
-					break;
-				}
-			}
+			rcp_num = event->keyval - GDK_KEY_F1;
+			if (rcp_num >= current_camera_set->number_of_cameras) rcp_num = current_camera_set->number_of_cameras - 1;
+			rcp_button_press_event (NULL, NULL, current_camera_set->rcp_ptr_array[rcp_num]);
 		} else if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
-			for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-				if (cameras_set_itr->page_num == current_page) {
-					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						if (cameras_set_itr->rcp_ptr_array[i]->active) {
-							gtk_widget_hide (cameras_set_itr->rcp_ptr_array[i]->scenes_bank_1_box);
-							gtk_widget_show (cameras_set_itr->rcp_ptr_array[i]->scenes_bank_2_box);
-						}
-					}
-					gtk_widget_hide (cameras_set_itr->master_rcp.scenes_bank_1_box);
-					gtk_widget_show (cameras_set_itr->master_rcp.scenes_bank_2_box);
-					break;
+			for (i = 0; i < current_camera_set->number_of_cameras; i++) {
+				if (current_camera_set->rcp_ptr_array[i]->active) {
+					gtk_widget_hide (current_camera_set->rcp_ptr_array[i]->scenes_bank_1_box);
+					gtk_widget_show (current_camera_set->rcp_ptr_array[i]->scenes_bank_2_box);
 				}
 			}
-		} else if ((event->keyval == GDK_KEY_Return)  || (event->keyval == GDK_KEY_KP_Enter)) {
-			if (fullscreen) {
-				gtk_window_unfullscreen (GTK_WINDOW (main_window));
-				fullscreen = FALSE;
-			} else {
-				gtk_window_fullscreen (GTK_WINDOW (main_window));
-				fullscreen = TRUE;
-			}
+			gtk_widget_hide (current_camera_set->master_rcp.scenes_bank_1_box);
+			gtk_widget_show (current_camera_set->master_rcp.scenes_bank_2_box);
 		} else if ((event->keyval == GDK_KEY_s) || (event->keyval == GDK_KEY_S) || (event->keyval == GDK_KEY_space)) {
 			if (simple_ihm) {
 				for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -383,17 +360,12 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 					rcp_vision->thread = g_thread_new (NULL, (GThreadFunc)send_jpeg_image_request_cmd, rcp_vision);
 				}
 			} else {
-				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-					if (cameras_set_itr->page_num == current_page) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
+				for (i = 0; i < current_camera_set->number_of_cameras; i++) {
+					rcp = current_camera_set->rcp_ptr_array[i];
 
-							if ((rcp->active) && (rcp->camera_is_on) && (!rcp->camera_is_working)) {
-								if (rcp->thread != NULL) g_thread_join (rcp->thread);
-								rcp->thread = g_thread_new (NULL, (GThreadFunc)send_jpeg_image_request_cmd, rcp);
-							}
-						}
-						break;
+					if ((rcp->active) && (rcp->camera_is_on) && (!rcp->camera_is_working)) {
+						if (rcp->thread != NULL) g_thread_join (rcp->thread);
+						rcp->thread = g_thread_new (NULL, (GThreadFunc)send_jpeg_image_request_cmd, rcp);
 					}
 				}
 			}
@@ -433,8 +405,6 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 
 gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 {
-	gint current_page;
-	cameras_set_t *cameras_set_itr;
 	int i;
 
 	if (rcp_vision != NULL) {
@@ -444,21 +414,16 @@ gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 		else if (event->keyval == GDK_KEY_Left) remove_timeout (rcp_vision->iris_minus_1_button, NULL, rcp_vision);
 	}
 
-	current_page = gtk_notebook_get_current_page (GTK_NOTEBOOK (main_window_notebook));
-
 	if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
-		for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-			if (cameras_set_itr->page_num == current_page) {
-				for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-					if (cameras_set_itr->rcp_ptr_array[i]->active) {
-						gtk_widget_hide (cameras_set_itr->rcp_ptr_array[i]->scenes_bank_2_box);
-						gtk_widget_show (cameras_set_itr->rcp_ptr_array[i]->scenes_bank_1_box);
-					}
+		if (current_camera_set != NULL) {
+			for (i = 0; i < current_camera_set->number_of_cameras; i++) {
+				if (current_camera_set->rcp_ptr_array[i]->active) {
+					gtk_widget_hide (current_camera_set->rcp_ptr_array[i]->scenes_bank_2_box);
+					gtk_widget_show (current_camera_set->rcp_ptr_array[i]->scenes_bank_1_box);
 				}
-				gtk_widget_hide (cameras_set_itr->master_rcp.scenes_bank_2_box);
-				gtk_widget_show (cameras_set_itr->master_rcp.scenes_bank_1_box);
-				break;
 			}
+			gtk_widget_hide (current_camera_set->master_rcp.scenes_bank_2_box);
+			gtk_widget_show (current_camera_set->master_rcp.scenes_bank_1_box);
 		}
 	}
 
@@ -484,7 +449,7 @@ void create_main_window (void)
 
 	main_window_notebook = gtk_notebook_new ();
 	gtk_notebook_set_scrollable (GTK_NOTEBOOK (main_window_notebook), TRUE);
-	switch_page_handler_id = g_signal_connect (G_OBJECT (main_window_notebook), "switch-page", G_CALLBACK (main_window_notebook_switch_page), NULL);
+	g_signal_connect (G_OBJECT (main_window_notebook), "switch-page", G_CALLBACK (main_window_notebook_switch_page), NULL);
 	g_signal_connect (G_OBJECT (main_window_notebook), "page-reordered", G_CALLBACK (main_window_notebook_page_reordered), NULL);
 
 	gtk_container_add (GTK_CONTAINER (main_window), main_window_notebook);
@@ -523,6 +488,8 @@ int main (int argc, char** argv)
 	init_tally ();
 
 	init_sw_p_08 ();
+
+	init_physical_rcp ();
 
 	screen = gdk_screen_get_default ();
 
@@ -645,6 +612,8 @@ int main (int argc, char** argv)
 	start_tally ();
 
 	start_sw_p_08 ();
+
+	start_physical_rcp ();
 
 	gtk_main ();
 

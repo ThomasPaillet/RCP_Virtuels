@@ -1,6 +1,5 @@
 button:active,
 button:checked {
-	background-color: #ffae00;
-	background-image: none;
+	background-image: image(rgb(255,174,0));;
 }
 

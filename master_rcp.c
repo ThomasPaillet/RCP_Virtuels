@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
 
  * This file is part of RCP-Virtuels.
 
@@ -222,7 +222,7 @@ void on_standby_master_switch_activated (GtkSwitch *on_standby_switch, GParamSpe
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
 		rcp = cameras_set->rcp_ptr_array[i];
 
-		if (!rcp->ip_adresse_is_valid) continue;
+		if (!rcp->ip_address_is_valid) continue;
 
 		if (gtk_widget_is_sensitive (rcp->on_standby_switch)) gtk_switch_set_active (GTK_SWITCH (rcp->on_standby_switch), active);
 	}
