@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -25,15 +25,15 @@
 extern GtkCssProvider *css_provider_pedestal_red, *css_provider_pedestal_green, *css_provider_pedestal_blue, *css_provider_raz;
 
 
-#define set_r_pedestal_label(r)
-
 #define MIN_VALUE 0x032
 #define MAX_VALUE 0x0FA
+
+#define set_r_pedestal_label(r)
 
 #undef SEND_CMD_POST_ACTION
 #define SEND_CMD_POST_ACTION rcp->r_pedestal_need_update = FALSE;
 
-CAM_CMD_FUNCS(r_pedestal,"ORP:",3)
+CAM_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(r_pedestal,"ORP:",3)
 
 gboolean set_g_pedestal_delayed (rcp_t *rcp)
 {
@@ -41,11 +41,26 @@ gboolean set_g_pedestal_delayed (rcp_t *rcp)
 		if (rcp->r_pedestal_need_update) {
 			send_cam_control_command_3_digits (rcp, "ORP:", rcp->current_scene.r_pedestal, FALSE);
 			rcp->r_pedestal_need_update = FALSE;
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+				send_r_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			if (!rcp->b_pedestal_need_update) rcp->need_last_call = FALSE;
 		} else {
 			if (rcp->b_pedestal_need_update) {
 				send_cam_control_command_3_digits (rcp, "OBP:", rcp->current_scene.b_pedestal, FALSE);
 				rcp->b_pedestal_need_update = FALSE;
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			}
 			rcp->need_last_call = FALSE;
 		}
@@ -53,11 +68,26 @@ gboolean set_g_pedestal_delayed (rcp_t *rcp)
 		if (rcp->b_pedestal_need_update) {
 			send_cam_control_command_3_digits (rcp, "OBP:", rcp->current_scene.b_pedestal, FALSE);
 			rcp->b_pedestal_need_update = FALSE;
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+				send_b_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			if (!rcp->r_pedestal_need_update) rcp->need_last_call = FALSE;
 		} else {
 			if (rcp->r_pedestal_need_update) {
 				send_cam_control_command_3_digits (rcp, "ORP:", rcp->current_scene.r_pedestal, FALSE);
 				rcp->r_pedestal_need_update = FALSE;
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+					send_r_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			}
 			rcp->need_last_call = FALSE;
 		}
@@ -82,8 +112,8 @@ void g_pedestal_value_changed (GtkRange *g_pedestal_scale, rcp_t *rcp)
 
 	if (rcp->g_pedestal != g_pedestal) {
 		r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (r_pedestal < 0x032) r_pedestal = 0x032;
-		else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+		if (r_pedestal < 0x000) r_pedestal = 0x000;
+		else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 		if (rcp->current_scene.r_pedestal != r_pedestal) {
 			rcp->current_scene.r_pedestal = r_pedestal;
 			rcp->r_pedestal_need_update = TRUE;
@@ -93,8 +123,8 @@ void g_pedestal_value_changed (GtkRange *g_pedestal_scale, rcp_t *rcp)
 		}
 
 		b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (b_pedestal < 0x032) b_pedestal = 0x032;
-		else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+		if (b_pedestal < 0x000) b_pedestal = 0x000;
+		else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 		if (rcp->current_scene.b_pedestal != b_pedestal) {
 			rcp->current_scene.b_pedestal = b_pedestal;
 			rcp->b_pedestal_need_update = TRUE;
@@ -121,6 +151,14 @@ void g_pedestal_value_changed (GtkRange *g_pedestal_scale, rcp_t *rcp)
 				if (rcp->r_pedestal_need_update) {
 					send_cam_control_command_3_digits (rcp, "ORP:", rcp->current_scene.r_pedestal, FALSE);
 					rcp->r_pedestal_need_update = FALSE;
+
+					if (physical_rcp.connected && (rcp == rcp_vision)) {
+						g_mutex_lock (&physical_rcp.mutex);
+						physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+						send_r_pedestal_update_notification ();
+						g_mutex_unlock (&physical_rcp.mutex);
+					}
+
 					if (rcp->b_pedestal_need_update) {
 						rcp->need_last_call = FALSE;
 						rcp->timeout_id = g_timeout_add (130, (GSourceFunc)set_g_pedestal_delayed, rcp);
@@ -128,11 +166,26 @@ void g_pedestal_value_changed (GtkRange *g_pedestal_scale, rcp_t *rcp)
 				} else if (rcp->b_pedestal_need_update) {
 					send_cam_control_command_3_digits (rcp, "OBP:", rcp->current_scene.b_pedestal, FALSE);
 					rcp->b_pedestal_need_update = FALSE;
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 				}
 			} else {
 				if (rcp->b_pedestal_need_update) {
 					send_cam_control_command_3_digits (rcp, "OBP:", rcp->current_scene.b_pedestal, FALSE);
 					rcp->b_pedestal_need_update = FALSE;
+
+					if (physical_rcp.connected && (rcp == rcp_vision)) {
+						g_mutex_lock (&physical_rcp.mutex);
+						physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+						send_b_pedestal_update_notification ();
+						g_mutex_unlock (&physical_rcp.mutex);
+					}
+
 					if (rcp->r_pedestal_need_update) {
 						rcp->need_last_call = FALSE;
 						rcp->timeout_id = g_timeout_add (130, (GSourceFunc)set_g_pedestal_delayed, rcp);
@@ -140,6 +193,13 @@ void g_pedestal_value_changed (GtkRange *g_pedestal_scale, rcp_t *rcp)
 				} else if (rcp->r_pedestal_need_update) {
 					send_cam_control_command_3_digits (rcp, "ORP:", rcp->current_scene.r_pedestal, FALSE);
 					rcp->r_pedestal_need_update = FALSE;
+
+					if (physical_rcp.connected && (rcp == rcp_vision)) {
+						g_mutex_lock (&physical_rcp.mutex);
+						physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+						send_r_pedestal_update_notification ();
+						g_mutex_unlock (&physical_rcp.mutex);
+					}
 				}
 			}
 
@@ -153,13 +213,13 @@ gboolean g_pedestal_button_held (rcp_t *rcp)
 	int r_pedestal, g_pedestal, b_pedestal;
 
 	g_pedestal = rcp->g_pedestal + rcp->timeout_value;
-	if (g_pedestal > 0x0FA) g_pedestal = 0x0FA;
-	else if (g_pedestal < 0x032) g_pedestal = 0x032;
+	if (g_pedestal > 0x12C) g_pedestal = 0x12C;
+	else if (g_pedestal < 0x000) g_pedestal = 0x000;
 
 	if (rcp->r_b) {
 		r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (r_pedestal < 0x032) r_pedestal = 0x032;
-		else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+		if (r_pedestal < 0x000) r_pedestal = 0x000;
+		else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 		if (rcp->current_scene.r_pedestal != r_pedestal) {
 			rcp->current_scene.r_pedestal = r_pedestal;
 			g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -167,10 +227,17 @@ gboolean g_pedestal_button_held (rcp_t *rcp)
 			g_signal_handler_unblock (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
 
 			send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, FALSE);
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+				send_r_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
 		} else {
 			b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (b_pedestal < 0x032) b_pedestal = 0x032;
-			else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+			if (b_pedestal < 0x000) b_pedestal = 0x000;
+			else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 			if (rcp->current_scene.b_pedestal != b_pedestal) {
 				rcp->current_scene.b_pedestal = b_pedestal;
 				g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -179,6 +246,13 @@ gboolean g_pedestal_button_held (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 				send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, FALSE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			} else {
 				rcp->timeout_id = 0;
 				return G_SOURCE_REMOVE;
@@ -187,8 +261,8 @@ gboolean g_pedestal_button_held (rcp_t *rcp)
 		rcp->r_b = FALSE;
 	} else {
 		b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (b_pedestal < 0x032) b_pedestal = 0x032;
-		else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+		if (b_pedestal < 0x000) b_pedestal = 0x000;
+		else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 		if (rcp->current_scene.b_pedestal != b_pedestal) {
 			rcp->current_scene.b_pedestal = b_pedestal;
 			g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -196,10 +270,17 @@ gboolean g_pedestal_button_held (rcp_t *rcp)
 			g_signal_handler_unblock (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
 
 			send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, FALSE);
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+				send_b_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
 		} else {
 			r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (r_pedestal < 0x032) r_pedestal = 0x032;
-			else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+			if (r_pedestal < 0x000) r_pedestal = 0x000;
+			else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 			if (rcp->current_scene.r_pedestal != r_pedestal) {
 				rcp->current_scene.r_pedestal = r_pedestal;
 				g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -208,6 +289,13 @@ gboolean g_pedestal_button_held (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 				send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, FALSE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+					send_r_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			} else {
 				rcp->timeout_id = 0;
 				return G_SOURCE_REMOVE;
@@ -239,11 +327,11 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 	if (event->button == GDK_BUTTON_SECONDARY) {
 		gtk_widget_set_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE, FALSE);
 		g_pedestal = rcp->g_pedestal - 10;
-		if (g_pedestal < 0x032) g_pedestal = 0x032;
+		if (g_pedestal < 0x000) g_pedestal = 0x000;
 		rcp->timeout_value = -10;
 	} else {
 		g_pedestal = rcp->g_pedestal + 10;
-		if (g_pedestal > 0x0FA) g_pedestal = 0x0FA;
+		if (g_pedestal > 0x12C) g_pedestal = 0x12C;
 		rcp->timeout_value = 10;
 	}
 
@@ -254,8 +342,8 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 
 	if (rcp->r_b) {
 		r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (r_pedestal < 0x032) r_pedestal = 0x032;
-		else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+		if (r_pedestal < 0x000) r_pedestal = 0x000;
+		else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 		if (rcp->current_scene.r_pedestal != r_pedestal) {
 			rcp->current_scene.r_pedestal = r_pedestal;
 			g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -264,12 +352,19 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 
 			send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+				send_r_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (b_pedestal < 0x032) b_pedestal = 0x032;
-			else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+			if (b_pedestal < 0x000) b_pedestal = 0x000;
+			else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 			if (rcp->current_scene.b_pedestal != b_pedestal) {
 				rcp->current_scene.b_pedestal = b_pedestal;
 				g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -278,6 +373,13 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 
 				send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
+
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 			}
@@ -285,8 +387,8 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 		rcp->r_b = FALSE;
 	} else {
 		b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (b_pedestal < 0x032) b_pedestal = 0x032;
-		else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+		if (b_pedestal < 0x000) b_pedestal = 0x000;
+		else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 		if (rcp->current_scene.b_pedestal != b_pedestal) {
 			rcp->current_scene.b_pedestal = b_pedestal;
 			g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -295,12 +397,19 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 
 			send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+				send_b_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (r_pedestal < 0x032) r_pedestal = 0x032;
-			else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+			if (r_pedestal < 0x000) r_pedestal = 0x000;
+			else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 			if (rcp->current_scene.r_pedestal != r_pedestal) {
 				rcp->current_scene.r_pedestal = r_pedestal;
 				g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -308,6 +417,13 @@ gboolean g_pedestal_plus_10_button_pressed (GtkButton *button, GdkEventButton *e
 				g_signal_handler_unblock (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+					send_r_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
@@ -329,11 +445,11 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 	if (event->button == GDK_BUTTON_SECONDARY) {
 		gtk_widget_set_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE, FALSE);
 		g_pedestal = rcp->g_pedestal - 1;
-		if (g_pedestal < 0x032) g_pedestal = 0x032;
+		if (g_pedestal < 0x000) g_pedestal = 0x000;
 		rcp->timeout_value = -1;
 	} else {
 		g_pedestal = rcp->g_pedestal + 1;
-		if (g_pedestal > 0x0FA) g_pedestal = 0x0FA;
+		if (g_pedestal > 0x12C) g_pedestal = 0x12C;
 		rcp->timeout_value = 1;
 	}
 
@@ -344,8 +460,8 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 
 	if (rcp->r_b) {
 		r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (r_pedestal < 0x032) r_pedestal = 0x032;
-		else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+		if (r_pedestal < 0x000) r_pedestal = 0x000;
+		else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 		if (rcp->current_scene.r_pedestal != r_pedestal) {
 			rcp->current_scene.r_pedestal = r_pedestal;
 			g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -354,12 +470,19 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 
 			send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+				send_r_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (b_pedestal < 0x032) b_pedestal = 0x032;
-			else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+			if (b_pedestal < 0x000) b_pedestal = 0x000;
+			else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 			if (rcp->current_scene.b_pedestal != b_pedestal) {
 				rcp->current_scene.b_pedestal = b_pedestal;
 				g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -368,6 +491,13 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 
 				send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
+
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 			}
@@ -375,8 +505,8 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 		rcp->r_b = FALSE;
 	} else {
 		b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (b_pedestal < 0x032) b_pedestal = 0x032;
-		else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+		if (b_pedestal < 0x000) b_pedestal = 0x000;
+		else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 		if (rcp->current_scene.b_pedestal != b_pedestal) {
 			rcp->current_scene.b_pedestal = b_pedestal;
 			g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -385,12 +515,19 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 
 			send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+				send_b_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (r_pedestal < 0x032) r_pedestal = 0x032;
-			else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+			if (r_pedestal < 0x000) r_pedestal = 0x000;
+			else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 			if (rcp->current_scene.r_pedestal != r_pedestal) {
 				rcp->current_scene.r_pedestal = r_pedestal;
 				g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -398,6 +535,13 @@ gboolean g_pedestal_plus_1_button_pressed (GtkButton *button, GdkEventButton *ev
 				g_signal_handler_unblock (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+					send_r_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
@@ -419,11 +563,11 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 	if (event->button == GDK_BUTTON_SECONDARY) {
 		gtk_widget_set_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE, FALSE);
 		g_pedestal = rcp->g_pedestal + 1;
-		if (g_pedestal > 0x0FA) g_pedestal = 0x0FA;
+		if (g_pedestal > 0x12C) g_pedestal = 0x12C;
 		rcp->timeout_value = 1;
 	} else {
 		g_pedestal = rcp->g_pedestal - 1;
-		if (g_pedestal < 0x032) g_pedestal = 0x032;
+		if (g_pedestal < 0x000) g_pedestal = 0x000;
 		rcp->timeout_value = -1;
 	}
 
@@ -434,8 +578,8 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 
 	if (rcp->r_b) {
 		r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (r_pedestal < 0x032) r_pedestal = 0x032;
-		else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+		if (r_pedestal < 0x000) r_pedestal = 0x000;
+		else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 		if (rcp->current_scene.r_pedestal != r_pedestal) {
 			rcp->current_scene.r_pedestal = r_pedestal;
 			g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -444,12 +588,19 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 
 			send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+				send_r_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (b_pedestal < 0x032) b_pedestal = 0x032;
-			else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+			if (b_pedestal < 0x000) b_pedestal = 0x000;
+			else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 			if (rcp->current_scene.b_pedestal != b_pedestal) {
 				rcp->current_scene.b_pedestal = b_pedestal;
 				g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -458,6 +609,13 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 
 				send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
+
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 			}
@@ -465,8 +623,8 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 		rcp->r_b = FALSE;
 	} else {
 		b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (b_pedestal < 0x032) b_pedestal = 0x032;
-		else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+		if (b_pedestal < 0x000) b_pedestal = 0x000;
+		else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 		if (rcp->current_scene.b_pedestal != b_pedestal) {
 			rcp->current_scene.b_pedestal = b_pedestal;
 			g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -475,12 +633,19 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 
 			send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+				send_b_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (r_pedestal < 0x032) r_pedestal = 0x032;
-			else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+			if (r_pedestal < 0x000) r_pedestal = 0x000;
+			else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 			if (rcp->current_scene.r_pedestal != r_pedestal) {
 				rcp->current_scene.r_pedestal = r_pedestal;
 				g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -488,6 +653,13 @@ gboolean g_pedestal_minus_1_button_pressed (GtkButton *button, GdkEventButton *e
 				g_signal_handler_unblock (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+					send_r_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
@@ -509,11 +681,11 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 	if (event->button == GDK_BUTTON_SECONDARY) {
 		gtk_widget_set_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE, FALSE);
 		g_pedestal = rcp->g_pedestal + 10;
-		if (g_pedestal > 0x0FA) g_pedestal = 0x0FA;
+		if (g_pedestal > 0x12C) g_pedestal = 0x12C;
 		rcp->timeout_value = 10;
 	} else {
 		g_pedestal = rcp->g_pedestal - 10;
-		if (g_pedestal < 0x032) g_pedestal = 0x032;
+		if (g_pedestal < 0x000) g_pedestal = 0x000;
 		rcp->timeout_value = -10;
 	}
 
@@ -524,8 +696,8 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 
 	if (rcp->r_b) {
 		r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (r_pedestal < 0x032) r_pedestal = 0x032;
-		else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+		if (r_pedestal < 0x000) r_pedestal = 0x000;
+		else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 		if (rcp->current_scene.r_pedestal != r_pedestal) {
 			rcp->current_scene.r_pedestal = r_pedestal;
 			g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -534,12 +706,19 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 
 			send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+				send_r_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (b_pedestal < 0x032) b_pedestal = 0x032;
-			else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+			if (b_pedestal < 0x000) b_pedestal = 0x000;
+			else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 			if (rcp->current_scene.b_pedestal != b_pedestal) {
 				rcp->current_scene.b_pedestal = b_pedestal;
 				g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -548,6 +727,13 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 
 				send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+					send_b_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
+
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 			}
@@ -555,8 +741,8 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 		rcp->r_b = FALSE;
 	} else {
 		b_pedestal = rcp->current_scene.b_pedestal - (g_pedestal - rcp->g_pedestal);
-		if (b_pedestal < 0x032) b_pedestal = 0x032;
-		else if (b_pedestal > 0x0FA) b_pedestal = 0x0FA;
+		if (b_pedestal < 0x000) b_pedestal = 0x000;
+		else if (b_pedestal > 0x12C) b_pedestal = 0x12C;
 		if (rcp->current_scene.b_pedestal != b_pedestal) {
 			rcp->current_scene.b_pedestal = b_pedestal;
 			g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
@@ -565,12 +751,19 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 
 			send_cam_control_command_3_digits (rcp, "OBP:", b_pedestal, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_pedestal = rcp->current_scene.b_pedestal;
+				send_b_pedestal_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
 		} else {
 			r_pedestal = rcp->current_scene.r_pedestal - (g_pedestal - rcp->g_pedestal);
-			if (r_pedestal < 0x032) r_pedestal = 0x032;
-			else if (r_pedestal > 0x0FA) r_pedestal = 0x0FA;
+			if (r_pedestal < 0x000) r_pedestal = 0x000;
+			else if (r_pedestal > 0x12C) r_pedestal = 0x12C;
 			if (rcp->current_scene.r_pedestal != r_pedestal) {
 				rcp->current_scene.r_pedestal = r_pedestal;
 				g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
@@ -578,6 +771,13 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 				g_signal_handler_unblock (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORP:", r_pedestal, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_pedestal = rcp->current_scene.r_pedestal;
+					send_r_pedestal_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_pedestal_button_held, rcp);
@@ -597,16 +797,21 @@ gboolean g_pedestal_minus_10_button_pressed (GtkButton *button, GdkEventButton *
 #undef SEND_CMD_POST_ACTION
 #define SEND_CMD_POST_ACTION rcp->b_pedestal_need_update = FALSE;
 
-CAM_CMD_FUNCS(b_pedestal,"OBP:",3)
+CAM_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(b_pedestal,"OBP:",3)
+
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void black_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	SET_RCP_SCALE(r_pedestal,R_PEDESTAL_DEFAULT)
+	gtk_range_set_value (GTK_RANGE (rcp->r_pedestal_scale), R_PEDESTAL_DEFAULT);
+
+	rcp->g_pedestal = G_PEDESTAL_DEFAULT;
 	g_signal_handler_block (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (rcp->g_pedestal_scale), G_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
-	rcp->g_pedestal = G_PEDESTAL_DEFAULT;
-	SET_RCP_SCALE(b_pedestal,B_PEDESTAL_DEFAULT)
+
+	gtk_range_set_value (GTK_RANGE (rcp->b_pedestal_scale), B_PEDESTAL_DEFAULT);
 }
 
 GtkWidget *create_black_frame (rcp_t *rcp)

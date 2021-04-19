@@ -1,9 +1,9 @@
 /* Buttons */
 
 button {
-	border: 1px solid shade(#00ff00, 0.95);
-	border-top-color: #00ff00;
-	border-bottom-color: shade(#00ff00, 0.9);
+	border: 1px solid shade(@green_gain_color, 0.95);
+	border-top-color: @green_gain_color;
+	border-bottom-color: shade(@green_gain_color, 0.9);
 }
 
 button:disabled {
@@ -15,7 +15,7 @@ button:disabled {
 /* Scale */
 
 scale trough {
-	background-color: #00ff00;
+	background-color: @green_gain_color;
 }
 
 scale:disabled trough {

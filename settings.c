@@ -1,5 +1,5 @@
-/*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+﻿/*
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -25,8 +25,8 @@
 
 
 #ifdef _WIN32
-extern GdkPixbuf *pixbuf_grille_1_light, *pixbuf_grille_2_light;
-extern GdkPixbuf *pixbuf_grille_1_dark, *pixbuf_grille_2_dark;
+extern GdkPixbuf *pixbuf_grille_1_light, *pixbuf_grille_2_light, *pixbuf_grille_3_light, *pixbuf_grille_4_light;
+extern GdkPixbuf *pixbuf_grille_1_dark, *pixbuf_grille_2_dark, *pixbuf_grille_3_dark, *pixbuf_grille_4_dark;
 
 extern GdkPixbuf *pixbuf_logo_light;
 extern GdkPixbuf *pixbuf_logo_dark;
@@ -38,11 +38,7 @@ FILE *config_file = NULL;
 
 gboolean backup_needed = FALSE;
 
-gboolean format_is_50Hz = TRUE;
-fps_t output_fps = _50fps;
-
 GList *rcp_glist = NULL;
-GMutex rcp_start_glist_mutex;
 GList *rcp_start_glist = NULL;
 GList *ghost_rcp_glist = NULL;
 
@@ -138,13 +134,16 @@ int settings_parameters_indexes_array[NB_SETTINGS];
 #define WHITE_CLIP_LEVEL_COMBO_BOX settings_array[7].combo_box
 
 
+gboolean format_is_50Hz = TRUE;
+fps_t output_fps = _50fps;
+
 int picture_level = 0;
 
 int tally_input = 1;
 
 int osd_mix = 0x1A;		//SDI Off HDMI On Video On IP On
 
-gboolean theme = TRUE;
+gboolean theme = FALSE;
 
 gboolean show_master_rcp = TRUE;
 
@@ -312,6 +311,8 @@ gpointer check_cameras_settings_ro (void)
 
 	usleep (2000000);
 
+g_mutex_lock (&cameras_sets_mutex);
+
 	for (glist_itr = rcp_start_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 		rcp = (rcp_t*)(glist_itr->data);
 
@@ -362,6 +363,8 @@ gpointer check_cameras_settings_ro (void)
 		}
 	}
 
+g_mutex_unlock (&cameras_sets_mutex);
+
 	return NULL;
 }
 #else
@@ -383,7 +386,7 @@ void check_camera_settings (rcp_t *rcp)
 		send_cam_request_command_string (rcp, settings_array[1].query_cmd, response_string);
 		if (strcmp (response_string, settings_array[1].answers[settings_parameters_indexes_array[1]]) != 0) {
 			send_cam_control_command_string (rcp, settings_array[1].control_cmd, settings_array[1].parameters[settings_parameters_indexes_array[1]].value);
-			usleep (45000000);
+			usleep (30000000);
 		}
 	}
 
@@ -407,20 +410,13 @@ void check_camera_settings (rcp_t *rcp)
 	}
 }
 
-gpointer wait_reboot (rcp_t *rcp)
-{
-	usleep (30000000);
-	g_idle_add ((GSourceFunc)rcp_work_end, rcp);
-
-	return NULL;
-}
-
 void parameter_changed (GtkComboBox *combo_box, int *parameter)
 {
 	int active_item, offset, i;
 	cameras_set_t *cameras_set_tmp;
 	GList *glist_itr;
 	rcp_t *rcp;
+	GSList *gslist_itr;
 
 	active_item = gtk_combo_box_get_active (combo_box);
 
@@ -433,7 +429,15 @@ void parameter_changed (GtkComboBox *combo_box, int *parameter)
 
 		if (rcp->camera_is_on) {
 			send_cam_control_command_string (rcp, settings_array[offset].control_cmd, settings_array[offset].parameters[active_item].value);
-			if ((offset == 0) || (offset == 1)) rcp_work_start (rcp, (GThreadFunc)wait_reboot);
+			if ((offset == 0) || (offset == 1)) {
+				rcp_work_start (rcp);
+				g_timeout_add (45000, (GSourceFunc)rcp_work_end, rcp);
+
+				for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
+					rcp_work_start ((rcp_t*)(gslist_itr->data));
+					g_timeout_add (45000, (GSourceFunc)rcp_work_end, gslist_itr->data);
+				}
+			}
 		}
 	}
 
@@ -458,6 +462,12 @@ void parameter_changed (GtkComboBox *combo_box, int *parameter)
 		for (i = 0; i < settings_array[1].nb_parameters; i++) {
 			gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (settings_array[1].combo_box), settings_array[1].parameters[i].label);
 		}
+
+		if (physical_rcp.connected) {
+			g_mutex_lock (&physical_rcp.mutex);
+			send_frequency_update_notification ();
+			g_mutex_unlock (&physical_rcp.mutex);
+		}
 	}
 
 	if (offset < 2) {
@@ -476,6 +486,12 @@ void parameter_changed (GtkComboBox *combo_box, int *parameter)
 					populate_shutter_step_combo_box (GTK_COMBO_BOX_TEXT (cameras_set_tmp->rcp_ptr_array[i]->shutter_step_combo_box));
 			}
 		}
+	}
+
+	if ((offset == 1) && (physical_rcp.connected)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		send_format_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
 	}
 
 	if (offset == 6) {
@@ -508,6 +524,12 @@ void picture_level_value_changed (GtkRange *picture_level_scale)
 		else {
 			sprintf (label, "%+d", picture_level);
 			gtk_label_set_text (GTK_LABEL (picture_level_value_label), label);
+		}
+
+		if (physical_rcp.connected) {
+			g_mutex_lock (&physical_rcp.mutex);
+			send_picture_level_update_notification ();
+			g_mutex_unlock (&physical_rcp.mutex);
 		}
 
 		backup_needed = TRUE;
@@ -626,16 +648,14 @@ void show_delete_confirmation_window (void)
 
 void update_notification_tcp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_buffer)
 {
-	int port_sscanf;
 	guint16 port;
 	GList *glist_itr;
 
 	stop_update_notification ();
 
-	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%d", &port_sscanf);
-	port = (guint16)port_sscanf;
+	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%hu", &port);
 
-	if ((port_sscanf < 1024) || (port_sscanf > 65535) || (port == ntohs (sw_p_08_address.sin_port))) {
+	if ((port < 1024) || (port > 65535) || (port == ntohs (sw_p_08_address.sin_port)) || (port == ntohs (physical_rcp.address.sin_port))) {
 		update_notification_address.sin_port = htons (UPDATE_NOTIFICATION_TCP_PORT);
 		gtk_entry_buffer_set_text (entry_buffer, "31004", 5);
 	} else update_notification_address.sin_port = htons (port);
@@ -656,6 +676,24 @@ void send_ip_tally_check_button_toggled (GtkToggleButton *togglebutton)
 	backup_needed = TRUE;
 }
 
+void physical_rcp_tcp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_buffer)
+{
+	guint16 port;
+
+	stop_physical_rcp ();
+
+	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%hu", &port);
+
+	if ((port < 1024) || (port > 65535) || (port == ntohs (sw_p_08_address.sin_port)) || (port == ntohs (update_notification_address.sin_port))) {
+		physical_rcp.address.sin_port = htons (PHYSICAL_RCP_TCP_PORT);
+		gtk_entry_buffer_set_text (entry_buffer, "9000", 4);
+	} else physical_rcp.address.sin_port = htons (port);
+
+	start_physical_rcp ();
+
+	backup_needed = TRUE;
+}
+
 gboolean escape_key_press (GtkWidget *window, GdkEventKey *event)
 {
 	if (event->keyval == GDK_KEY_Escape) gtk_widget_destroy (window);
@@ -665,15 +703,13 @@ gboolean escape_key_press (GtkWidget *window, GdkEventKey *event)
 
 void tsl_umd_v5_udp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_buffer)
 {
-	int port_sscanf;
 	guint16 port;
 
 	stop_tally ();
 
-	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%d", &port_sscanf);
-	port = (guint16)port_sscanf;
+	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%hu", &port);
 
-	if ((port_sscanf < 1024) || (port_sscanf > 65535)) {
+	if ((port < 1024) || (port > 65535)) {
 		tsl_umd_v5_address.sin_port = htons (TSL_UMD_V5_UDP_PORT);
 		gtk_entry_buffer_set_text (entry_buffer, "8900", 5);
 	} else tsl_umd_v5_address.sin_port = htons (port);
@@ -685,12 +721,9 @@ void tsl_umd_v5_udp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_
 
 void show_matrix_window (void)
 {
-	GtkWidget *window, *scrolled_window, *box, *grid, *widget;
-	int i, j, k;
+	GtkWidget *window, *box, *grid, *widget;
+	int i, j;
 	char text[128];
-	cameras_set_t *cameras_set_tmp;
-	rcp_t *rcp;
-	gint main_window_width, main_window_height, window_width, window_height, root_x, root_y;
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 	gtk_window_set_type_hint (GTK_WINDOW (window), GDK_WINDOW_TYPE_HINT_DIALOG);
@@ -723,67 +756,59 @@ void show_matrix_window (void)
 	gtk_widget_set_margin_start (grid, 15);
 	gtk_widget_set_margin_end (grid, 15);
 
-	widget = gtk_label_new (cameras_set_label);
+	widget = gtk_label_new ("1");
 	gtk_grid_attach (GTK_GRID (grid), widget, 0, 0, 1, 1);
 
-	widget = gtk_label_new (cameras_label);
-	gtk_grid_attach (GTK_GRID (grid), widget, 0, 1, 1, 1);
-
-	widget = gtk_label_new ("Index");
-	gtk_grid_attach (GTK_GRID (grid), widget, 0, 2, 1, 1);
-
-	widget = gtk_label_new ("1");
-	gtk_grid_attach (GTK_GRID (grid), widget, 1, 2, 1, 1);
+	for (j = 1; j < 5; j++) {
+#ifdef _WIN32
+		if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_1_light);
+		else widget = gtk_image_new_from_pixbuf (pixbuf_grille_1_dark);
+#elif defined (__linux)
+		if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_1_light.png");
+		else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_1_dark.png");
+#endif
+		gtk_grid_attach (GTK_GRID (grid), widget, 0, j, 1, 1);
+	}
 
 #ifdef _WIN32
-	if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_1_light);
-	else widget = gtk_image_new_from_pixbuf (pixbuf_grille_1_dark);
+	if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_3_light);
+	else widget = gtk_image_new_from_pixbuf (pixbuf_grille_3_dark);
 #elif defined (__linux)
-	if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_1_light.png");
-	else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_1_dark.png");
+	if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_3_light.png");
+	else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_3_dark.png");
 #endif
-	gtk_grid_attach (GTK_GRID (grid), widget, 1, 3, 1, 3);
+	gtk_grid_attach (GTK_GRID (grid), widget, 0, 5, 1, 1);
 
-	widget = gtk_label_new ("PGM");
-	gtk_grid_attach (GTK_GRID (grid), widget, 2, 1, 1, 1);
+	for (i = 1; i < MAX_CAMERAS; i++) {
+		sprintf (text, "%d", i + 1);
+		widget = gtk_label_new (text);
+		gtk_grid_attach (GTK_GRID (grid), widget, i, 0, 1, 1);
 
-	widget = gtk_label_new ("2");
-	gtk_grid_attach (GTK_GRID (grid), widget, 2, 2, 1, 1);
-
+		for (j = 1; j < 5; j++) {
 #ifdef _WIN32
-	if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_light);
-	else widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_dark);
+			if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_light);
+			else widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_dark);
 #elif defined (__linux)
-	if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_light.png");
-	else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_dark.png");
+			if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_light.png");
+			else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_dark.png");
 #endif
-	gtk_grid_attach (GTK_GRID (grid), widget, 2, 3, 1, 3);
-
-	for (i = 2, j = 3; i < number_of_matrix_source; j++) {
-		cameras_set_tmp = cameras_sets;
-		while (cameras_set_tmp != NULL) {
-			for (k = 0; k < cameras_set_tmp->number_of_cameras; k++) {
-				rcp = cameras_set_tmp->rcp_ptr_array[k];
-
-				if (rcp->matrix_source_number == i) {
-					widget = gtk_label_new (cameras_set_tmp->name);
-					gtk_label_set_angle (GTK_LABEL (widget), 90);
-					gtk_grid_attach (GTK_GRID (grid), widget, j, 0, 1, 1);
-
-					widget = gtk_label_new (rcp->name);
-					gtk_grid_attach (GTK_GRID (grid), widget, j, 1, 1, 1);
-
-					cameras_set_tmp = NULL;
-					break;
-				}
-			}
-			if (cameras_set_tmp != NULL) cameras_set_tmp = cameras_set_tmp->next;
+			gtk_grid_attach (GTK_GRID (grid), widget, i, j, 1, 1);
 		}
 
-		sprintf (text, "%d", ++i);
-		widget = gtk_label_new (text);
-		gtk_grid_attach (GTK_GRID (grid), widget, j, 2, 1, 1);
+#ifdef _WIN32
+		if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_4_light);
+		else widget = gtk_image_new_from_pixbuf (pixbuf_grille_4_dark);
+#elif defined (__linux)
+		if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_4_light.png");
+		else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_4_dark.png");
+#endif
+		gtk_grid_attach (GTK_GRID (grid), widget, i, 5, 1, 1);
+	}
 
+	widget = gtk_label_new ("Echap");
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS, 0, 1, 1);
+
+	for (j = 1; j < 5; j++) {
 #ifdef _WIN32
 		if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_light);
 		else widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_dark);
@@ -791,50 +816,66 @@ void show_matrix_window (void)
 		if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_light.png");
 		else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_dark.png");
 #endif
-		gtk_grid_attach (GTK_GRID (grid), widget, j, 3, 1, 3);
+		gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS, j, 1, 1);
 	}
 
-#ifdef MAIN_SETTINGS_READ_ONLY
-	widget = gtk_label_new (" 1: CTRL ELECTRO");
-#else
-	widget = gtk_label_new (" 1: CTRL VISION");
+#ifdef _WIN32
+	if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_4_light);
+	else widget = gtk_image_new_from_pixbuf (pixbuf_grille_4_dark);
+#elif defined (__linux)
+	if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_4_light.png");
+	else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_4_dark.png");
 #endif
-	gtk_widget_set_halign (widget, GTK_ALIGN_START);
-	gtk_grid_attach (GTK_GRID (grid), widget, j, 3, 1, 1);
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS, 5, 1, 1);
 
-	widget = gtk_label_new (" 2: PGM");
-	gtk_widget_set_halign (widget, GTK_ALIGN_START);
-	gtk_grid_attach (GTK_GRID (grid), widget, j, 4, 1, 1);
+	widget = gtk_label_new ("Rien");
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 1, 0, 1, 1);
 
-	widget = gtk_label_new (" 3: PVW");
+	for (j = 1; j < 5; j++) {
+#ifdef _WIN32
+		if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_light);
+		else widget = gtk_image_new_from_pixbuf (pixbuf_grille_2_dark);
+#elif defined (__linux)
+		if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_light.png");
+		else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_2_dark.png");
+#endif
+		gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 1, j, 1, 1);
+	}
+
+#ifdef _WIN32
+	if (theme) widget = gtk_image_new_from_pixbuf (pixbuf_grille_4_light);
+	else widget = gtk_image_new_from_pixbuf (pixbuf_grille_4_dark);
+#elif defined (__linux)
+	if (theme) widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_4_light.png");
+	else widget = gtk_image_new_from_resource ("/org/RCP-Virtuels/images/grille_4_dark.png");
+#endif
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 1, 5, 1, 1);
+
+	widget = gtk_label_new (" 1: Ensemble de caméras");
 	gtk_widget_set_halign (widget, GTK_ALIGN_START);
-	gtk_grid_attach (GTK_GRID (grid), widget, j, 5, 1, 1);
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 2, 1, 1, 1);
+
+	widget = gtk_label_new (" 2: RCP");
+	gtk_widget_set_halign (widget, GTK_ALIGN_START);
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 2, 2, 1, 1);
+
+	widget = gtk_label_new (" 3: Mémoire");
+	gtk_widget_set_halign (widget, GTK_ALIGN_START);
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 2, 3, 1, 1);
+
+	widget = gtk_label_new (" 4: PGM");
+	gtk_widget_set_halign (widget, GTK_ALIGN_START);
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 2, 4, 1, 1);
+
+	widget = gtk_label_new (" 5: PVW");
+	gtk_widget_set_halign (widget, GTK_ALIGN_START);
+	gtk_grid_attach (GTK_GRID (grid), widget, MAX_CAMERAS + 2, 5, 1, 1);
 
 	gtk_box_pack_start (GTK_BOX (box), grid, FALSE, FALSE, 0);
 
 	gtk_container_add (GTK_CONTAINER (window), box);
 	gtk_window_set_resizable (GTK_WINDOW (window), FALSE);
 	gtk_widget_show_all (window);
-
-	gtk_window_get_size (GTK_WINDOW (main_window), &main_window_width, &main_window_height);
-	gtk_window_get_size (GTK_WINDOW (window), &window_width, &window_height);
-
-	if (window_width > main_window_width) {
-		gtk_widget_hide (window);
-		gtk_window_get_position (GTK_WINDOW (window), &root_x, &root_y);
-		g_object_ref (grid);
-		gtk_container_remove (GTK_CONTAINER (box), grid);
-
-		scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-		gtk_scrolled_window_set_min_content_width (GTK_SCROLLED_WINDOW (scrolled_window), main_window_width - 10);
-		gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), window_height - 10);
-		gtk_container_add (GTK_CONTAINER (scrolled_window), grid);
-		g_object_unref (grid);
-
-		gtk_box_pack_start (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
-		gtk_window_move (GTK_WINDOW (window), root_x + (window_width - main_window_width) / 2 + 5, root_y);
-		gtk_widget_show_all (window);
-	}
 }
 
 void ip_radio_button_toggled (GtkToggleButton *button)
@@ -869,15 +910,13 @@ void rs_radio_button_toggled (GtkToggleButton *button)
 
 void sw_p_08_tcp_port_entry_activate (GtkEntry *entry, GtkEntryBuffer *entry_buffer)
 {
-	int port_sscanf;
 	guint16 port;
 
 	stop_sw_p_08_tcp_server ();
 
-	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%d", &port_sscanf);
-	port = (guint16)port_sscanf;
+	sscanf (gtk_entry_buffer_get_text (entry_buffer), "%hu", &port);
 
-	if ((port_sscanf < 1024) || (port_sscanf > 65535) || (port == ntohs (update_notification_address.sin_port))) {
+	if ((port < 1024) || (port > 65535) || (port == ntohs (update_notification_address.sin_port)) || (port == ntohs (physical_rcp.address.sin_port))) {
 		sw_p_08_address.sin_port = htons (SW_P_08_TCP_PORT);
 		gtk_entry_buffer_set_text (entry_buffer, "8000", 4);
 	} else sw_p_08_address.sin_port = htons (port);
@@ -1009,561 +1048,563 @@ void show_about_window (void)
 
 void create_settings_page (void)
 {
-	GtkWidget *box1, *box2, *box3, *box4, *frame, *osd_mix_frame, *widget, *ip_radio_button, *rs_radio_button, *light_radio_button;
+	GtkWidget *box1, *box2, *box3, *box4, *box5, *frame, *osd_mix_frame, *widget, *ip_radio_button, *rs_radio_button, *light_radio_button;
 	GtkEntryBuffer *entry_buffer;
 	int i, j;
 	char label[8];
 	GSList *rs_port_gslist, *gslist_itr;
 
-	settings_page = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-
-	box1 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-		frame = gtk_frame_new ("Réglages communs à toutes les caméras");
-		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
-		gtk_container_set_border_width (GTK_CONTAINER (frame), SETTINGS_MARGIN_VALUE);
+	settings_page = gtk_scrolled_window_new (NULL, NULL);
+	box1 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 		box2 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+			frame = gtk_frame_new ("Réglages communs à toutes les caméras");
+			gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
+			gtk_container_set_border_width (GTK_CONTAINER (frame), SETTINGS_MARGIN_VALUE);
+			box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 #ifdef MAIN_SETTINGS_READ_ONLY
-		gtk_widget_set_sensitive (box2, FALSE);
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				for (i = 0; i < 6; i++) {
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, settings_array[i].tooltip);
-					widget =  gtk_label_new (settings_array[i].name);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					for (i = 0; i < 6; i++) {
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_sensitive (box5, FALSE);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, settings_array[i].tooltip);
+						widget =  gtk_label_new (settings_array[i].name);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
 
-					widget = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					settings_array[i].combo_box = widget;
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-				}
-			gtk_container_add (GTK_CONTAINER (box2), box3);
-
-			widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
-			gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-			gtk_container_add (GTK_CONTAINER (box2), widget);
-
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				for (i = 6; i < 11; i++) {
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-
-				gtk_widget_set_tooltip_text (box4, settings_array[i].tooltip);
-					widget =  gtk_label_new (settings_array[i].name);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					widget = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					settings_array[i].combo_box = widget;
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-				}
-
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_top (box4, 7);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, picture_level_tooltip);
-					widget =  gtk_label_new ("Picture Level : ");
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-					picture_level_value_label =  gtk_label_new ("0");
-					gtk_box_pack_start (GTK_BOX (box4), picture_level_value_label, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-
-				picture_level_scale = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -50.0, +50.0, 1.0);
-				gtk_range_set_value (GTK_RANGE (picture_level_scale), 0);
-				gtk_scale_set_draw_value (GTK_SCALE (picture_level_scale), FALSE);
-				gtk_scale_set_has_origin (GTK_SCALE (picture_level_scale), FALSE);
-				gtk_widget_set_tooltip_text (picture_level_scale, picture_level_tooltip);
-				gtk_box_pack_start (GTK_BOX (box3), picture_level_scale, FALSE, FALSE, 0);
-			gtk_container_add (GTK_CONTAINER (box2), box3);
-
-			widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
-			gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-			gtk_container_add (GTK_CONTAINER (box2), widget);
-
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-					widget =  gtk_label_new ("Tally Input :");
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					tally_input_combo_box_text = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (tally_input_combo_box_text, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box4), tally_input_combo_box_text, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-
-				for (i = 11; i < NB_SETTINGS; i++) {
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, settings_array[i].tooltip);
-					widget =  gtk_label_new (settings_array[i].name);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					widget = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					settings_array[i].combo_box = widget;
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-				}
-
-				osd_mix_frame = gtk_frame_new ("OSD Mix");
-				gtk_frame_set_label_align (GTK_FRAME (osd_mix_frame), 0.5, 0.5);
-				box4 = gtk_grid_new ();
-				gtk_widget_set_halign (box4, GTK_ALIGN_CENTER);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-					widget = gtk_label_new ("SDI Out");
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 0, 1, 1);
-					OSD_Mix_SDI_toggle_button = gtk_toggle_button_new ();
-					gtk_widget_set_margin_start (OSD_Mix_SDI_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_widget_set_margin_bottom (OSD_Mix_SDI_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), OSD_Mix_SDI_toggle_button, 1, 0, 1, 1);
-
-					widget = gtk_label_new ("HDMI Out");
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 1, 1, 1);
-					OSD_Mix_HDMI_toggle_button = gtk_toggle_button_new ();
-					gtk_widget_set_margin_start (OSD_Mix_HDMI_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_widget_set_margin_bottom (OSD_Mix_HDMI_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), OSD_Mix_HDMI_toggle_button, 1, 1, 1, 1);
-
-					widget = gtk_label_new ("Video Out");
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 2, 1, 1);
-					OSD_Mix_Video_toggle_button = gtk_toggle_button_new ();
-					gtk_widget_set_margin_start (OSD_Mix_Video_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_widget_set_margin_bottom (OSD_Mix_Video_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), OSD_Mix_Video_toggle_button, 1, 2, 1, 1);
-
-					widget = gtk_label_new ("IP");
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 3, 1, 1);
-					OSD_Mix_IP_toggle_button = gtk_toggle_button_new ();
-					gtk_widget_set_margin_start (OSD_Mix_IP_toggle_button, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), OSD_Mix_IP_toggle_button, 1, 3, 1, 1);
-				gtk_container_add (GTK_CONTAINER (osd_mix_frame), box4);
-				gtk_box_pack_start (GTK_BOX (box3), osd_mix_frame, FALSE, FALSE, 0);
-#else
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				for (i = 0; i < 6; i++) {
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, settings_array[i].tooltip);
-					widget =  gtk_label_new (settings_array[i].name);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					widget = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					for (j = 0; j < settings_array[i].nb_parameters; j++)
-						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), settings_array[i].parameters[j].label);
-					gtk_combo_box_set_active (GTK_COMBO_BOX (widget), settings_parameters_indexes_array[i]);
-					gtk_widget_set_sensitive (widget, settings_array[i].sensitive);
-					g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (parameter_changed), &settings_parameters_indexes_array[i]);
-					settings_array[i].combo_box = widget;
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-				}
-
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-					widget =  gtk_label_new ("Update Notification Port TCP/IP :");
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_address.sin_port)));
-					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
-					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
-					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
-					gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
-					gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
-					g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
-					g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (update_notification_tcp_port_entry_activate), entry_buffer);
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-			gtk_container_add (GTK_CONTAINER (box2), box3);
-
-			widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
-			gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-			gtk_container_add (GTK_CONTAINER (box2), widget);
-
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				for (i = 6; i < 11; i++) {
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, settings_array[i].tooltip);
-					widget =  gtk_label_new (settings_array[i].name);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					widget = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					for (j = 0; j < settings_array[i].nb_parameters; j++)
-						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), settings_array[i].parameters[j].label);
-					gtk_combo_box_set_active (GTK_COMBO_BOX (widget), settings_parameters_indexes_array[i]);
-					gtk_widget_set_sensitive (widget, settings_array[i].sensitive);
-					g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (parameter_changed), &settings_parameters_indexes_array[i]);
-					settings_array[i].combo_box = widget;
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-				}
-
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_top (box4, 7);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, picture_level_tooltip);
-					widget =  gtk_label_new ("Picture Level : ");
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-					if ((int)picture_level == 0) picture_level_value_label =  gtk_label_new ("0");
-					else {
-						sprintf (label, "%+d", (int)picture_level);
-						picture_level_value_label =  gtk_label_new (label);
+						widget = gtk_combo_box_text_new ();
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						settings_array[i].combo_box = widget;
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
 					}
-					gtk_box_pack_start (GTK_BOX (box4), picture_level_value_label, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
 
-				widget = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -50.0, +50.0, 1.0);
-				gtk_widget_set_margin_bottom (widget, 7);
-				gtk_scale_set_draw_value (GTK_SCALE (widget), FALSE);
-				gtk_scale_set_has_origin (GTK_SCALE (widget), FALSE);
-				gtk_range_set_value (GTK_RANGE (widget), picture_level);
-				g_signal_connect (G_OBJECT (widget), "value-changed", G_CALLBACK (picture_level_value_changed), NULL);
-				gtk_widget_set_tooltip_text (widget, picture_level_tooltip);
-				gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+						widget =  gtk_label_new ("Update Notification Port TCP/IP :");
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
 
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-					widget =  gtk_label_new ("Envoyer les tally aux caméras via IP :");
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+						entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_address.sin_port)));
+						widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
+						gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
+						gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
+						gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
+						gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
+						g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
+						g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (update_notification_tcp_port_entry_activate), entry_buffer);
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (box3), box4);
 
-					widget = gtk_check_button_new ();
-					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), send_ip_tally);
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (send_ip_tally_check_button_toggled), NULL);
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-			gtk_container_add (GTK_CONTAINER (box2), box3);
+				widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+				gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+				gtk_container_add (GTK_CONTAINER (box3), widget);
 
-			widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
-			gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-			gtk_container_add (GTK_CONTAINER (box2), widget);
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_widget_set_sensitive (box4, FALSE);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					for (i = 6; i < 11; i++) {
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
 
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-					widget =  gtk_label_new ("Tally Input :");
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+					gtk_widget_set_tooltip_text (box5, settings_array[i].tooltip);
+						widget =  gtk_label_new (settings_array[i].name);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
 
-					widget = gtk_combo_box_text_new ();
-					gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), "Disable");
-					gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), "Enable");
-					gtk_combo_box_set_active (GTK_COMBO_BOX (widget), tally_input);
-					g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (tally_input_changed), NULL);
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-
-				for (i = 11; i < NB_SETTINGS; i++) {
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, settings_array[i].tooltip);
-					widget =  gtk_label_new (settings_array[i].name);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					widget = gtk_combo_box_text_new ();
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					for (j = 0; j < settings_array[i].nb_parameters; j++)
-						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), settings_array[i].parameters[j].label);
-					gtk_combo_box_set_active (GTK_COMBO_BOX (widget), settings_parameters_indexes_array[i]);
-					gtk_widget_set_sensitive (widget, settings_array[i].sensitive);
-					g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (parameter_changed), &settings_parameters_indexes_array[i]);
-					settings_array[i].combo_box = widget;
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-				}
-
-				osd_mix_frame = gtk_frame_new ("OSD Mix");
-				gtk_frame_set_label_align (GTK_FRAME (osd_mix_frame), 0.5, 0.5);
-				box4 = gtk_grid_new ();
-				gtk_widget_set_halign (box4, GTK_ALIGN_CENTER);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-					widget = gtk_label_new ("SDI Out");
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 0, 1, 1);
-					if (osd_mix & 0x1) {
-						widget = gtk_toggle_button_new_with_label ("On");
-						gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-					} else widget = gtk_toggle_button_new_with_label ("Off");
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x1));
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 1, 0, 1, 1);
-
-					widget = gtk_label_new ("HDMI Out");
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 1, 1, 1);
-					if (osd_mix & 0x2) {
-						widget = gtk_toggle_button_new_with_label ("On");
-						gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-					} else widget = gtk_toggle_button_new_with_label ("Off");
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x2));
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 1, 1, 1, 1);
-
-					widget = gtk_label_new ("Video Out");
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 2, 1, 1);
-					if (osd_mix & 0x8) {
-						widget = gtk_toggle_button_new_with_label ("On");
-						gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-					} else widget = gtk_toggle_button_new_with_label ("Off");
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x8));
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 1, 2, 1, 1);
-
-					widget = gtk_label_new ("IP");
-					gtk_grid_attach (GTK_GRID (box4), widget, 0, 3, 1, 1);
-					if (osd_mix & 0x10) {
-						widget = gtk_toggle_button_new_with_label ("On");
-						gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-					} else widget = gtk_toggle_button_new_with_label ("Off");
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x10));
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_grid_attach (GTK_GRID (box4), widget, 1, 3, 1, 1);
-				gtk_container_add (GTK_CONTAINER (osd_mix_frame), box4);
-				gtk_box_pack_start (GTK_BOX (box3), osd_mix_frame, FALSE, FALSE, 0);
-#endif
-			gtk_container_add (GTK_CONTAINER (box2), box3);
-		gtk_container_add (GTK_CONTAINER (frame), box2);
-		gtk_box_pack_start (GTK_BOX (box1), frame, FALSE, FALSE, 0);
-
-		frame = gtk_frame_new (cameras_set_label);
-		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
-		gtk_container_set_border_width (GTK_CONTAINER (frame), SETTINGS_MARGIN_VALUE);
-#ifdef MAIN_SETTINGS_READ_ONLY
-		box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-		gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
-		box2 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-#else
-		box2 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-		gtk_container_set_border_width (GTK_CONTAINER (box2), SETTINGS_MARGIN_VALUE);
-#endif
-			settings_list_box = gtk_list_box_new ();
-			gtk_widget_set_size_request (settings_list_box, 100, 100);
-			g_signal_connect (G_OBJECT (settings_list_box), "row-selected", G_CALLBACK (settings_list_box_row_selected), NULL);
-			gtk_box_pack_start (GTK_BOX (box2), settings_list_box, TRUE, TRUE, 0);
-
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_widget_set_margin_start (box3, SETTINGS_MARGIN_VALUE);
-				settings_configuration_button = gtk_button_new_with_label ("Configuration");
-				gtk_widget_set_margin_bottom (settings_configuration_button, SETTINGS_MARGIN_VALUE);
-				g_signal_connect (G_OBJECT (settings_configuration_button), "clicked", G_CALLBACK (show_cameras_set_configuration_window), NULL);
-				if (number_of_cameras_sets == 0) gtk_widget_set_sensitive (settings_configuration_button, FALSE);
-				gtk_box_pack_start (GTK_BOX (box3), settings_configuration_button, FALSE, FALSE, 0);
-
-				settings_new_button = gtk_button_new_with_label ("Nouveau");
-				gtk_widget_set_margin_bottom (settings_new_button, SETTINGS_MARGIN_VALUE);
-				g_signal_connect (G_OBJECT (settings_new_button), "clicked", G_CALLBACK (add_cameras_set), NULL);
-				if (number_of_cameras_sets == MAX_CAMERAS_SET) gtk_widget_set_sensitive (settings_new_button, FALSE);
-				gtk_box_pack_start (GTK_BOX (box3), settings_new_button, FALSE, FALSE, 0);
-
-				settings_delete_button = gtk_button_new_with_label ("Supprimer");
-				g_signal_connect (G_OBJECT (settings_delete_button), "clicked", G_CALLBACK (show_delete_confirmation_window), NULL);
-				if (number_of_cameras_sets == 0) gtk_widget_set_sensitive (settings_delete_button, FALSE);
-				gtk_box_pack_start (GTK_BOX (box3), settings_delete_button, FALSE, FALSE, 0);
-			gtk_box_pack_end (GTK_BOX (box2), box3, FALSE, FALSE, 0);
-#ifdef MAIN_SETTINGS_READ_ONLY
-			gtk_box_pack_start (GTK_BOX (box4), box2, FALSE, FALSE, 0);
-
-				box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_top (box3, SETTINGS_MARGIN_VALUE);
-					widget =  gtk_label_new ("Envoyer les tally aux caméras via IP :");
-					gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
-
-					widget = gtk_check_button_new ();
-					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), send_ip_tally);
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (send_ip_tally_check_button_toggled), NULL);
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box3), widget, FALSE, FALSE, 0);
-				gtk_box_pack_end (GTK_BOX (box4), box3, FALSE, FALSE, 0);
-
-				box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_top (box3, SETTINGS_MARGIN_VALUE);
-					widget =  gtk_label_new ("Update Notification Port TCP/IP :");
-					gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
-
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_address.sin_port)));
-					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
-					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
-					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
-					gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
-					gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
-					g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
-					g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (update_notification_tcp_port_entry_activate), entry_buffer);
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box3), widget, FALSE, FALSE, 0);
-				gtk_box_pack_end (GTK_BOX (box4), box3, FALSE, FALSE, 0);
-		gtk_container_add (GTK_CONTAINER (frame), box4);
-#else
-		gtk_container_add (GTK_CONTAINER (frame), box2);
-#endif
-		gtk_box_pack_start (GTK_BOX (box1), frame, FALSE, FALSE, 0);
-
-		box2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-		gtk_container_set_border_width (GTK_CONTAINER (box2), SETTINGS_MARGIN_VALUE);
-
-		frame = gtk_frame_new ("Tally");
-		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-					widget =  gtk_label_new ("TSL UMD V5 Port UDP/IP :");
-					gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (tsl_umd_v5_address.sin_port)));
-					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
-					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
-					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
-					gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
-					gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
-					g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
-					g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (tsl_umd_v5_udp_port_entry_activate), entry_buffer);
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-			gtk_container_add (GTK_CONTAINER (frame), box3);
-		gtk_box_pack_start (GTK_BOX (box2), frame, FALSE, FALSE, 0);
-
-		frame = gtk_frame_new ("Connexion avec la régie");
-		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-					widget =  gtk_button_new_with_label (sw_p_08_grid_txt);
-					g_signal_connect (G_OBJECT (widget), "clicked", G_CALLBACK (show_matrix_window), NULL);
-					gtk_box_set_center_widget (GTK_BOX (box4), widget);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-				gtk_widget_set_tooltip_text (box4, my_ip_address);
-					ip_radio_button = gtk_radio_button_new_with_label (NULL, "Port TCP/IP :");
-					gtk_box_pack_start (GTK_BOX (box4), ip_radio_button, FALSE, FALSE, 0);
-
-					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (sw_p_08_address.sin_port)));
-					tcp_port_entry = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
-					gtk_entry_set_input_purpose (GTK_ENTRY (tcp_port_entry), GTK_INPUT_PURPOSE_DIGITS);
-					gtk_entry_set_max_length (GTK_ENTRY (tcp_port_entry), 5);
-					gtk_entry_set_width_chars (GTK_ENTRY (tcp_port_entry), 5);
-					gtk_entry_set_alignment (GTK_ENTRY (tcp_port_entry), 0.5);
-					gtk_widget_set_margin_start (tcp_port_entry, SETTINGS_MARGIN_VALUE);
-					g_signal_connect (G_OBJECT (tcp_port_entry), "key-press-event", G_CALLBACK (digit_key_press), NULL);
-					g_signal_connect (G_OBJECT (tcp_port_entry), "activate", G_CALLBACK (sw_p_08_tcp_port_entry_activate), entry_buffer);
-					gtk_box_pack_end (GTK_BOX (box4), tcp_port_entry, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-
-				ip_waiting_label = gtk_label_new ("En attente de connexion");
-				gtk_widget_set_margin_bottom (ip_waiting_label, SETTINGS_MARGIN_VALUE);
-				gtk_box_pack_start (GTK_BOX (box3), ip_waiting_label, FALSE, FALSE, 0);
-
-				remote_devices[0].connected_label = gtk_label_new (NULL);
-				gtk_widget_set_margin_bottom (remote_devices[0].connected_label, SETTINGS_MARGIN_VALUE);
-				gtk_box_pack_start (GTK_BOX (box3), remote_devices[0].connected_label, FALSE, FALSE, 0);
-
-				remote_devices[1].connected_label = gtk_label_new (NULL);
-				gtk_widget_set_margin_bottom (remote_devices[1].connected_label, SETTINGS_MARGIN_VALUE);
-				gtk_box_pack_start (GTK_BOX (box3), remote_devices[1].connected_label, FALSE, FALSE, 0);
-
-				rs_port_gslist = list_rs_port ();
-
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_tooltip_text (box4, sw_p_08_rs_parameters_txt);
-					rs_radio_button = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (ip_radio_button), "Port RS :");
-					gtk_box_pack_start (GTK_BOX (box4), rs_radio_button, FALSE, FALSE, 0);
-
-					rs_combo_box_text = gtk_combo_box_text_new ();
-					gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (rs_combo_box_text), " ");
-					for (gslist_itr = rs_port_gslist, j = 1; gslist_itr != NULL; gslist_itr = gslist_itr->next, j++) {
-						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (rs_combo_box_text), gslist_itr->data);
-						if (strcmp (gslist_itr->data, rs_port_name) == 0) gtk_combo_box_set_active (GTK_COMBO_BOX (rs_combo_box_text), j);
+						widget = gtk_combo_box_text_new ();
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						settings_array[i].combo_box = widget;
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
 					}
-					g_signal_connect (G_OBJECT (rs_combo_box_text), "changed", G_CALLBACK (rs_port_changed), NULL);
-					gtk_widget_set_margin_start (rs_combo_box_text, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box4), rs_combo_box_text, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
 
-				g_slist_free_full (rs_port_gslist, g_free);
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_top (box5, 7);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, picture_level_tooltip);
+						widget =  gtk_label_new ("Picture Level : ");
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+						picture_level_value_label =  gtk_label_new ("0");
+						gtk_box_pack_start (GTK_BOX (box5), picture_level_value_label, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
 
-				if (ip_rs) gtk_widget_set_sensitive (rs_combo_box_text, FALSE);
-				else {
-					gtk_widget_set_sensitive (tcp_port_entry, FALSE);
-					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rs_radio_button), TRUE);
-				}
-				g_signal_connect (G_OBJECT (ip_radio_button), "toggled", G_CALLBACK (ip_radio_button_toggled), NULL);
-				g_signal_connect (G_OBJECT (rs_radio_button), "toggled", G_CALLBACK (rs_radio_button_toggled), NULL);
+					picture_level_scale = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -50.0, +50.0, 1.0);
+					gtk_range_set_value (GTK_RANGE (picture_level_scale), 0);
+					gtk_scale_set_draw_value (GTK_SCALE (picture_level_scale), FALSE);
+					gtk_scale_set_has_origin (GTK_SCALE (picture_level_scale), FALSE);
+					gtk_widget_set_tooltip_text (picture_level_scale, picture_level_tooltip);
+					gtk_box_pack_start (GTK_BOX (box4), picture_level_scale, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (box3), box4);
 
-				rs_ok_label = gtk_label_new ("Liaison OK");
-				gtk_widget_set_margin_top (rs_ok_label, SETTINGS_MARGIN_VALUE);
-				gtk_box_pack_end (GTK_BOX (box3), rs_ok_label, FALSE, FALSE, 0);
-			gtk_container_add (GTK_CONTAINER (frame), box3);
-		gtk_box_pack_start (GTK_BOX (box2), frame, FALSE, FALSE, 0);
+				widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+				gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+				gtk_container_add (GTK_CONTAINER (box3), widget);
 
-		frame = gtk_frame_new ("Interface");
-		gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
-			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-				gtk_widget_set_margin_bottom (box4, SETTINGS_MARGIN_VALUE);
-					widget = gtk_label_new ("Thème :");
-				gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_widget_set_sensitive (box4, FALSE);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+						widget =  gtk_label_new ("Tally Input :");
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
 
-					light_radio_button = gtk_radio_button_new_with_label (NULL, "Clair");
-					gtk_widget_set_margin_start (light_radio_button, SETTINGS_MARGIN_VALUE);
-				gtk_box_pack_start (GTK_BOX (box4), light_radio_button, FALSE, FALSE, 0);
+						tally_input_combo_box_text = gtk_combo_box_text_new ();
+						gtk_widget_set_margin_start (tally_input_combo_box_text, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_end (GTK_BOX (box5), tally_input_combo_box_text, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
 
-					widget = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (light_radio_button), "Sombre");
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-				gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+					for (i = 11; i < NB_SETTINGS; i++) {
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, settings_array[i].tooltip);
+						widget =  gtk_label_new (settings_array[i].name);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
 
-				if (!theme) gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-				g_signal_connect (G_OBJECT (light_radio_button), "toggled", G_CALLBACK (theme_radio_button_toggled), NULL);
-			gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
+						widget = gtk_combo_box_text_new ();
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						settings_array[i].combo_box = widget;
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+					}
 
-				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-					widget =  gtk_label_new ("Afficher le RCP maître");
+					osd_mix_frame = gtk_frame_new ("OSD Mix");
+					gtk_frame_set_label_align (GTK_FRAME (osd_mix_frame), 0.5, 0.5);
+					box5 = gtk_grid_new ();
+					gtk_widget_set_halign (box5, GTK_ALIGN_CENTER);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+						widget = gtk_label_new ("SDI Out");
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 0, 1, 1);
+						OSD_Mix_SDI_toggle_button = gtk_toggle_button_new ();
+						gtk_widget_set_margin_start (OSD_Mix_SDI_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_widget_set_margin_bottom (OSD_Mix_SDI_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), OSD_Mix_SDI_toggle_button, 1, 0, 1, 1);
+
+						widget = gtk_label_new ("HDMI Out");
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 1, 1, 1);
+						OSD_Mix_HDMI_toggle_button = gtk_toggle_button_new ();
+						gtk_widget_set_margin_start (OSD_Mix_HDMI_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_widget_set_margin_bottom (OSD_Mix_HDMI_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), OSD_Mix_HDMI_toggle_button, 1, 1, 1, 1);
+
+						widget = gtk_label_new ("Video Out");
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 2, 1, 1);
+						OSD_Mix_Video_toggle_button = gtk_toggle_button_new ();
+						gtk_widget_set_margin_start (OSD_Mix_Video_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_widget_set_margin_bottom (OSD_Mix_Video_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), OSD_Mix_Video_toggle_button, 1, 2, 1, 1);
+
+						widget = gtk_label_new ("IP");
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 3, 1, 1);
+						OSD_Mix_IP_toggle_button = gtk_toggle_button_new ();
+						gtk_widget_set_margin_start (OSD_Mix_IP_toggle_button, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), OSD_Mix_IP_toggle_button, 1, 3, 1, 1);
+					gtk_container_add (GTK_CONTAINER (osd_mix_frame), box5);
+					gtk_box_pack_start (GTK_BOX (box4), osd_mix_frame, FALSE, FALSE, 0);
+#else
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					for (i = 0; i < 6; i++) {
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, settings_array[i].tooltip);
+						widget =  gtk_label_new (settings_array[i].name);
+						gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+						widget = gtk_combo_box_text_new ();
+						for (j = 0; j < settings_array[i].nb_parameters; j++)
+							gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), settings_array[i].parameters[j].label);
+						gtk_combo_box_set_active (GTK_COMBO_BOX (widget), settings_parameters_indexes_array[i]);
+						gtk_widget_set_sensitive (widget, settings_array[i].sensitive);
+						g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (parameter_changed), &settings_parameters_indexes_array[i]);
+						settings_array[i].combo_box = widget;
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+					}
+
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+						widget =  gtk_label_new ("Update Notification Port TCP/IP :");
+						gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+						entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (update_notification_address.sin_port)));
+						widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
+						gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
+						gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
+						gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
+						gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
+						g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
+						g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (update_notification_tcp_port_entry_activate), entry_buffer);
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (box3), box4);
+
+				widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+				gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+				gtk_container_add (GTK_CONTAINER (box3), widget);
+
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					for (i = 6; i < 11; i++) {
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, settings_array[i].tooltip);
+						widget =  gtk_label_new (settings_array[i].name);
+						gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+						widget = gtk_combo_box_text_new ();
+						for (j = 0; j < settings_array[i].nb_parameters; j++)
+							gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), settings_array[i].parameters[j].label);
+						gtk_combo_box_set_active (GTK_COMBO_BOX (widget), settings_parameters_indexes_array[i]);
+						gtk_widget_set_sensitive (widget, settings_array[i].sensitive);
+						g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (parameter_changed), &settings_parameters_indexes_array[i]);
+						settings_array[i].combo_box = widget;
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+					}
+
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_top (box5, 7);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, picture_level_tooltip);
+						widget =  gtk_label_new ("Picture Level : ");
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+						if ((int)picture_level == 0) picture_level_value_label =  gtk_label_new ("0");
+						else {
+							sprintf (label, "%+d", (int)picture_level);
+							picture_level_value_label =  gtk_label_new (label);
+						}
+						gtk_box_pack_start (GTK_BOX (box5), picture_level_value_label, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+
+					widget = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -50.0, +50.0, 1.0);
+					gtk_widget_set_margin_bottom (widget, 7);
+					gtk_scale_set_draw_value (GTK_SCALE (widget), FALSE);
+					gtk_scale_set_has_origin (GTK_SCALE (widget), FALSE);
+					gtk_range_set_value (GTK_RANGE (widget), picture_level);
+					g_signal_connect (G_OBJECT (widget), "value-changed", G_CALLBACK (picture_level_value_changed), NULL);
+					gtk_widget_set_tooltip_text (widget, picture_level_tooltip);
 					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (box3), box4);
 
-					widget =  gtk_check_button_new ();
-					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), show_master_rcp);
-					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (show_master_rcp_check_button_toggled), NULL);
-					gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
-					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
-				gtk_box_pack_start (GTK_BOX (box3), box4, FALSE, FALSE, 0);
-			gtk_container_add (GTK_CONTAINER (frame), box3);
-		gtk_box_pack_start (GTK_BOX (box2), frame, TRUE, TRUE, 0);
-		gtk_box_pack_start (GTK_BOX (box1), box2, FALSE, FALSE, 0);
+				widget = gtk_separator_new (GTK_ORIENTATION_VERTICAL);
+				gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+				gtk_container_add (GTK_CONTAINER (box3), widget);
 
-		box2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-		gtk_container_set_border_width (GTK_CONTAINER (box2), SETTINGS_MARGIN_VALUE);
-			widget = gtk_button_new_with_label ("A propos");
-			g_signal_connect (G_OBJECT (widget), "clicked", G_CALLBACK (show_about_window), NULL);
-			gtk_box_pack_start (GTK_BOX (box2), widget, FALSE, FALSE, 0);
-		gtk_box_pack_end (GTK_BOX (box1), box2, FALSE, FALSE, 0);
-	gtk_box_pack_start (GTK_BOX (settings_page), box1, FALSE, FALSE, 0);
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+						widget =  gtk_label_new ("Tally Input :");
+						gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
 
-	widget = gtk_label_new (key_info_2_txt);
-	gtk_box_pack_end (GTK_BOX (settings_page), widget, FALSE, FALSE, 0);
+						widget = gtk_combo_box_text_new ();
+						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), "Disable");
+						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), "Enable");
+						gtk_combo_box_set_active (GTK_COMBO_BOX (widget), tally_input);
+						g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (tally_input_changed), NULL);
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+
+					for (i = 11; i < NB_SETTINGS; i++) {
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, settings_array[i].tooltip);
+						widget =  gtk_label_new (settings_array[i].name);
+						gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+						widget = gtk_combo_box_text_new ();
+						for (j = 0; j < settings_array[i].nb_parameters; j++)
+							gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), settings_array[i].parameters[j].label);
+						gtk_combo_box_set_active (GTK_COMBO_BOX (widget), settings_parameters_indexes_array[i]);
+						gtk_widget_set_sensitive (widget, settings_array[i].sensitive);
+						g_signal_connect (G_OBJECT (widget), "changed", G_CALLBACK (parameter_changed), &settings_parameters_indexes_array[i]);
+						settings_array[i].combo_box = widget;
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+					}
+
+					osd_mix_frame = gtk_frame_new ("OSD Mix");
+					gtk_frame_set_label_align (GTK_FRAME (osd_mix_frame), 0.5, 0.5);
+					box5 = gtk_grid_new ();
+					gtk_widget_set_halign (box5, GTK_ALIGN_CENTER);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+						widget = gtk_label_new ("SDI Out");
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 0, 1, 1);
+						if (osd_mix & 0x1) {
+							widget = gtk_toggle_button_new_with_label ("On");
+							gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+						} else widget = gtk_toggle_button_new_with_label ("Off");
+						g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x1));
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 1, 0, 1, 1);
+
+						widget = gtk_label_new ("HDMI Out");
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 1, 1, 1);
+						if (osd_mix & 0x2) {
+							widget = gtk_toggle_button_new_with_label ("On");
+							gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+						} else widget = gtk_toggle_button_new_with_label ("Off");
+						g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x2));
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 1, 1, 1, 1);
+
+						widget = gtk_label_new ("Video Out");
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 2, 1, 1);
+						if (osd_mix & 0x8) {
+							widget = gtk_toggle_button_new_with_label ("On");
+							gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+						} else widget = gtk_toggle_button_new_with_label ("Off");
+						g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x8));
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						gtk_widget_set_margin_bottom (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 1, 2, 1, 1);
+
+						widget = gtk_label_new ("IP");
+						gtk_grid_attach (GTK_GRID (box5), widget, 0, 3, 1, 1);
+						if (osd_mix & 0x10) {
+							widget = gtk_toggle_button_new_with_label ("On");
+							gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+						} else widget = gtk_toggle_button_new_with_label ("Off");
+						g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (osd_mix_button_toggled), GINT_TO_POINTER (0x10));
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						gtk_grid_attach (GTK_GRID (box5), widget, 1, 3, 1, 1);
+					gtk_container_add (GTK_CONTAINER (osd_mix_frame), box5);
+					gtk_box_pack_start (GTK_BOX (box4), osd_mix_frame, FALSE, FALSE, 0);
 
 	if (format_is_50Hz) gtk_widget_set_sensitive (COLOR_BAR_SETUP_LEVEL_COMBO_BOX, FALSE);
 	else gtk_widget_set_sensitive (COLOR_BAR_SETUP_LEVEL_COMBO_BOX, TRUE);
 
 	if (WHITE_CLIP_IS_ON) gtk_widget_set_sensitive (WHITE_CLIP_LEVEL_COMBO_BOX, TRUE);
 	else gtk_widget_set_sensitive (WHITE_CLIP_LEVEL_COMBO_BOX, FALSE);
+
+#endif
+				gtk_container_add (GTK_CONTAINER (box3), box4);
+			gtk_container_add (GTK_CONTAINER (frame), box3);
+			gtk_box_pack_start (GTK_BOX (box2), frame, FALSE, FALSE, 0);
+
+			box5 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+			gtk_container_set_border_width (GTK_CONTAINER (box5), SETTINGS_MARGIN_VALUE);
+				frame = gtk_frame_new (cameras_set_label);
+				gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
+				box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
+					settings_list_box = gtk_list_box_new ();
+					gtk_widget_set_size_request (settings_list_box, 100, 100);
+					g_signal_connect (G_OBJECT (settings_list_box), "row-selected", G_CALLBACK (settings_list_box_row_selected), NULL);
+					gtk_box_pack_start (GTK_BOX (box3), settings_list_box, TRUE, TRUE, 0);
+
+					box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+					gtk_widget_set_margin_start (box4, SETTINGS_MARGIN_VALUE);
+						settings_configuration_button = gtk_button_new_with_label ("Configuration");
+						gtk_widget_set_margin_bottom (settings_configuration_button, SETTINGS_MARGIN_VALUE);
+						g_signal_connect (G_OBJECT (settings_configuration_button), "clicked", G_CALLBACK (show_cameras_set_configuration_window), NULL);
+						if (number_of_cameras_sets == 0) gtk_widget_set_sensitive (settings_configuration_button, FALSE);
+						gtk_box_pack_start (GTK_BOX (box4), settings_configuration_button, FALSE, FALSE, 0);
+
+						settings_new_button = gtk_button_new_with_label ("Nouveau");
+						gtk_widget_set_margin_bottom (settings_new_button, SETTINGS_MARGIN_VALUE);
+						g_signal_connect (G_OBJECT (settings_new_button), "clicked", G_CALLBACK (add_cameras_set), NULL);
+						if (number_of_cameras_sets == MAX_CAMERAS_SET) gtk_widget_set_sensitive (settings_new_button, FALSE);
+						gtk_box_pack_start (GTK_BOX (box4), settings_new_button, FALSE, FALSE, 0);
+
+						settings_delete_button = gtk_button_new_with_label ("Supprimer");
+						g_signal_connect (G_OBJECT (settings_delete_button), "clicked", G_CALLBACK (show_delete_confirmation_window), NULL);
+						if (number_of_cameras_sets == 0) gtk_widget_set_sensitive (settings_delete_button, FALSE);
+						gtk_box_pack_start (GTK_BOX (box4), settings_delete_button, FALSE, FALSE, 0);
+					gtk_box_pack_end (GTK_BOX (box3), box4, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (frame), box3);
+				gtk_box_pack_start (GTK_BOX (box5), frame, TRUE, TRUE, 0);
+
+				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+				gtk_widget_set_margin_top (box4, SETTINGS_MARGIN_VALUE);
+					widget =  gtk_label_new ("Envoyer les tallies aux caméras via IP :");
+					gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+
+					widget = gtk_check_button_new ();
+					gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), send_ip_tally);
+					g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (send_ip_tally_check_button_toggled), NULL);
+					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+				gtk_box_pack_start (GTK_BOX (box5), box4, FALSE, FALSE, 0);
+
+				frame = gtk_frame_new ("RCP Panasonic AK-HRP200");
+				gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
+				box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					widget =  gtk_label_new ("Port TCP/IP :");
+					gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+
+					entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (physical_rcp.address.sin_port)));
+					widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
+					gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
+					gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
+					gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
+					gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
+					g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
+					g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (physical_rcp_tcp_port_entry_activate), entry_buffer);
+					gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (frame), box4);
+				gtk_box_pack_start (GTK_BOX (box5), frame, FALSE, FALSE, 0);
+			gtk_box_pack_start (GTK_BOX (box2), box5, FALSE, FALSE, 0);
+
+			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
+
+			frame = gtk_frame_new ("Tally");
+			gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
+			box4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+			gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+				widget =  gtk_label_new ("TSL UMD V5 Port UDP/IP :");
+				gtk_widget_set_margin_end (widget, SETTINGS_MARGIN_VALUE);
+				gtk_box_pack_start (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+
+				entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (tsl_umd_v5_address.sin_port)));
+				widget = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
+				gtk_entry_set_input_purpose (GTK_ENTRY (widget), GTK_INPUT_PURPOSE_DIGITS);
+				gtk_entry_set_max_length (GTK_ENTRY (widget), 5);
+				gtk_entry_set_width_chars (GTK_ENTRY (widget), 5);
+				gtk_entry_set_alignment (GTK_ENTRY (widget), 0.5);
+				g_signal_connect (G_OBJECT (widget), "key-press-event", G_CALLBACK (digit_key_press), NULL);
+				g_signal_connect (G_OBJECT (widget), "activate", G_CALLBACK (tsl_umd_v5_udp_port_entry_activate), entry_buffer);
+				gtk_box_pack_end (GTK_BOX (box4), widget, FALSE, FALSE, 0);
+			gtk_container_add (GTK_CONTAINER (frame), box4);
+			gtk_box_pack_start (GTK_BOX (box3), frame, FALSE, FALSE, 0);
+
+			frame = gtk_frame_new ("Connexion avec la régie");
+			gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+						widget =  gtk_button_new_with_label (sw_p_08_grid_txt);
+						g_signal_connect (G_OBJECT (widget), "clicked", G_CALLBACK (show_matrix_window), NULL);
+						gtk_box_set_center_widget (GTK_BOX (box5), widget);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+					gtk_widget_set_tooltip_text (box5, my_ip_address);
+						ip_radio_button = gtk_radio_button_new_with_label (NULL, "Port TCP/IP :");
+						gtk_box_pack_start (GTK_BOX (box5), ip_radio_button, FALSE, FALSE, 0);
+
+						entry_buffer = gtk_entry_buffer_new (label, sprintf (label, "%hu", ntohs (sw_p_08_address.sin_port)));
+						tcp_port_entry = gtk_entry_new_with_buffer (GTK_ENTRY_BUFFER (entry_buffer));
+						gtk_entry_set_input_purpose (GTK_ENTRY (tcp_port_entry), GTK_INPUT_PURPOSE_DIGITS);
+						gtk_entry_set_max_length (GTK_ENTRY (tcp_port_entry), 5);
+						gtk_entry_set_width_chars (GTK_ENTRY (tcp_port_entry), 5);
+						gtk_entry_set_alignment (GTK_ENTRY (tcp_port_entry), 0.5);
+						gtk_widget_set_margin_start (tcp_port_entry, SETTINGS_MARGIN_VALUE);
+						g_signal_connect (G_OBJECT (tcp_port_entry), "key-press-event", G_CALLBACK (digit_key_press), NULL);
+						g_signal_connect (G_OBJECT (tcp_port_entry), "activate", G_CALLBACK (sw_p_08_tcp_port_entry_activate), entry_buffer);
+						gtk_box_pack_end (GTK_BOX (box5), tcp_port_entry, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+
+					ip_waiting_label = gtk_label_new ("En attente de connexion");
+					gtk_widget_set_margin_bottom (ip_waiting_label, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box4), ip_waiting_label, FALSE, FALSE, 0);
+
+					remote_devices[0].connected_label = gtk_label_new (NULL);
+					gtk_widget_set_margin_bottom (remote_devices[0].connected_label, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box4), remote_devices[0].connected_label, FALSE, FALSE, 0);
+
+					remote_devices[1].connected_label = gtk_label_new (NULL);
+					gtk_widget_set_margin_bottom (remote_devices[1].connected_label, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box4), remote_devices[1].connected_label, FALSE, FALSE, 0);
+
+					rs_port_gslist = list_rs_port ();
+
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_tooltip_text (box5, sw_p_08_rs_parameters_txt);
+						rs_radio_button = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (ip_radio_button), "Port RS :");
+						gtk_box_pack_start (GTK_BOX (box5), rs_radio_button, FALSE, FALSE, 0);
+
+						rs_combo_box_text = gtk_combo_box_text_new ();
+						gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (rs_combo_box_text), " ");
+						for (gslist_itr = rs_port_gslist, j = 1; gslist_itr != NULL; gslist_itr = gslist_itr->next, j++) {
+							gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (rs_combo_box_text), gslist_itr->data);
+							if (strcmp (gslist_itr->data, rs_port_name) == 0) gtk_combo_box_set_active (GTK_COMBO_BOX (rs_combo_box_text), j);
+						}
+						g_signal_connect (G_OBJECT (rs_combo_box_text), "changed", G_CALLBACK (rs_port_changed), NULL);
+						gtk_widget_set_margin_start (rs_combo_box_text, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_end (GTK_BOX (box5), rs_combo_box_text, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+
+					g_slist_free_full (rs_port_gslist, g_free);
+
+					if (ip_rs) gtk_widget_set_sensitive (rs_combo_box_text, FALSE);
+					else {
+						gtk_widget_set_sensitive (tcp_port_entry, FALSE);
+						gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rs_radio_button), TRUE);
+					}
+					g_signal_connect (G_OBJECT (ip_radio_button), "toggled", G_CALLBACK (ip_radio_button_toggled), NULL);
+					g_signal_connect (G_OBJECT (rs_radio_button), "toggled", G_CALLBACK (rs_radio_button_toggled), NULL);
+
+					rs_ok_label = gtk_label_new ("Liaison OK");
+					gtk_widget_set_margin_top (rs_ok_label, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_end (GTK_BOX (box4), rs_ok_label, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (frame), box4);
+			gtk_box_pack_start (GTK_BOX (box3), frame, FALSE, FALSE, 0);
+
+			frame = gtk_frame_new ("Interface");
+			gtk_frame_set_label_align (GTK_FRAME (frame), 0.5, 0.5);
+				box4 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				gtk_container_set_border_width (GTK_CONTAINER (box4), SETTINGS_MARGIN_VALUE);
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_bottom (box5, SETTINGS_MARGIN_VALUE);
+						widget = gtk_label_new ("Thème :");
+					gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+						light_radio_button = gtk_radio_button_new_with_label (NULL, "Clair");
+						gtk_widget_set_margin_start (light_radio_button, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box5), light_radio_button, FALSE, FALSE, 0);
+
+						widget = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (light_radio_button), "Sombre");
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+					gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+					if (!theme) gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+					g_signal_connect (G_OBJECT (light_radio_button), "toggled", G_CALLBACK (theme_radio_button_toggled), NULL);
+				gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+
+					box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+						widget =  gtk_label_new ("Afficher le RCP maître");
+						gtk_box_pack_start (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+
+						widget =  gtk_check_button_new ();
+						gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), show_master_rcp);
+						g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (show_master_rcp_check_button_toggled), NULL);
+						gtk_widget_set_margin_start (widget, SETTINGS_MARGIN_VALUE);
+						gtk_box_pack_end (GTK_BOX (box5), widget, FALSE, FALSE, 0);
+					gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
+				gtk_container_add (GTK_CONTAINER (frame), box4);
+			gtk_box_pack_start (GTK_BOX (box3), frame, TRUE, TRUE, 0);
+			gtk_box_pack_start (GTK_BOX (box2), box3, FALSE, FALSE, 0);
+
+			box3 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+			gtk_container_set_border_width (GTK_CONTAINER (box3), SETTINGS_MARGIN_VALUE);
+				widget = gtk_button_new_with_label ("A propos");
+				g_signal_connect (G_OBJECT (widget), "clicked", G_CALLBACK (show_about_window), NULL);
+				gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+			gtk_box_pack_end (GTK_BOX (box2), box3, FALSE, FALSE, 0);
+		gtk_box_pack_start (GTK_BOX (box1), box2, FALSE, FALSE, 0);
+
+		widget = gtk_label_new (key_info_2_txt);
+		gtk_box_pack_end (GTK_BOX (box1), widget, FALSE, FALSE, 0);
+	gtk_container_add (GTK_CONTAINER (settings_page), box1);
 
 	widget = gtk_label_new ("Paramètres");
 	gtk_notebook_append_page (GTK_NOTEBOOK (main_window_notebook), settings_page, widget);
@@ -1574,14 +1615,13 @@ void load_settings_from_config_file (void)
 {
 	int i;
 
-	g_mutex_init (&rcp_start_glist_mutex);
-
 	for (i = 0; i < NB_SETTINGS; i++) settings_parameters_indexes_array[i] = settings_array[i].default_value;
 
 	config_file = fopen (config_file_name, "rb");
 	if (config_file == NULL) return;
 
 #ifdef MAIN_SETTINGS_READ_ONLY
+	fseek (config_file, sizeof (int) * (NB_SETTINGS + 3), SEEK_SET);
 #else
 	fread (settings_parameters_indexes_array, sizeof (int), NB_SETTINGS, config_file);
 
@@ -1621,19 +1661,18 @@ void load_settings_from_config_file (void)
 
 	fread (&send_ip_tally, sizeof (gboolean), 1, config_file);
 
+	fread (&physical_rcp.address.sin_port, sizeof (guint16), 1, config_file);
+
+	fread (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
+
+	fread (&ip_rs, sizeof (gboolean), 1, config_file);
+
 	fread (&sw_p_08_address.sin_port, sizeof (guint16), 1, config_file);
 	if ((ntohs (sw_p_08_address.sin_port) < 1024) || (sw_p_08_address.sin_port == update_notification_address.sin_port))
 		sw_p_08_address.sin_port = htons (SW_P_08_TCP_PORT);
 
 	fread (rs_port_name, sizeof (char), 16, config_file);
 	rs_port_name[15] = '\0';
-
-	fread (&ip_rs, sizeof (gboolean), 1, config_file);
-
-	fread (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
-
-	fread (&remote_rcp_address.sin_addr.s_addr, sizeof (in_addr_t), 1, config_file);
-	fread (&remote_rcp_address.sin_port, sizeof (guint16), 1, config_file);
 
 	fread (&theme, sizeof (gboolean), 1, config_file);
 
@@ -1693,10 +1732,9 @@ void load_cameras_set_from_config_file (void)
 
 			init_rcp (rcp);
 
-			fread (&rcp->active, sizeof (gboolean), 1, config_file);
+			rcp->index = j;
 
-			fread (&rcp->matrix_source_number, sizeof (int), 1, config_file);
-			if (number_of_matrix_source < rcp->matrix_source_number) number_of_matrix_source = rcp->matrix_source_number;
+			fread (&rcp->active, sizeof (gboolean), 1, config_file);
 
 			if (rcp->active) {
 				create_rcp_widgets (rcp);
@@ -1711,8 +1749,13 @@ void load_cameras_set_from_config_file (void)
 				if (rcp->address.sin_addr.s_addr == INADDR_NONE) {
 					rcp->ip_address_is_valid = FALSE;
 					rcp->ip_address[0] = '\0';
-					g_idle_add ((GSourceFunc)set_rcp_off, rcp);
+
 					gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
+					gtk_widget_set_sensitive (rcp->standard_button, FALSE);
+					gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
+					gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
+					gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+
 					cameras_set_with_error = cameras_set_tmp;
 				} else {
 					rcp->ip_address_is_valid = TRUE;
@@ -1785,10 +1828,7 @@ void load_cameras_set_from_config_file (void)
 		}
 	}
 
-	if (number_of_cameras_sets != 0) {
-		number_of_matrix_source++;
-		rcp_start_glist = g_list_reverse (rcp_start_glist);
-	}
+	if (number_of_cameras_sets != 0) rcp_start_glist = g_list_reverse (rcp_start_glist);
 
 	fclose (config_file);
 }
@@ -1801,8 +1841,6 @@ void save_settings_and_cameras_sets_to_config_file (void)
 
 	config_file = fopen (config_file_name, "wb");
 
-#ifdef MAIN_SETTINGS_READ_ONLY
-#else
 	fwrite (settings_parameters_indexes_array, sizeof (int), NB_SETTINGS, config_file);
 
 	fwrite (&picture_level, sizeof (int), 1, config_file);
@@ -1810,22 +1848,20 @@ void save_settings_and_cameras_sets_to_config_file (void)
 	fwrite (&tally_input, sizeof (int), 1, config_file);
 
 	fwrite (&osd_mix, sizeof (int), 1, config_file);
-#endif
 
 	fwrite (&update_notification_address.sin_port, sizeof (guint16), 1, config_file);
 
 	fwrite (&send_ip_tally, sizeof (gboolean), 1, config_file);
 
-	fwrite (&sw_p_08_address.sin_port, sizeof (guint16), 1, config_file);
-
-	fwrite (rs_port_name, sizeof (char), 16, config_file);
-
-	fwrite (&ip_rs, sizeof (gboolean), 1, config_file);
+	fwrite (&physical_rcp.address.sin_port, sizeof (guint16), 1, config_file);
 
 	fwrite (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
 
-	fwrite (&remote_rcp_address.sin_addr.s_addr, sizeof (in_addr_t), 1, config_file);
-	fwrite (&remote_rcp_address.sin_port, sizeof (guint16), 1, config_file);
+	fwrite (&ip_rs, sizeof (gboolean), 1, config_file);
+
+	fwrite (&sw_p_08_address.sin_port, sizeof (guint16), 1, config_file);
+
+	fwrite (rs_port_name, sizeof (char), 16, config_file);
 
 	fwrite (&theme, sizeof (gboolean), 1, config_file);
 
@@ -1846,7 +1882,7 @@ void save_settings_and_cameras_sets_to_config_file (void)
 
 			fwrite (rcp->name, sizeof (char), 3, config_file);
 			fwrite (&rcp->active, sizeof (gboolean), 1, config_file);
-			fwrite (&rcp->matrix_source_number, sizeof (int), 1, config_file);
+
 			if (rcp->active) {
 				fwrite (rcp->ip_address, sizeof (char), 16, config_file);
 				fwrite (rcp->scenes, sizeof (scene_t), NB_SCENES, config_file);

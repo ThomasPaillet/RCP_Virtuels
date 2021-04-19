@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -28,7 +28,7 @@ extern GtkCssProvider *css_provider_store;
 
 gpointer start_camera (rcp_t *rcp)
 {
-	if (rcp->error_code == 0x30) send_update_start_cmd (rcp);
+	send_update_start_cmd (rcp);
 
 	if (rcp->error_code != 0x30) send_ptz_control_command (rcp, "#O1");
 
@@ -37,25 +37,52 @@ gpointer start_camera (rcp_t *rcp)
 
 gpointer stop_camera (rcp_t *rcp)
 {
-	if (rcp->error_code == 0x30) send_update_start_cmd (rcp);
+	GSList *gslist_itr;
 
-	if (rcp->error_code != 0x30) send_ptz_control_command (rcp, "#O0");
+	send_update_start_cmd (rcp);
+
+	if (rcp->error_code != 0x30) {
+		if (send_ip_tally && rcp->ip_tally_is_on) {
+			send_ptz_control_command (rcp, "#DA0");
+			rcp->ip_tally_is_on = FALSE;
+
+			for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next)
+				((rcp_t*)(gslist_itr->data))->ip_tally_is_on = FALSE;
+		}
+
+		send_ptz_control_command (rcp, "#O0");
+	}
 
 	return NULL;
 }
 
 void on_standby_switch_activated (GtkSwitch *on_standby_switch, GParamSpec *pspec, rcp_t *rcp)
 {
-	if (rcp->thread != NULL) g_thread_join (rcp->thread);
-
-	if (gtk_switch_get_active (on_standby_switch)) rcp->thread = g_thread_new (NULL, (GThreadFunc)start_camera, rcp);
-	else rcp->thread = g_thread_new (NULL, (GThreadFunc)stop_camera, rcp);
+	if (gtk_switch_get_active (on_standby_switch)) {
+		rcp_work_start (rcp);
+		/*rcp->thread =*/ g_thread_new (NULL, (GThreadFunc)start_camera, rcp);
+	} else /*rcp->thread =*/ g_thread_new (NULL, (GThreadFunc)stop_camera, rcp);
 }
 
 #define SET_RCP_PARAMETER(l,v) \
 	if (rcp->current_scene.l != v) { \
 		rcp->current_scene.l = v; \
 		set_##l (rcp); \
+	}
+
+#define SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(l,v) \
+	if (rcp->current_scene.l != v) { \
+		rcp->current_scene.l = v; \
+		set_##l (rcp); \
+ \
+		if (physical_rcp.connected && (rcp == rcp_vision)) { \
+			g_mutex_lock (&physical_rcp.mutex); \
+			if (physical_rcp.l != rcp->current_scene.l) { \
+				physical_rcp.l = rcp->current_scene.l; \
+				send_##l##_update_notification (); \
+			} \
+			g_mutex_unlock (&physical_rcp.mutex); \
+		} \
 	}
 
 #define SET_RCP_LINEAR_MATRIX_PARAMETER(l,v) \
@@ -78,19 +105,27 @@ void on_standby_switch_activated (GtkSwitch *on_standby_switch, GParamSpec *pspe
 
 gpointer load_standard (rcp_t *rcp)
 {
-	GSList *gslist_itr;
-
 	if (rcp->mire) {
 		rcp->mire = FALSE;
 		send_cam_control_command (rcp, "DCB:0");
+
+		if (physical_rcp.connected && (rcp == rcp_vision)) {
+			g_mutex_lock (&physical_rcp.mutex);
+			if (physical_rcp.mire) {
+				physical_rcp.mire = FALSE;
+				send_mire_update_notification ();
+			}
+			g_mutex_unlock (&physical_rcp.mutex);
+		}
 	}
+
 	if (rcp->day_night) {
 		rcp->day_night = FALSE;
 		send_ptz_control_command (rcp, "#D60");
 	}
 
-	SET_RCP_PARAMETER(ND_filter,ND_FILTER_DEFAULT)
-	SET_RCP_PARAMETER(gain,GAIN_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(ND_filter,ND_FILTER_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(gain,GAIN_DEFAULT)
 
 	SET_RCP_PARAMETER(gamma_type,GAMMA_TYPE_DEFAULT)
 	SET_RCP_PARAMETER(gamma,GAMMA_DEFAULT)
@@ -143,8 +178,8 @@ gpointer load_standard (rcp_t *rcp)
 	SET_RCP_CC_PHASE_PARAMETER(Mg_R,COLOR_CORRECTION_DEFAULT)
 	SET_RCP_CC_PHASE_PARAMETER(Mg_R_R,COLOR_CORRECTION_DEFAULT)
 
-	SET_RCP_PARAMETER(detail,DETAIL_DEFAULT)
-	SET_RCP_PARAMETER(master_detail,MASTER_DETAIL_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(detail,DETAIL_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(master_detail,MASTER_DETAIL_DEFAULT)
 	SET_RCP_PARAMETER(v_detail_level,V_DETAIL_LEVEL_DEFAULT)
 	SET_RCP_PARAMETER(detail_band,DETAIL_BAND_DEFAULT)
 	SET_RCP_PARAMETER(noise_suppress,NOISE_SUPPRESS_DEFAULT)
@@ -152,24 +187,33 @@ gpointer load_standard (rcp_t *rcp)
 
 	SET_RCP_PARAMETER(saturation,SATURATION_DEFAULT)
 
-	SET_RCP_PARAMETER(r_gain,R_GAIN_DEFAULT)
-	SET_RCP_PARAMETER(b_gain,B_GAIN_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_gain,R_GAIN_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_gain,B_GAIN_DEFAULT)
 
-	SET_RCP_PARAMETER(r_pedestal,R_PEDESTAL_DEFAULT)
-	SET_RCP_PARAMETER(b_pedestal,B_PEDESTAL_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_pedestal,R_PEDESTAL_DEFAULT)
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_pedestal,B_PEDESTAL_DEFAULT)
 
 	SET_RCP_PARAMETER(shutter_type,SHUTTER_TYPE_DEFAULT);
 	SET_RCP_PARAMETER(shutter_step,-1);
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+
+			if (physical_rcp.shutter_type != SHUTTER_TYPE_DEFAULT) {
+				physical_rcp.shutter_type = SHUTTER_TYPE_DEFAULT;
+				physical_rcp.shutter_step = -1;
+				send_shutter_update_notification ();
+			}
+
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
+
 	SET_RCP_PARAMETER(shutter_synchro,SHUTTER_SYNCHRO_DEFAULT)
 
 	SET_RCP_PARAMETER(pedestal,PEDESTAL_DEFAULT)
 
+	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(iris_auto,IRIS_AUTO_DEFAULT)
 	SET_RCP_PARAMETER(iris,IRIS_DEFAULT)
-	SET_RCP_PARAMETER(iris_auto,IRIS_AUTO_DEFAULT)
-
-	g_mutex_lock (&rcp->other_rcp_mutex);
-	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) copy_rcp ((rcp_t*)(gslist_itr->data), rcp);
-	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 	g_idle_add ((GSourceFunc)rcp_work_end, rcp);
 
@@ -178,21 +222,44 @@ gpointer load_standard (rcp_t *rcp)
 
 void standard_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	rcp_work_start (rcp, (GThreadFunc)load_standard);
+	rcp->camera_is_working = TRUE;
+	gtk_widget_show (rcp->spinner);
+	gtk_spinner_start (GTK_SPINNER (rcp->spinner));
+	gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
+	gtk_widget_set_sensitive (rcp->standard_button, FALSE);
+	gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
+	gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
+	gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+
+	rcp->thread = g_thread_new (NULL, (GThreadFunc)load_standard, rcp);
 }
 
 void mire_toggle_button_clicked (GtkToggleButton *mire_toggle_button, rcp_t *rcp)
 {
-	if (gtk_toggle_button_get_active (mire_toggle_button)) send_cam_control_command (rcp, "DCB:1");
-	else send_cam_control_command (rcp, "DCB:0");
+	if (gtk_toggle_button_get_active (mire_toggle_button)) {
+		rcp->mire = TRUE;
+		send_cam_control_command (rcp, "DCB:1");
+	} else {
+		rcp->mire = FALSE;
+		send_cam_control_command (rcp, "DCB:0");
+	}
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		physical_rcp.mire = rcp->mire;
+		send_mire_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
 }
 
 void day_night_toggle_button_clicked (GtkToggleButton *day_night_toggle_button, rcp_t *rcp)
 {
 	if (gtk_toggle_button_get_active (day_night_toggle_button)) {
+		rcp->day_night = TRUE;
 		send_ptz_control_command (rcp, "#D61");
 		gtk_widget_set_sensitive (rcp->ND_filter_combo_box, FALSE);	//ND filter switching is not possible in Night mode
 	} else {
+		rcp->day_night = FALSE;
 		send_ptz_control_command (rcp, "#D60");
 		gtk_widget_set_sensitive (rcp->ND_filter_combo_box, TRUE);
 	}
@@ -202,6 +269,21 @@ void day_night_toggle_button_clicked (GtkToggleButton *day_night_toggle_button, 
 	if (rcp->current_scene.l != rcp->scenes[rcp->scene_to_load].l) { \
 		rcp->current_scene.l = rcp->scenes[rcp->scene_to_load].l; \
 		set_##l (rcp); \
+	}
+
+#define COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(l) \
+	if (rcp->current_scene.l != rcp->scenes[rcp->scene_to_load].l) { \
+		rcp->current_scene.l = rcp->scenes[rcp->scene_to_load].l; \
+		set_##l (rcp); \
+ \
+		if (physical_rcp.connected && (rcp == rcp_vision)) { \
+			g_mutex_lock (&physical_rcp.mutex); \
+			if (physical_rcp.l != rcp->current_scene.l) { \
+				physical_rcp.l = rcp->current_scene.l; \
+				send_##l##_update_notification (); \
+			} \
+			g_mutex_unlock (&physical_rcp.mutex); \
+		} \
 	}
 
 #define COPY_RCP_SCENE_LINEAR_MATRIX_PARAMETER(l) \
@@ -224,19 +306,27 @@ void day_night_toggle_button_clicked (GtkToggleButton *day_night_toggle_button, 
 
 gpointer load_scene (rcp_t *rcp)
 {
-	GSList *gslist_itr;
-
 	if (rcp->mire) {
 		rcp->mire = FALSE;
 		send_cam_control_command (rcp, "DCB:0");
+
+		if (physical_rcp.connected && (rcp == rcp_vision)) {
+			g_mutex_lock (&physical_rcp.mutex);
+			if (physical_rcp.mire) {
+				physical_rcp.mire = FALSE;
+				send_mire_update_notification ();
+			}
+			g_mutex_unlock (&physical_rcp.mutex);
+		}
 	}
+
 	if (rcp->day_night) {
 		rcp->day_night = FALSE;
 		send_ptz_control_command (rcp, "#D60");
 	}
 
-	COPY_RCP_SCENE_PARAMETER(ND_filter)
-	COPY_RCP_SCENE_PARAMETER(gain)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(ND_filter)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(gain)
 
 	COPY_RCP_SCENE_PARAMETER(gamma_type)
 	COPY_RCP_SCENE_PARAMETER(gamma)
@@ -289,8 +379,8 @@ gpointer load_scene (rcp_t *rcp)
 	COPY_RCP_SCENE_CC_PHASE_PARAMETER(Mg_R)
 	COPY_RCP_SCENE_CC_PHASE_PARAMETER(Mg_R_R)
 
-	COPY_RCP_SCENE_PARAMETER(detail)
-	COPY_RCP_SCENE_PARAMETER(master_detail)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(detail)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(master_detail)
 	COPY_RCP_SCENE_PARAMETER(v_detail_level)
 	COPY_RCP_SCENE_PARAMETER(detail_band)
 	COPY_RCP_SCENE_PARAMETER(noise_suppress)
@@ -298,24 +388,34 @@ gpointer load_scene (rcp_t *rcp)
 
 	COPY_RCP_SCENE_PARAMETER(saturation)
 
-	COPY_RCP_SCENE_PARAMETER(r_gain)
-	COPY_RCP_SCENE_PARAMETER(b_gain)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_gain)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_gain)
 
-	COPY_RCP_SCENE_PARAMETER(r_pedestal)
-	COPY_RCP_SCENE_PARAMETER(b_pedestal)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_pedestal)
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_pedestal)
 
 	COPY_RCP_SCENE_PARAMETER(shutter_type)
 	COPY_RCP_SCENE_PARAMETER(shutter_step)
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+
+			if ((physical_rcp.shutter_type != rcp->current_scene.shutter_type) || \
+				((physical_rcp.shutter_type == 1) && (physical_rcp.shutter_step != rcp->current_scene.shutter_step))) {
+				physical_rcp.shutter_type = rcp->current_scene.shutter_type;
+				physical_rcp.shutter_step = rcp->current_scene.shutter_step;
+				send_shutter_update_notification ();
+			}
+
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
+
 	COPY_RCP_SCENE_PARAMETER(shutter_synchro)
 
 	COPY_RCP_SCENE_PARAMETER(pedestal)
 
+	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(iris_auto)
 	COPY_RCP_SCENE_PARAMETER(iris)
-	COPY_RCP_SCENE_PARAMETER(iris_auto)
-
-	g_mutex_lock (&rcp->other_rcp_mutex);
-	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) copy_rcp ((rcp_t*)(gslist_itr->data), rcp);
-	g_mutex_unlock (&rcp->other_rcp_mutex);
 
 	g_idle_add ((GSourceFunc)rcp_work_end, rcp);
 
@@ -337,7 +437,17 @@ void scene_button_clicked (GtkButton *button, rcp_t *rcp)
 		if (!triggered_by_master_rcp) save_settings_and_cameras_sets_to_config_file ();
 	} else {
 		rcp->scene_to_load = index;
-		rcp_work_start (rcp, (GThreadFunc)load_scene);
+
+		rcp->camera_is_working = TRUE;
+		gtk_widget_show (rcp->spinner);
+		gtk_spinner_start (GTK_SPINNER (rcp->spinner));
+		gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
+		gtk_widget_set_sensitive (rcp->standard_button, FALSE);
+		gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
+		gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
+		gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+
+		rcp->thread = g_thread_new (NULL, (GThreadFunc)load_scene, rcp);
 	}
 }
 
@@ -347,23 +457,25 @@ void ABB_button_clicked (GtkButton *button, rcp_t *rcp)
 	rcp_t *other_rcp;
 
 	if (send_ABB_execution_control_command (rcp)) {
+		rcp->g_gain = G_GAIN_DEFAULT;
 		g_signal_handler_block (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (rcp->g_pedestal_scale), G_PEDESTAL_DEFAULT);
 		g_signal_handler_unblock (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
-		rcp->g_gain = G_GAIN_DEFAULT;
+
+		rcp_work_start (rcp);
 
 		g_mutex_lock (&rcp->other_rcp_mutex);
 		for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
 			other_rcp = (rcp_t*)(gslist_itr->data);
 
+			other_rcp->g_gain = G_GAIN_DEFAULT;
 			g_signal_handler_block (other_rcp->g_pedestal_scale, other_rcp->g_pedestal_handler_id);
 			gtk_range_set_value (GTK_RANGE (other_rcp->g_pedestal_scale), G_PEDESTAL_DEFAULT);
 			g_signal_handler_unblock (other_rcp->g_pedestal_scale, other_rcp->g_pedestal_handler_id);
-			other_rcp->g_gain = G_GAIN_DEFAULT;
+
+			rcp_work_start (other_rcp);
 		}
 		g_mutex_unlock (&rcp->other_rcp_mutex);
-
-		rcp_work_start (rcp, NULL);
 	} else {
 		rcp->error_code = 0x30;
 		camera_is_unreachable (rcp);
@@ -379,6 +491,13 @@ void set_ND_filter (rcp_t *rcp)
 	} else {
 		send_cam_control_command (rcp, "OFT:0");
 	}
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		physical_rcp.ND_filter = rcp->current_scene.ND_filter;
+		send_ND_filter_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
 }
 
 void ND_filter_changed (GtkComboBox *ND_filter_combo_box, rcp_t *rcp)
@@ -392,6 +511,13 @@ void set_gain (rcp_t *rcp)
 {
 	if (rcp->current_scene.gain == 37) send_cam_control_command (rcp, "OGU:80");
 	else send_cam_control_command_2_digits (rcp, "OGU:", 0x2C - rcp->current_scene.gain, TRUE);
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		physical_rcp.gain = rcp->current_scene.gain;
+		send_gain_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
 }
 
 void gain_changed (GtkComboBox *gain_combo_box, rcp_t *rcp)
@@ -407,6 +533,23 @@ gboolean ghost_rcp_draw (GtkWidget *widget, cairo_t *cr)
 	else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
 
 	cairo_paint (cr);
+
+	return GDK_EVENT_PROPAGATE;
+}
+
+gboolean rcp_button_press_event (GtkWidget *widget, GdkEventButton *event, rcp_t *rcp)
+{
+	if (knee_matrix_detail_popup) {
+		knee_matrix_detail_popup = FALSE;
+		if (rcp_vision != NULL) {
+			if (rcp_vision->active) gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp_vision->event_box), FALSE);
+		}
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp->camera_set))->master_rcp.root_widget), FALSE);
+	} else if (rcp != rcp_vision) {
+		ask_to_connect_camera_to_ctrl_vision (rcp);
+
+		if (rcp->active && physical_rcp.connected) update_physical_rcp (rcp);
+	}
 
 	return GDK_EVENT_PROPAGATE;
 }
@@ -441,9 +584,9 @@ void create_ghost_rcp_widgets (rcp_t *rcp)
 
 			widget = gtk_drawing_area_new ();
 #ifdef _WIN32
-			gtk_widget_set_size_request (widget, 60, 735);
+			gtk_widget_set_size_request (widget, 60, 741);
 #elif defined (__linux)
-			gtk_widget_set_size_request (widget, 60, 732);
+			gtk_widget_set_size_request (widget, 60, 749);
 #endif
 			gtk_widget_set_events (widget, gtk_widget_get_events (widget) | GDK_BUTTON_PRESS_MASK);
 			g_signal_connect (G_OBJECT (widget), "draw", G_CALLBACK (ghost_rcp_draw), NULL);
@@ -452,7 +595,7 @@ void create_ghost_rcp_widgets (rcp_t *rcp)
 
 			widget = gtk_drawing_area_new ();
 #ifdef _WIN32
-			gtk_widget_set_size_request (widget, 60, 233);
+			gtk_widget_set_size_request (widget, 60, 243);
 #elif defined (__linux)
 			gtk_widget_set_size_request (widget, 60, 251);
 #endif
@@ -525,6 +668,7 @@ void create_rcp_widgets (rcp_t *rcp)
 	gtk_widget_set_margin_top (box1, MARGIN_VALUE);
 	gtk_widget_set_margin_bottom (box1, MARGIN_VALUE);
 		widget = gtk_switch_new ();
+		gtk_switch_set_active (GTK_SWITCH (widget), FALSE);
 		rcp->on_standby_handler_id = g_signal_connect (widget, "notify::active", G_CALLBACK (on_standby_switch_activated), rcp);
 		gtk_box_pack_start (GTK_BOX (box1), widget, FALSE, FALSE, 0);
 		rcp->on_standby_switch = widget;

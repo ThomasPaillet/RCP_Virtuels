@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -253,6 +253,36 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 COMMAND_FUNC_END
 
+void send_cam_control_command_now (rcp_t *rcp, char* cmd)
+{
+	int size;
+	char *http_cmd;
+	SOCKET sock;
+
+g_mutex_lock (&rcp->cmd_mutex);
+
+	size = 5;
+	while (cmd[size] != '\0') size++;
+
+	memcpy (rcp->last_ctrl_cmd, cmd, size);
+	rcp->last_ctrl_cmd[size]= '\0';
+	rcp->last_ctrl_cmd_len = size;
+
+	memcpy (rcp->cmd_buffer + 39 - size, cmd, size);
+	http_cmd = rcp->cmd_buffer + 15 - size;
+	if ((http_cmd != rcp->last_cmd) || (rcp->cam_ptz == FALSE)) {
+		memcpy (http_cmd, http_cam_cmd, 24);
+		rcp->last_cmd = http_cmd;
+		rcp->cam_ptz = TRUE;
+	}
+
+	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+		send (sock, http_cmd, size + full_http_header_size, 0);
+
+COMMAND_FUNC_END
+
 void send_cam_control_command_string (rcp_t *rcp, char* cmd, char* value)
 {
 	int size, index;
@@ -342,8 +372,10 @@ void send_cam_control_command_2_digits (rcp_t *rcp, char* cmd, int value, gboole
 
 g_mutex_lock (&rcp->cmd_mutex);
 
-	sprintf (rcp->cmd_buffer + 37, "%02X", value);
-	rcp->cmd_buffer[39] = '&';
+	rcp->cmd_buffer[37] = '0' + (value >> 4);
+	if (rcp->cmd_buffer[37] > '9') rcp->cmd_buffer[37] += 7;
+	rcp->cmd_buffer[38] = '0' + (value & 0x0F);
+	if (rcp->cmd_buffer[38] > '9') rcp->cmd_buffer[38] += 7;
 
 	size = 4;
 	while (cmd[size] != '\0') size++;
@@ -384,8 +416,12 @@ void send_cam_control_command_3_digits (rcp_t *rcp, char* cmd, int value, gboole
 
 g_mutex_lock (&rcp->cmd_mutex);
 
-	sprintf (rcp->cmd_buffer + 36, "%03X", value);
-	rcp->cmd_buffer[39] = '&';
+	rcp->cmd_buffer[36] = '0' + (value >> 8);
+	if (rcp->cmd_buffer[36] > '9') rcp->cmd_buffer[36] += 7;
+	rcp->cmd_buffer[37] = '0' + ((value & 0x0FF) >> 4);
+	if (rcp->cmd_buffer[37] > '9') rcp->cmd_buffer[37] += 7;
+	rcp->cmd_buffer[38] = '0' + (value & 0x00F);
+	if (rcp->cmd_buffer[38] > '9') rcp->cmd_buffer[38] += 7;
 
 	size = 4;
 	while (cmd[size] != '\0') size++;
@@ -562,8 +598,12 @@ void send_ptz_control_command_3_digits (rcp_t *rcp, char* cmd, int value, gboole
 
 g_mutex_lock (&rcp->cmd_mutex);
 
-	sprintf (rcp->cmd_buffer + 36, "%03X", value);
-	rcp->cmd_buffer[39] = '&';
+	rcp->cmd_buffer[36] = '0' + (value >> 8);
+	if (rcp->cmd_buffer[36] > '9') rcp->cmd_buffer[36] += 7;
+	rcp->cmd_buffer[37] = '0' + ((value & 0x0FF) >> 4);
+	if (rcp->cmd_buffer[37] > '9') rcp->cmd_buffer[37] += 7;
+	rcp->cmd_buffer[38] = '0' + (value & 0x00F);
+	if (rcp->cmd_buffer[38] > '9') rcp->cmd_buffer[38] += 7;
 
 	size = 4;
 	while (cmd[size] != '\0') size++;
@@ -593,6 +633,92 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 3 + full_http_header_size, 0);
+
+COMMAND_FUNC_END
+
+void send_tally_on_control_command (rcp_t *rcp)
+{
+	GSList *gslist_itr;
+	char *http_cmd;
+	SOCKET sock;
+	struct timeval current_time, elapsed_time;
+
+g_mutex_lock (&rcp->cmd_mutex);
+
+	rcp->ip_tally_is_on = TRUE;
+
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next)
+		((rcp_t*)(gslist_itr->data))->ip_tally_is_on = TRUE;
+
+	rcp->last_ctrl_cmd[0] = '#';
+	rcp->last_ctrl_cmd[1] = 'D';
+	rcp->last_ctrl_cmd[2] = 'A';
+	rcp->last_ctrl_cmd[3] = '1';
+	rcp->last_ctrl_cmd[4] = '\0';
+	rcp->last_ctrl_cmd_len = 4;
+
+	rcp->cmd_buffer[35] = '#';
+	rcp->cmd_buffer[36] = 'D';
+	rcp->cmd_buffer[37] = 'A';
+	rcp->cmd_buffer[38] = '1';
+	http_cmd = rcp->cmd_buffer + 11;
+	if ((http_cmd != rcp->last_cmd) || (rcp->cam_ptz == TRUE)) {
+		memcpy (http_cmd, http_ptz_cmd, 24);
+		rcp->last_cmd = http_cmd;
+		rcp->cam_ptz = FALSE;
+	}
+
+	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	gettimeofday (&current_time, NULL);
+	timersub (&current_time, &rcp->last_time, &elapsed_time);
+	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+		send (sock, http_cmd, 4 + full_http_header_size, 0);
+
+COMMAND_FUNC_END
+
+void send_tally_off_control_command (rcp_t *rcp)
+{
+	GSList *gslist_itr;
+	char *http_cmd;
+	SOCKET sock;
+	struct timeval current_time, elapsed_time;
+
+g_mutex_lock (&rcp->cmd_mutex);
+
+	rcp->ip_tally_is_on = FALSE;
+
+	for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next)
+		((rcp_t*)(gslist_itr->data))->ip_tally_is_on = FALSE;
+
+	rcp->last_ctrl_cmd[0] = '#';
+	rcp->last_ctrl_cmd[1] = 'D';
+	rcp->last_ctrl_cmd[2] = 'A';
+	rcp->last_ctrl_cmd[3] = '0';
+	rcp->last_ctrl_cmd[4] = '\0';
+	rcp->last_ctrl_cmd_len = 4;
+
+	rcp->cmd_buffer[35] = '#';
+	rcp->cmd_buffer[36] = 'D';
+	rcp->cmd_buffer[37] = 'A';
+	rcp->cmd_buffer[38] = '0';
+	http_cmd = rcp->cmd_buffer + 11;
+	if ((http_cmd != rcp->last_cmd) || (rcp->cam_ptz == TRUE)) {
+		memcpy (http_cmd, http_ptz_cmd, 24);
+		rcp->last_cmd = http_cmd;
+		rcp->cam_ptz = FALSE;
+	}
+
+	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	gettimeofday (&current_time, NULL);
+	timersub (&current_time, &rcp->last_time, &elapsed_time);
+	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+		send (sock, http_cmd, 4 + full_http_header_size, 0);
 
 COMMAND_FUNC_END
 
@@ -658,6 +784,8 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
+
+		rcp->last_version_information_notification_time = current_time.tv_sec;
 
 		if (rcp->error_code == 0x30) {
 			rcp->error_code = 0x00;

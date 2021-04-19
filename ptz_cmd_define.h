@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #ifndef __PTZ_CMD_DEFINE_H
@@ -161,16 +161,6 @@ BUTTON_PRESSED_MINUS_FUNC(l,c,d,10) \
 BUTTON_PRESSED_MINUS_FUNC(l,c,d,1) \
 BUTTON_PRESSED_PLUS_FUNC(l,c,d,1) \
 BUTTON_PRESSED_PLUS_FUNC(l,c,d,10)
-
-
-#define SET_RCP_SCALE(l,v) \
-	if (rcp->current_scene.l != v) { \
-		rcp->current_scene.l = v; \
-		set_##l (rcp); \
-		g_signal_handler_block (rcp->l##_scale, rcp->l##_handler_id); \
-		gtk_range_set_value (GTK_RANGE (rcp->l##_scale), v); \
-		g_signal_handler_unblock (rcp->l##_scale, rcp->l##_handler_id); \
-	}
 
 
 #endif

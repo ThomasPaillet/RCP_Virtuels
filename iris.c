@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -38,10 +38,20 @@ BUTTON_PRESSED_MINUS_FUNC(iris,"#AXI",3,20)
 
 BUTTON_PRESSED_MINUS_FUNC(iris,"#AXI",3,50)
 
+#undef MIN_VALUE
+#undef MAX_VALUE
+
 void set_iris_auto (rcp_t *rcp)
 {
 	if (rcp->current_scene.iris_auto) send_cam_control_command (rcp, "ORS:1");
 	else send_cam_control_command (rcp, "ORS:0");
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		physical_rcp.iris_auto = rcp->current_scene.iris_auto;
+		send_iris_auto_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
 }
 
 void iris_auto_toggle_button_clicked (GtkToggleButton *iris_auto_toggle_button, rcp_t *rcp)

@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -24,28 +24,31 @@
 #include <math.h>
 
 
-char *synchro_label = "Synchro: ";
+char *synchro_printf = "Synchro: %5.2lf Hz";
 
+
+#define MIN_VALUE 0x001
+#define MAX_VALUE 0x0FF
 
 void set_shutter_synchro_label (rcp_t *rcp)
 {
 	char label[24];
 
-	if (format_is_50Hz) sprintf (label, "%s%5.2lf Hz", synchro_label, 50.15 + (rcp->current_scene.shutter_synchro - 1) * 1.9);
-	else sprintf (label, "%s%5.2lf Hz", synchro_label, 60.15 + (rcp->current_scene.shutter_synchro - 1) * 2.2);
+	if (format_is_50Hz) sprintf (label, synchro_printf, 50.15 + (rcp->current_scene.shutter_synchro - 1) * 1.9);
+	else sprintf (label, synchro_printf, 60.15 + (rcp->current_scene.shutter_synchro - 1) * 2.2);
 
 	gtk_frame_set_label (GTK_FRAME (rcp->shutter_synchro_frame), label);
 	gtk_button_set_label (GTK_BUTTON (rcp->shutter_synchro_button), label + 9);
 }
-
-#define MIN_VALUE 0x001
-#define MAX_VALUE 0x0FF
 
 CAM_CMD_FUNCS(shutter_synchro,"OMS:",3)
 
 BUTTON_PRESSED_MINUS_FUNC(shutter_synchro,"OMS:",3,50)
 
 BUTTON_PRESSED_PLUS_FUNC(shutter_synchro,"OMS:",3,50)
+
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void create_shutter_synchro_window (rcp_t *rcp)
 {
@@ -64,8 +67,8 @@ void create_shutter_synchro_window (rcp_t *rcp)
 	g_signal_connect (G_OBJECT (window), "focus-out-event", G_CALLBACK (gtk_widget_hide_on_delete), NULL);
 	g_signal_connect (G_OBJECT (window), "delete-event", G_CALLBACK (gtk_widget_hide_on_delete), NULL);
 
-	if (format_is_50Hz) sprintf (label, "%s%5.2lfHz", synchro_label, 50.15);
-	else sprintf (label, "%s%5.2lfHz", synchro_label, 60.15);
+	if (format_is_50Hz) sprintf (label, synchro_printf, 50.15);
+	else sprintf (label, synchro_printf, 60.15);
 
 	frame = gtk_frame_new (label);
 	gtk_frame_set_label_align (GTK_FRAME (frame), 0.02, 0.5);
@@ -129,6 +132,15 @@ void set_shutter_type (rcp_t *rcp)
 	if (rcp->current_scene.shutter_type == 0) send_cam_control_command (rcp, "OSH:0");
 	else if (rcp->current_scene.shutter_type == 2) send_cam_control_command (rcp, "OSH:B");
 	else if (rcp->current_scene.shutter_type == 3) send_cam_control_command (rcp, "OSH:C");
+
+	if (rcp->current_scene.shutter_type != 1) {
+		if (physical_rcp.connected && (rcp == rcp_vision)) {
+			g_mutex_lock (&physical_rcp.mutex);
+			physical_rcp.shutter_type = rcp->current_scene.shutter_type;
+			send_shutter_update_notification ();
+			g_mutex_unlock (&physical_rcp.mutex);
+		}
+	}
 }
 
 void shutter_type_changed (GtkComboBox *shutter_type_combo_box, rcp_t *rcp)
@@ -202,6 +214,14 @@ void set_shutter_step (rcp_t *rcp)
 			else if (output_fps == _25fps) send_cam_control_command (rcp, "OSH:E");
 			else if (output_fps == _29_97fps) send_cam_control_command (rcp, "OSH:F");
 	}
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		physical_rcp.shutter_type = 1;
+		physical_rcp.shutter_step = rcp->current_scene.shutter_step;
+		send_shutter_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
 }
 
 void shutter_step_changed (GtkComboBox *shutter_step_combo_box, rcp_t *rcp)
@@ -214,7 +234,6 @@ void shutter_step_changed (GtkComboBox *shutter_step_combo_box, rcp_t *rcp)
 GtkWidget *create_shutter_frame (rcp_t *rcp)
 {
 	GtkWidget *frame, *box, *widget;
-	char label[16];
 
 	frame = gtk_frame_new ("Shutter");
 	gtk_frame_set_label_align (GTK_FRAME (frame), 0.1, 0.5);
@@ -239,9 +258,8 @@ GtkWidget *create_shutter_frame (rcp_t *rcp)
 
 		create_shutter_synchro_window (rcp);
 
-		if (format_is_50Hz) sprintf (label, "%5.2lfHz", 50.15);
-		else sprintf (label, "%5.2lfHz", 60.15);
-		widget = gtk_button_new_with_label (label);
+		if (format_is_50Hz) widget = gtk_button_new_with_label ("50.15");
+		else widget = gtk_button_new_with_label ("60.15");
 		g_signal_connect_swapped (widget, "clicked", G_CALLBACK (gtk_widget_show_all), rcp->shutter_synchro_window);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 		rcp->shutter_synchro_button = widget;

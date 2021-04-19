@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -24,6 +24,11 @@
 
 extern GtkCssProvider *css_provider_raz;
 
+const char *knee_txt = "Knee";
+
+
+#define MIN_VALUE 0x22
+#define MAX_VALUE 0xB6
 
 void set_knee_point_label (rcp_t *rcp)
 {
@@ -36,11 +41,13 @@ void set_knee_point_label (rcp_t *rcp)
 	gtk_label_set_text (GTK_LABEL (rcp->knee_point_value), label);
 }
 
-#define MIN_VALUE 0x22
-#define MAX_VALUE 0xB6
-
 CAM_CMD_FUNCS(knee_point,"OSA:20:",2)
 
+#undef MIN_VALUE
+#undef MAX_VALUE
+
+#define MIN_VALUE 0x00
+#define MAX_VALUE 0x63
 
 void set_knee_slope_label (rcp_t *rcp)
 {
@@ -51,20 +58,16 @@ void set_knee_slope_label (rcp_t *rcp)
 	gtk_label_set_text (GTK_LABEL (rcp->knee_slope_value), label);
 }
 
+CAM_CMD_FUNCS(knee_slope,"OSA:24:",2)
+
 #undef MIN_VALUE
 #undef MAX_VALUE
-#define MIN_VALUE 0x00
-#define MAX_VALUE 0x63
-
-CAM_CMD_FUNCS(knee_slope,"OSA:24:",2)
 
 void knee_point_slope_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	SET_RCP_SCALE(knee_point,KNEE_POINT_DEFAULT)
-	SET_RCP_SCALE(knee_slope,KNEE_SLOPE_DEFAULT)
+	gtk_range_set_value (GTK_RANGE (rcp->knee_point_scale), KNEE_POINT_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->knee_slope_scale), KNEE_SLOPE_DEFAULT);
 }
-
-const char *knee_txt = "Knee";
 
 void create_knee_point_slope_window (rcp_t *rcp)
 {

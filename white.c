@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -25,15 +25,15 @@
 extern GtkCssProvider *css_provider_gain_red, *css_provider_gain_green, *css_provider_gain_blue, *css_provider_raz;
 
 
-#define set_r_gain_label(r)
-
 #define MIN_VALUE 0x000
 #define MAX_VALUE 0x12C
+
+#define set_r_gain_label(r)
 
 #undef SEND_CMD_POST_ACTION
 #define SEND_CMD_POST_ACTION rcp->r_gain_need_update = FALSE;
 
-CAM_CMD_FUNCS(r_gain,"ORI:",3)
+CAM_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(r_gain,"ORI:",3)
 
 gboolean set_g_gain_delayed (rcp_t *rcp)
 {
@@ -41,11 +41,26 @@ gboolean set_g_gain_delayed (rcp_t *rcp)
 		if (rcp->r_gain_need_update) {
 			send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 			rcp->r_gain_need_update = FALSE;
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_gain = rcp->current_scene.r_gain;
+				send_r_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			if (!rcp->b_gain_need_update) rcp->need_last_call = FALSE;
 		} else {
 			if (rcp->b_gain_need_update) {
 				send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 				rcp->b_gain_need_update = FALSE;
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			}
 			rcp->need_last_call = FALSE;
 		}
@@ -53,11 +68,26 @@ gboolean set_g_gain_delayed (rcp_t *rcp)
 		if (rcp->b_gain_need_update) {
 			send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 			rcp->b_gain_need_update = FALSE;
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_gain = rcp->current_scene.b_gain;
+				send_b_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			if (!rcp->r_gain_need_update) rcp->need_last_call = FALSE;
 		} else {
 			if (rcp->r_gain_need_update) {
 				send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 				rcp->r_gain_need_update = FALSE;
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_gain = rcp->current_scene.r_gain;
+					send_r_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			}
 			rcp->need_last_call = FALSE;
 		}
@@ -121,6 +151,14 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 				if (rcp->r_gain_need_update) {
 					send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 					rcp->r_gain_need_update = FALSE;
+
+					if (physical_rcp.connected && (rcp == rcp_vision)) {
+						g_mutex_lock (&physical_rcp.mutex);
+						physical_rcp.r_gain = rcp->current_scene.r_gain;
+						send_r_gain_update_notification ();
+						g_mutex_unlock (&physical_rcp.mutex);
+					}
+
 					if (rcp->b_gain_need_update) {
 						rcp->need_last_call = FALSE;
 						rcp->timeout_id = g_timeout_add (130, (GSourceFunc)set_g_gain_delayed, rcp);
@@ -128,11 +166,26 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 				} else if (rcp->b_gain_need_update) {
 					send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 					rcp->b_gain_need_update = FALSE;
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 				}
 			} else {
 				if (rcp->b_gain_need_update) {
 					send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 					rcp->b_gain_need_update = FALSE;
+
+					if (physical_rcp.connected && (rcp == rcp_vision)) {
+						g_mutex_lock (&physical_rcp.mutex);
+						physical_rcp.b_gain = rcp->current_scene.b_gain;
+						send_b_gain_update_notification ();
+						g_mutex_unlock (&physical_rcp.mutex);
+					}
+
 					if (rcp->r_gain_need_update) {
 						rcp->need_last_call = FALSE;
 						rcp->timeout_id = g_timeout_add (130, (GSourceFunc)set_g_gain_delayed, rcp);
@@ -140,6 +193,13 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 				} else if (rcp->r_gain_need_update) {
 					send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 					rcp->r_gain_need_update = FALSE;
+
+					if (physical_rcp.connected && (rcp == rcp_vision)) {
+						g_mutex_lock (&physical_rcp.mutex);
+						physical_rcp.r_gain = rcp->current_scene.r_gain;
+						send_r_gain_update_notification ();
+						g_mutex_unlock (&physical_rcp.mutex);
+					}
 				}
 			}
 
@@ -167,6 +227,13 @@ gboolean g_gain_button_held (rcp_t *rcp)
 			g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, FALSE);
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_gain = rcp->current_scene.r_gain;
+				send_r_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
 		} else {
 			b_gain = rcp->current_scene.b_gain - (g_gain - rcp->g_gain);
 			if (b_gain < 0x000) b_gain = 0x000;
@@ -179,6 +246,13 @@ gboolean g_gain_button_held (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, FALSE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			} else {
 				rcp->timeout_id = 0;
 				return G_SOURCE_REMOVE;
@@ -196,6 +270,13 @@ gboolean g_gain_button_held (rcp_t *rcp)
 			g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, FALSE);
+
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_gain = rcp->current_scene.b_gain;
+				send_b_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
 		} else {
 			r_gain = rcp->current_scene.r_gain - (g_gain - rcp->g_gain);
 			if (r_gain < 0x000) r_gain = 0x000;
@@ -208,6 +289,13 @@ gboolean g_gain_button_held (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, FALSE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_gain = rcp->current_scene.r_gain;
+					send_r_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 			} else {
 				rcp->timeout_id = 0;
 				return G_SOURCE_REMOVE;
@@ -264,6 +352,13 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_gain = rcp->current_scene.r_gain;
+				send_r_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -277,6 +372,13 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 				g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -295,6 +397,13 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_gain = rcp->current_scene.b_gain;
+				send_b_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -308,6 +417,13 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 				g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_gain = rcp->current_scene.r_gain;
+					send_r_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -354,6 +470,13 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_gain = rcp->current_scene.r_gain;
+				send_r_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -367,6 +490,13 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 				g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -385,6 +515,13 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_gain = rcp->current_scene.b_gain;
+				send_b_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -398,6 +535,13 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 				g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_gain = rcp->current_scene.r_gain;
+					send_r_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -444,6 +588,13 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_gain = rcp->current_scene.r_gain;
+				send_r_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -457,6 +608,13 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 				g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -475,6 +633,13 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_gain = rcp->current_scene.b_gain;
+				send_b_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -488,6 +653,13 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 				g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_gain = rcp->current_scene.r_gain;
+					send_r_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -534,6 +706,13 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.r_gain = rcp->current_scene.r_gain;
+				send_r_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -547,6 +726,13 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 				g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.b_gain = rcp->current_scene.b_gain;
+					send_b_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -565,6 +751,13 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
+			if (physical_rcp.connected && (rcp == rcp_vision)) {
+				g_mutex_lock (&physical_rcp.mutex);
+				physical_rcp.b_gain = rcp->current_scene.b_gain;
+				send_b_gain_update_notification ();
+				g_mutex_unlock (&physical_rcp.mutex);
+			}
+
 			rcp->need_last_call = TRUE;
 			rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
 		} else {
@@ -578,6 +771,13 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 				g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
+
+				if (physical_rcp.connected && (rcp == rcp_vision)) {
+					g_mutex_lock (&physical_rcp.mutex);
+					physical_rcp.r_gain = rcp->current_scene.r_gain;
+					send_r_gain_update_notification ();
+					g_mutex_unlock (&physical_rcp.mutex);
+				}
 
 				rcp->need_last_call = FALSE;
 				rcp->timeout_id = g_timeout_add (130, (GSourceFunc)g_gain_button_held, rcp);
@@ -597,16 +797,21 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 #undef SEND_CMD_POST_ACTION
 #define SEND_CMD_POST_ACTION rcp->b_gain_need_update = FALSE;
 
-CAM_CMD_FUNCS(b_gain,"OBI:",3)
+CAM_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(b_gain,"OBI:",3)
+
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void white_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	SET_RCP_SCALE(r_gain,R_GAIN_DEFAULT)
+	gtk_range_set_value (GTK_RANGE (rcp->r_gain_scale), R_GAIN_DEFAULT);
+
+	rcp->g_gain = G_GAIN_DEFAULT;
 	g_signal_handler_block (rcp->g_gain_scale, rcp->g_gain_handler_id);
 	gtk_range_set_value (GTK_RANGE (rcp->g_gain_scale), G_GAIN_DEFAULT);
 	g_signal_handler_unblock (rcp->g_gain_scale, rcp->g_gain_handler_id);
-	rcp->g_gain = G_GAIN_DEFAULT;
-	SET_RCP_SCALE(b_gain,B_GAIN_DEFAULT)
+
+	gtk_range_set_value (GTK_RANGE (rcp->b_gain_scale), B_GAIN_DEFAULT);
 }
 
 GtkWidget *create_white_frame (rcp_t *rcp)

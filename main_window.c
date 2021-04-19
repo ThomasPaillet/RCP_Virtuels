@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -27,17 +27,15 @@ void load_pixbufs (void);
 #include "Linux/gresources.h"
 #endif
 
-#ifdef DEBUG_RCP
-	GMutex debug_mutex;
-#ifdef _WIN32
-	FILE *debug_file;
-#endif
-#endif
-
 
 GdkScreen *screen;
+
 GtkCssProvider *light_css_provider;
 GtkCssProvider *dark_css_provider;
+
+GtkCssProvider *css_provider_gain_red, *css_provider_gain_green, *css_provider_gain_blue;
+GtkCssProvider *css_provider_pedestal_red, *css_provider_pedestal_green, *css_provider_pedestal_blue;
+GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz, *css_provider_store;
 
 GtkWidget *main_window;
 GtkWidget *main_window_notebook;
@@ -51,10 +49,6 @@ const char *application_name_txt = "RCP virtuels pour caméras Panasonic AW-HE13
 const char *key_info_1_txt = "PGM -> CTRL VISION (Echap) | CAM 1 ... x -> CTRL VISION (F1 ... Fx) | Plein écran (F) | Affichage simplifié (S, Espace) | Instantané(s) (I) | Quitter (Q, ALT + F4)";
 const char *key_info_2_txt = "Plein écran (F) | Quitter (Q, ALT + F4)";
 const char *warning_txt = "Attention !";
-
-GtkCssProvider *css_provider_gain_red, *css_provider_gain_green, *css_provider_gain_blue;
-GtkCssProvider *css_provider_pedestal_red, *css_provider_pedestal_green, *css_provider_pedestal_blue;
-GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz, *css_provider_store;
 
 
 gboolean digit_key_press (GtkEntry *entry, GdkEventKey *event)
@@ -105,8 +99,7 @@ void show_rs_connection_error_window (void)
 void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, guint page_num)
 {
 	int i;
-	rcp_t *rcp, *updated_rcp, *other_rcp;
-	GSList *gslist_itr;
+	rcp_t *rcp;
 	GList *list, *glist_itr;
 
 	if (knee_matrix_detail_popup) {
@@ -119,31 +112,48 @@ void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, g
 
 	if (backup_needed) save_settings_and_cameras_sets_to_config_file ();
 
-	for (current_camera_set = cameras_sets; current_camera_set != NULL; current_camera_set = current_camera_set->next) {
-		if (current_camera_set->page == page) break;
+	g_mutex_lock (&sw_p_08_mutex);
+	rcp_pgm = NULL;
+	rcp_pvw = NULL;
+	g_mutex_unlock (&sw_p_08_mutex);
+
+	if ((send_ip_tally) && (current_cameras_set != NULL)) {
+		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
+			rcp = current_cameras_set->rcp_ptr_array[i];
+
+			if (rcp->camera_is_on && rcp->ip_tally_is_on) send_tally_off_control_command (rcp);
+		}
 	}
 
-	if (current_camera_set == NULL) return;
+	g_mutex_lock (&current_cameras_set_mutex);
 
-	for (i = 0; i < current_camera_set->number_of_cameras; i++) {
-		rcp = current_camera_set->rcp_ptr_array[i];
+	for (current_cameras_set = cameras_sets; current_cameras_set != NULL; current_cameras_set = current_cameras_set->next) {
+		if (current_cameras_set->page == page) break;
+	}
 
-		if (rcp->camera_is_working) continue;
+	g_mutex_unlock (&current_cameras_set_mutex);
 
-		if (rcp->other_rcp != NULL) {
-			updated_rcp = (rcp_t*)(rcp->other_rcp->data);
+	g_mutex_lock (&sw_p_08_mutex);
 
-			for (gslist_itr = rcp->other_rcp->next; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
-				other_rcp = (rcp_t*)(gslist_itr->data);
+	if (current_cameras_set == NULL) {
+		tell_camera_set_is_selected (MAX_CAMERAS + 1);
+		g_mutex_unlock (&sw_p_08_mutex);
 
-				if (other_rcp->last_time.tv_sec > updated_rcp->last_time.tv_sec) updated_rcp = other_rcp;
-				else if ((other_rcp->last_time.tv_sec == updated_rcp->last_time.tv_sec) && \
-					(other_rcp->last_time.tv_usec > updated_rcp->last_time.tv_usec)) updated_rcp = other_rcp;
-			}
+		return;
+	}
 
-			if (updated_rcp->last_time.tv_sec > rcp->last_time.tv_sec) copy_rcp (rcp, updated_rcp);
-			else if ((updated_rcp->last_time.tv_sec == rcp->last_time.tv_sec) && \
-				(updated_rcp->last_time.tv_usec > rcp->last_time.tv_usec)) copy_rcp (rcp, updated_rcp);
+	if ((int)tally_pgm < current_cameras_set->number_of_cameras) rcp_pgm = current_cameras_set->rcp_ptr_array[(int)tally_pgm];
+	if ((int)tally_pvw < current_cameras_set->number_of_cameras) rcp_pvw = current_cameras_set->rcp_ptr_array[(int)tally_pvw];
+
+	tell_camera_set_is_selected (page_num);
+
+	g_mutex_unlock (&sw_p_08_mutex);
+
+	if (send_ip_tally) {
+		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
+			rcp = current_cameras_set->rcp_ptr_array[i];
+
+			if ((rcp->camera_is_on) && ((rcp->tally_data & 0x30) || (rcp == rcp_pgm))) send_tally_on_control_command (rcp);
 		}
 	}
 
@@ -268,21 +278,21 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 			gtk_window_fullscreen (GTK_WINDOW (main_window));
 			fullscreen = TRUE;
 		}
-	} else if (current_camera_set != NULL) {
+	} else if (current_cameras_set != NULL) {
 		if (event->keyval == GDK_KEY_Escape) ask_to_connect_pgm_to_ctrl_vision ();
 		else if ((GDK_KEY_F1 <= event->keyval) && (event->keyval <= GDK_KEY_F15)) {
 			rcp_num = event->keyval - GDK_KEY_F1;
-			if (rcp_num >= current_camera_set->number_of_cameras) rcp_num = current_camera_set->number_of_cameras - 1;
-			rcp_button_press_event (NULL, NULL, current_camera_set->rcp_ptr_array[rcp_num]);
+			if (rcp_num >= current_cameras_set->number_of_cameras) rcp_num = current_cameras_set->number_of_cameras - 1;
+			rcp_button_press_event (NULL, NULL, current_cameras_set->rcp_ptr_array[rcp_num]);
 		} else if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
-			for (i = 0; i < current_camera_set->number_of_cameras; i++) {
-				if (current_camera_set->rcp_ptr_array[i]->active) {
-					gtk_widget_hide (current_camera_set->rcp_ptr_array[i]->scenes_bank_1_box);
-					gtk_widget_show (current_camera_set->rcp_ptr_array[i]->scenes_bank_2_box);
+			for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
+				if (current_cameras_set->rcp_ptr_array[i]->active) {
+					gtk_widget_hide (current_cameras_set->rcp_ptr_array[i]->scenes_bank_1_box);
+					gtk_widget_show (current_cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
 				}
 			}
-			gtk_widget_hide (current_camera_set->master_rcp.scenes_bank_1_box);
-			gtk_widget_show (current_camera_set->master_rcp.scenes_bank_2_box);
+			gtk_widget_hide (current_cameras_set->master_rcp.scenes_bank_1_box);
+			gtk_widget_show (current_cameras_set->master_rcp.scenes_bank_2_box);
 		} else if ((event->keyval == GDK_KEY_s) || (event->keyval == GDK_KEY_S) || (event->keyval == GDK_KEY_space)) {
 			if (simple_ihm) {
 				for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -360,8 +370,8 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 					rcp_vision->thread = g_thread_new (NULL, (GThreadFunc)send_jpeg_image_request_cmd, rcp_vision);
 				}
 			} else {
-				for (i = 0; i < current_camera_set->number_of_cameras; i++) {
-					rcp = current_camera_set->rcp_ptr_array[i];
+				for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
+					rcp = current_cameras_set->rcp_ptr_array[i];
 
 					if ((rcp->active) && (rcp->camera_is_on) && (!rcp->camera_is_working)) {
 						if (rcp->thread != NULL) g_thread_join (rcp->thread);
@@ -415,15 +425,15 @@ gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 	}
 
 	if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
-		if (current_camera_set != NULL) {
-			for (i = 0; i < current_camera_set->number_of_cameras; i++) {
-				if (current_camera_set->rcp_ptr_array[i]->active) {
-					gtk_widget_hide (current_camera_set->rcp_ptr_array[i]->scenes_bank_2_box);
-					gtk_widget_show (current_camera_set->rcp_ptr_array[i]->scenes_bank_1_box);
+		if (current_cameras_set != NULL) {
+			for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
+				if (current_cameras_set->rcp_ptr_array[i]->active) {
+					gtk_widget_hide (current_cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
+					gtk_widget_show (current_cameras_set->rcp_ptr_array[i]->scenes_bank_1_box);
 				}
 			}
-			gtk_widget_hide (current_camera_set->master_rcp.scenes_bank_2_box);
-			gtk_widget_show (current_camera_set->master_rcp.scenes_bank_1_box);
+			gtk_widget_hide (current_cameras_set->master_rcp.scenes_bank_2_box);
+			gtk_widget_show (current_cameras_set->master_rcp.scenes_bank_1_box);
 		}
 	}
 
@@ -564,6 +574,9 @@ int main (int argc, char** argv)
 
 	create_settings_page ();
 
+	g_mutex_init (&cameras_sets_mutex);
+	g_mutex_init (&current_cameras_set_mutex);
+
 	load_cameras_set_from_config_file ();
 
 	g_signal_connect (G_OBJECT (source_cameras_set_list_box), "row-selected", G_CALLBACK (source_cameras_set_list_box_row_selected), NULL);
@@ -573,8 +586,25 @@ int main (int argc, char** argv)
 
 	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 		for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-			if (cameras_set_itr->rcp_ptr_array[i]->active) gtk_widget_hide (cameras_set_itr->rcp_ptr_array[i]->scenes_bank_2_box);
+			rcp = cameras_set_itr->rcp_ptr_array[i];
+
+			if (rcp->active) {
+				gtk_widget_hide (rcp->scenes_bank_2_box);
+				gtk_widget_hide (rcp->shutter_step_combo_box);
+				gtk_widget_hide (rcp->shutter_synchro_button);
+
+				if (rcp->ip_address_is_valid) {
+					rcp->camera_is_working = TRUE;
+					gtk_spinner_start (GTK_SPINNER (rcp->spinner));
+					gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
+					gtk_widget_set_sensitive (rcp->standard_button, FALSE);
+					gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
+					gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
+					gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+				}
+			}
 		}
+
 		gtk_widget_hide (cameras_set_itr->master_rcp.scenes_bank_2_box);
 
 		if (show_master_rcp) {
@@ -602,29 +632,33 @@ int main (int argc, char** argv)
 	start_update_notification ();
 
 	for (glist_itr = rcp_start_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
-		rcp_work_start ((rcp_t*)(glist_itr->data), (GThreadFunc)check_if_camera_is_on);
+		((rcp_t*)(glist_itr->data))->thread = g_thread_new (NULL, (GThreadFunc)check_if_camera_is_on, glist_itr->data);
 	}
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 	g_thread_new (NULL, (GThreadFunc)check_cameras_settings_ro, NULL);
 #endif
+
+	start_physical_rcp ();
 
 	start_tally ();
 
 	start_sw_p_08 ();
 
-	start_physical_rcp ();
-
 	gtk_main ();
 
 	if (backup_needed) save_settings_and_cameras_sets_to_config_file ();
 
-	stop_tally ();
-
 	stop_sw_p_08_tcp_server ();
 	stop_rs_communication ();
 
+	stop_tally ();
+
+	stop_physical_rcp ();
+
 	stop_update_notification ();
+
+	stop_error_log ();
 
 	g_list_free (rcp_start_glist);
 
@@ -647,8 +681,6 @@ int main (int argc, char** argv)
 	}
 
 	gtk_widget_destroy (main_window);
-
-	stop_error_log ();
 
 	WSACleanup ();	//_WIN32
 

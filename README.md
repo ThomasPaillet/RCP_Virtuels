@@ -7,14 +7,32 @@
 
 Les **2 réglages importants** (et qui ne peuvent pas être modifiés) sont, le « Preset Scope » qui est en « mode C » pour que personne d'autre ne touche à la colorimétrie des caméras, et le « White Balance Mode » qui est réglé sur « VAR » pour que le logiciel puisse sauvegarder la température de couleur (parce qu’il n’est pas possible d’accéder aux valeurs calculées par les caméras dans les mémoires AWB A et B). Cela permet d’implémenter 10 vraies mémoires que l'on peut enregistrer et rappeler à la demande (les 4 scènes des caméras sont ignorées).
 
-Tous ces paramètres sont contrôlés au démarrage et en permanence via les « updates notifications » pour que personne ne puisse les modifier par inadvertance depuis un autre pupitre (par contre il ne faudrait surtout pas qu'il y ai plusieurs logiciels avec des réglages différents qui s'exécutent en même temps, ils se battraient pour imposer leurs réglages et abîmeraient la mémoire interne des caméras).
+Tous ces paramètres sont contrôlés au démarrage et en permanence via le mécanisme des « update notifications » pour que personne ne puisse les modifier par inadvertance depuis un autre pupitre (par contre il ne faudrait surtout pas qu'il y ai plusieurs logiciels avec des réglages différents qui s'exécutent en même temps, ils se battraient pour imposer leurs réglages et abîmeraient la mémoire interne des caméras).
 
 ### Connexion avec la régie :
-Il y a moyen d'interfacer le logiciel avec la régie (Tallyman, Cerebrum, …) via le protocole SW-P-08 (en liaison IP ou série) pour commuter automatiquement la sortie SDI de la caméra sélectionnée dans un moniteur de contrôle (et vice versa). Si l’utilisation du protocole TSL UMD V5 est impossible, il est possible d’avoir les rouges antennes par le même mécanisme.
+Il est possible d'interfacer le logiciel avec la régie (Tallyman, Cerebrum, …) via le protocole « SW-P-08 » (en liaison IP ou série) pour choisir l’ « ensemble de caméras » actif, commuter automatiquement la sortie SDI de la caméra sélectionnée dans un moniteur de contrôle (et vice versa), et rappeler des mémoires.
 
-Explication, le logiciel est vu comme une grille :
+Explication, le logiciel est vu comme une grille (17 sources, 5 destinations) :
 ![Grille](Screenshots/Grille.png "Grille")
-Par exemple quand le RCP virtuel « 2 » du « plateau B » est sélectionné, le logiciel indique à la régie le point de croisement 12 -> CTRL VISION et il faut avoir programmé le Tallyman/Cerebrum/ou autres en conséquence pour qu'il demande à la grille centrale de faire le « vrai » point de croisement, ou encore si la caméra 6 du « plateau A » est à l'antenne la programmation du Tallyman/Cerebrum/ou autres doit faire en sorte de demander la réalisation du point de croisement 8 -> PGM et le RCP virtuel 6 du « plateau A » sera cerclé de rouge dans l'interface.
+Par exemple, si le RCP virtuel n°2 de l’ « ensemble de caméras » actif est sélectionné, le logiciel indique à la régie le point de croisement « 2 » -> « 2 : RCP » et il faut avoir programmé le Tallyman/Cerebrum/ou autres en conséquence pour qu'il demande à la grille centrale de faire le point de croisement de la sortie SDI de la caméra correspondante vers le moniteur vision.
+
+Appuyer sur la touche « Echap » réalise le point de croisement « Echap » -> « 2 : RCP » de façon à pouvoir programmer la commutation du PGM dans le moniteur vision.
+
+A l’inverse, en demandant le point de croisement approprié, la régie peut sélectionner l’ « ensemble de caméras » actif (changement de configuration d’émission), le RCP actif (pour suivre l’action « des coups de poing » au poste vision) et rappeler la mémoire n°X de tous les RCP de l’ « ensemble de caméras » actif.
+
+Si l’utilisation du protocole TSL UMD V5 est impossible, il est possible d’avoir les rouges antennes par le même mécanisme. Si la caméra 6 est à l'antenne la programmation du Tallyman/Cerebrum/ou autres doit faire en sorte de demander la réalisation du point de croisement « 6 » -> « 4 : PGM » et le RCP virtuel n°6 sera cerclé de rouge dans l'interface.
+
+### Utilisation d’un RCP Physique :
+Il est possible d’utiliser un RCP Panasonic AK-HRP200 pour piloter la caméra sélectionnée à travers le logiciel.
+
+Pour la configuration, le logiciel est vu par le RCP comme une caméra normale et il faut utiliser un port TCP/IP supérieur à 1024.
+![ROP-Setup](Screenshots/ROP-Setup.png "ROP-Setup")
+
+Toutes les fonctionnalités sont accessibles (sauf l’ « auto white » et le rappel des 4 scènes qui n’ont pas de sens) et une fois que le RCP a rattrapé les valeurs du logiciel (voyant « IRIS/M.PED LOCK » qui ne clignote plus), nous bénéficions d’un iris et d’un piédestal relatif peu importe la caméra réellement pilotée.
+
+Le bouton « HEAD POWER » allume ou éteint la caméra sélectionnée.
+
+![RCP-AK-HRP200](Screenshots/RCP-AK-HRP200.png "RCP-AK-HRP200")
 
 ## Ensembles de caméras :
 Les caméras (une adresse IP et un nom sur 2 caractères) sont déclarées dans les « ensembles de caméras ».
@@ -44,7 +62,7 @@ Si on maintient ces boutons appuyés, ils continuent d'incrémenter toutes les 1
 
 Le gain « Vert », qui n’existe pas dans la réalité, fait évoluer les gains rouge et bleu en sens inverse.
 
-Les valeurs de « Shutter synchro » affichées ne sont pas celles de Panasonic (j’ai eu la flemme de taper à la main les 255 valeurs)
+Les valeurs de « Shutter synchro » affichées ne sont pas celles de Panasonic (j’ai eu la flemme de taper à la main les 2x255 valeurs)
 
 ## Scènes :
 Dans l'onglet « Scènes », il est possible de copier une mémoire d'une caméra dans une autre caméra (y compris partiellement, on peut par exemple appliquer un matriçage complexe à plusieurs caméras sans toucher aux réglages de détail).
@@ -56,9 +74,9 @@ S ou Espace : affichage complet/simplifié des RCP.
 
 F : mode plein écran/mode fenêtré.
 
-Fn : Sélectionne le n_ème_ RCP et en informe la régie (point de croisement « index » -> CTRL VISION).
+Fn : Sélectionne le n_ème_ RCP et en informe la régie (point de croisement « n° » -> « 2 : RCP »).
 
-Echap : Informe la régie du point de croisement PGM -> CTRL VISION.
+Echap : Informe la régie du point de croisement « Echap » -> « 2 : RCP ».
 
 Shift : donne accès aux mémoires 6 à 10.
 
@@ -73,7 +91,7 @@ La configuration et les mémoires des RCP sont stockées dans le fichier « RCP
 
 Il y a un petit fichier icône tout moche « RCP-Virtuels.ico ».
 
-Les éventuelles erreurs générées par les caméras sont enregistrées dans les fichiers journaliers « <date>_Errors.log ».
+Les éventuelles erreurs générées par les caméras sont enregistrées dans les fichiers journaliers « 'date'_Errors.log ».
 
 Les fichiers dans le dossier « resources » définissent l’aspect de l’interface du programme.
 

@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -23,6 +23,8 @@
 
 
 extern GtkCssProvider *css_provider_raz;
+
+const char *detail_txt = "Détail";
 
 char *master_detail_label = "Master Detail: ";
 char *v_detail_level_label = "V Detail Level: ";
@@ -37,6 +39,9 @@ char noise_suppress_tooltip[] = "Cette option sert à réduire le bruit qui est 
 char fleshtone_noisesup_tooltip[] = "Cette option sert à rendre la peau du sujet plus régulière et attrayante.";
 
 
+#define MIN_VALUE 0x61
+#define MAX_VALUE 0x9F
+
 void set_master_detail_label (rcp_t *rcp)
 {
 	char label[32];
@@ -46,16 +51,18 @@ void set_master_detail_label (rcp_t *rcp)
 	gtk_frame_set_label (GTK_FRAME (rcp->master_detail_frame), label);
 }
 
-#define MIN_VALUE 0x61
-#define MAX_VALUE 0x9F
-
-CAM_CMD_FUNCS(master_detail,"OSA:30:",2)
+CAM_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(master_detail,"OSA:30:",2)
 
 void master_detail_default_button_clicked (GtkButton *button, rcp_t *rcp)
 {
 	gtk_range_set_value (GTK_RANGE (rcp->master_detail_scale), MASTER_DETAIL_DEFAULT);
 }
 
+#undef MIN_VALUE
+#undef MAX_VALUE
+
+#define MIN_VALUE 0x79
+#define MAX_VALUE 0x87
 
 void set_v_detail_level_label (rcp_t *rcp)
 {
@@ -66,11 +73,6 @@ void set_v_detail_level_label (rcp_t *rcp)
 
 	gtk_frame_set_label (GTK_FRAME (rcp->v_detail_level_frame), label);
 }
-
-#undef MIN_VALUE
-#undef MAX_VALUE
-#define MIN_VALUE 0x79
-#define MAX_VALUE 0x87
 
 CAM_CMD_FUNCS(v_detail_level,"OSD:A1:",2)
 
@@ -83,6 +85,11 @@ void v_detail_level_0_button_clicked (GtkButton *button, rcp_t *rcp)
 
 BUTTON_PRESSED_PLUS_FUNC(v_detail_level,"OSD:A1:",2,3)
 
+#undef MIN_VALUE
+#undef MAX_VALUE
+
+#define MIN_VALUE 0x79
+#define MAX_VALUE 0x87
 
 void set_detail_band_label (rcp_t *rcp)
 {
@@ -93,11 +100,6 @@ void set_detail_band_label (rcp_t *rcp)
 
 	gtk_frame_set_label (GTK_FRAME (rcp->detail_band_frame), label);
 }
-
-#undef MIN_VALUE
-#undef MAX_VALUE
-#define MIN_VALUE 0x79
-#define MAX_VALUE 0x87
 
 CAM_CMD_FUNCS(detail_band,"OSD:A2:",2)
 
@@ -110,6 +112,11 @@ void detail_band_0_button_clicked (GtkButton *button, rcp_t *rcp)
 
 BUTTON_PRESSED_PLUS_FUNC(detail_band,"OSD:A2:",2,3)
 
+#undef MIN_VALUE
+#undef MAX_VALUE
+
+#define MIN_VALUE 0x00
+#define MAX_VALUE 0x3C
 
 void set_noise_suppress_label (rcp_t *rcp)
 {
@@ -120,11 +127,6 @@ void set_noise_suppress_label (rcp_t *rcp)
 	gtk_frame_set_label (GTK_FRAME (rcp->noise_suppress_frame), label);
 }
 
-#undef MIN_VALUE
-#undef MAX_VALUE
-#define MIN_VALUE 0x00
-#define MAX_VALUE 0x3C
-
 CAM_CMD_FUNCS(noise_suppress,"OSD:22:",2)
 
 void noise_suppress_default_button_clicked (GtkButton *button, rcp_t *rcp)
@@ -132,6 +134,11 @@ void noise_suppress_default_button_clicked (GtkButton *button, rcp_t *rcp)
 	gtk_range_set_value (GTK_RANGE (rcp->noise_suppress_scale), NOISE_SUPPRESS_DEFAULT);
 }
 
+#undef MIN_VALUE
+#undef MAX_VALUE
+
+#define MIN_VALUE 0x80
+#define MAX_VALUE 0x9F
 
 void set_fleshtone_noisesup_label (rcp_t *rcp)
 {
@@ -141,11 +148,6 @@ void set_fleshtone_noisesup_label (rcp_t *rcp)
 
 	gtk_frame_set_label (GTK_FRAME (rcp->fleshtone_noisesup_frame), label);
 }
-
-#undef MIN_VALUE
-#undef MAX_VALUE
-#define MIN_VALUE 0x80
-#define MAX_VALUE 0x9F
 
 CAM_CMD_FUNCS(fleshtone_noisesup,"OSD:A3:",2)
 
@@ -158,17 +160,17 @@ void fleshtone_noisesup_default_button_clicked (GtkButton *button, rcp_t *rcp)
 
 BUTTON_PRESSED_PLUS_FUNC(fleshtone_noisesup,"OSD:A3:",2,5)
 
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void detail_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	SET_RCP_SCALE(master_detail,MASTER_DETAIL_DEFAULT)
-	SET_RCP_SCALE(v_detail_level,V_DETAIL_LEVEL_DEFAULT)
-	SET_RCP_SCALE(detail_band,DETAIL_BAND_DEFAULT)
-	SET_RCP_SCALE(noise_suppress,NOISE_SUPPRESS_DEFAULT)
-	SET_RCP_SCALE(fleshtone_noisesup,FLESHTONE_NOISESUP_DEFAULT)
+	gtk_range_set_value (GTK_RANGE (rcp->master_detail_scale), MASTER_DETAIL_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->v_detail_level_scale), V_DETAIL_LEVEL_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->detail_band_scale), DETAIL_BAND_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->noise_suppress_scale), NOISE_SUPPRESS_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->fleshtone_noisesup_scale), FLESHTONE_NOISESUP_DEFAULT);
 }
-
-const char *detail_txt = "Détail";
 
 void create_detail_window (rcp_t *rcp)
 {
@@ -453,6 +455,13 @@ void set_detail (rcp_t *rcp)
 {
 	if (rcp->current_scene.detail) send_cam_control_command (rcp, "ODT:1");
 	else send_cam_control_command (rcp, "ODT:0");
+
+	if (physical_rcp.connected && (rcp == rcp_vision)) {
+		g_mutex_lock (&physical_rcp.mutex);
+		physical_rcp.detail = rcp->current_scene.detail;
+		send_detail_update_notification ();
+		g_mutex_unlock (&physical_rcp.mutex);
+	}
 }
 
 void detail_toggle_button_clicked (GtkToggleButton *detail_toggle_button, rcp_t *rcp)
@@ -488,12 +497,7 @@ GtkWidget *create_detail_frame (rcp_t *rcp)
 	gtk_widget_set_margin_start (box, MARGIN_VALUE);
 	gtk_widget_set_margin_end (box, MARGIN_VALUE);
 	gtk_widget_set_margin_bottom (box, MARGIN_VALUE);
-#if DETAIL_DEFAULT
-		widget = gtk_toggle_button_new_with_label ("On");
-		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-#else
 		widget = gtk_toggle_button_new_with_label ("Off");
-#endif
 		rcp->detail_handler_id = g_signal_connect (G_OBJECT (widget), "toggled", G_CALLBACK (detail_toggle_button_clicked), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 		rcp->detail_toggle_button = widget;

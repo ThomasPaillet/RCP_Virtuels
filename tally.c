@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -50,22 +50,26 @@ gboolean name_draw (GtkWidget *widget, cairo_t *cr, rcp_t *rcp)
 		if ((rcp->tally_data & 0x10) && !(rcp->tally_data & 0x20)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
 		else if ((rcp->tally_data & 0x20) && !(rcp->tally_data & 0x10)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
 		else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
-	} else if (rcp == rcp_vision) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.933333333);
-	else if (rcp->tally_data & 0x03) {
-		if (!rcp->tally_1_is_on) {
-			if ((rcp->tally_data & 0x01) && !(rcp->tally_data & 0x02)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
-			else if ((rcp->tally_data & 0x02) && !(rcp->tally_data & 0x01)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
-			else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
-		}
-	} else if (rcp == rcp_pgm) cairo_set_source_rgb (cr, 0.933333333, 0.0, 0.0);
-	else if (rcp == rcp_pvw) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.0);
-	else if (theme) cairo_set_source_rgb (cr, 0.925490196, 0.925490196, 0.925490196);
+	} else if (rcp == rcp_pgm) {
+		if (theme) cairo_set_source_rgb (cr, 0.933333333, 0.0, 0.0);
+		else cairo_set_source_rgb (cr, 0.745098039, 0.0, 0.0);
+	} else if (rcp == rcp_vision) {
+		if (theme) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.925490196);
+		else cairo_set_source_rgb (cr, 0.0, 0.745098039, 0.737254902);
+	} else if (rcp->tally_data & 0x03) {
+		if ((rcp->tally_data & 0x01) && !(rcp->tally_data & 0x02)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
+		else if ((rcp->tally_data & 0x02) && !(rcp->tally_data & 0x01)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
+		else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
+	} else if (rcp == rcp_pvw) {
+		if (theme) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.0);
+		else cairo_set_source_rgb (cr, 0.0, 0.745098039, 0.0);
+	} else if (theme) cairo_set_source_rgb (cr, 0.925490196, 0.925490196, 0.925490196);
 	else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
 
 	cairo_paint (cr);
 
-	if (theme) cairo_set_source_rgba (cr, 0.0, 0.0, 0.0, 0.75);
-	else cairo_set_source_rgb (cr, 0.933333333, 0.933333333, 0.925490196);
+	if (theme) cairo_set_source_rgb (cr, 0.129411765, 0.129411765, 0.129411765);
+	else cairo_set_source_rgb (cr, 0.745098039, 0.745098039, 0.737254902);
 
 	pl = pango_cairo_create_layout (cr);
 
@@ -86,23 +90,25 @@ gboolean name_draw (GtkWidget *widget, cairo_t *cr, rcp_t *rcp)
 
 gboolean tally_draw (GtkWidget *widget, cairo_t *cr, rcp_t *rcp)
 {
-	if (rcp->tally_data & 0x30) {
+	if (rcp == rcp_vision) {
+		if (theme) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.933333333);
+		else cairo_set_source_rgb (cr, 0.0, 0.745098039, 0.745098039);
+	} else if (rcp->tally_data & 0x30) {
 		if ((rcp->tally_data & 0x10) && !(rcp->tally_data & 0x20)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
 		else if ((rcp->tally_data & 0x20) && !(rcp->tally_data & 0x10)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
 		else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
-	} else if (rcp == rcp_vision) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.933333333);
-	else if (rcp->tally_data & 0x03) {
-		if (!rcp->tally_1_is_on) {
-			if ((rcp->tally_data & 0x01) && !(rcp->tally_data & 0x02)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
-			else if ((rcp->tally_data & 0x02) && !(rcp->tally_data & 0x01)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
-			else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
-		}
-	} else if (rcp == rcp_pgm) cairo_set_source_rgb (cr, 0.933333333, 0.0, 0.0);
-	else if (rcp == rcp_pvw) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.0);
-	else {
-		if (theme) cairo_set_source_rgb (cr, 0.925490196, 0.925490196, 0.925490196);
-		else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
-	}
+	} else if (rcp->tally_data & 0x03) {
+		if ((rcp->tally_data & 0x01) && !(rcp->tally_data & 0x02)) cairo_set_source_rgb (cr, rcp->tally_brightness, 0.0, 0.0);
+		else if ((rcp->tally_data & 0x02) && !(rcp->tally_data & 0x01)) cairo_set_source_rgb (cr, 0.0, rcp->tally_brightness, 0.0);
+		else cairo_set_source_rgb (cr, 0.941176471 * rcp->tally_brightness, 0.764705882 * rcp->tally_brightness, 0.0);
+	} else if (rcp == rcp_pgm) {
+		if (theme) cairo_set_source_rgb (cr, 0.933333333, 0.0, 0.0);
+		else cairo_set_source_rgb (cr, 0.745098039, 0.0, 0.0);
+	} else if (rcp == rcp_pvw) {
+		if (theme) cairo_set_source_rgb (cr, 0.0, 0.933333333, 0.0);
+		else cairo_set_source_rgb (cr, 0.0, 0.745098039, 0.0);
+	} else if (theme) cairo_set_source_rgb (cr, 0.925490196, 0.925490196, 0.925490196);
+	else cairo_set_source_rgb (cr, 0.137254902, 0.152941176, 0.160784314);
 
 	cairo_paint (cr);
 
@@ -134,36 +140,39 @@ gpointer receive_tsl_umd_v5_msg (gpointer data)
 	tsl_umd_v5_packet_t packet;
 	cameras_set_t *cameras_set_itr;
 	rcp_t *rcp;
-	GSList *gslist_itr;
 
-	while ((msg_len = recv (tsl_umd_v5_socket, (char*)&packet, 2048, 0)) > 1) {
+	while ((msg_len = recv (tsl_umd_v5_socket, &packet, sizeof (tsl_umd_v5_packet_t), 0)) > 1) {
+		g_mutex_lock (&cameras_sets_mutex);
 		for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 			if (packet.index < cameras_set_itr->number_of_cameras) {
 				rcp = cameras_set_itr->rcp_ptr_array[packet.index];
 				rcp->tally_data = packet.control;
 
-				if ((packet.control & 0x80) && (packet.control & 0x40)) rcp->tally_brightness = 1.0;
-				else if (packet.control & 0x80) rcp->tally_brightness = 0.8;
-				else if (packet.control & 0x40) rcp->tally_brightness = 0.6;
-				else rcp->tally_brightness = 0.4;
+				if ((packet.control & 0x80) && (packet.control & 0x40)) rcp->tally_brightness = 0.745098039;
+				else if (packet.control & 0x80) rcp->tally_brightness = 0.596078431;
+				else if (packet.control & 0x40) rcp->tally_brightness = 0.447058823;
+				else rcp->tally_brightness = 0.298039216;
+
+				g_mutex_lock (&current_cameras_set_mutex);
 
 				if (packet.control & 0x30) {
-					if (current_camera_set != NULL) {
-						if (send_ip_tally && !rcp->tally_1_is_on && rcp->camera_is_on) send_ptz_control_command (rcp, "#DA1");
-						for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) ((rcp_t*)(gslist_itr->data))->tally_1_is_on = TRUE;
-					}
-					rcp->tally_1_is_on = TRUE;
+					if ((current_cameras_set == cameras_set_itr) && send_ip_tally && !rcp->ip_tally_is_on && rcp->camera_is_on) {
+						g_mutex_unlock (&current_cameras_set_mutex);
+
+						send_tally_on_control_command (rcp);
+					} else g_mutex_unlock (&current_cameras_set_mutex);
 				} else {
-					if (current_camera_set != NULL) {
-						if (send_ip_tally && rcp->tally_1_is_on && rcp->camera_is_on) send_ptz_control_command (rcp, "#DA0");
-						for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next) ((rcp_t*)(gslist_itr->data))->tally_1_is_on = FALSE;
-					}
-					rcp->tally_1_is_on = FALSE;
+					if ((current_cameras_set == cameras_set_itr) && send_ip_tally && rcp->ip_tally_is_on && rcp->camera_is_on) {
+						g_mutex_unlock (&current_cameras_set_mutex);
+
+						send_tally_off_control_command (rcp);
+					} else g_mutex_unlock (&current_cameras_set_mutex);
 				}
 
-				g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
+				if (cameras_set_itr == current_cameras_set) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
 			}
 		}
+		g_mutex_unlock (&cameras_sets_mutex);
 	}
 
 	return NULL;
@@ -178,9 +187,26 @@ void start_tally (void)
 
 void stop_tally (void)
 {
+	cameras_set_t *cameras_set_itr;
+	int i;
+	rcp_t *rcp;
+
+	shutdown (tsl_umd_v5_socket, SHUT_RD);
 	closesocket (tsl_umd_v5_socket);
 
-//	if (tsl_umd_v5_thread != NULL) g_thread_join (tsl_umd_v5_thread);
-	tsl_umd_v5_thread = NULL;
+	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
+		for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
+			rcp = cameras_set_itr->rcp_ptr_array[i];
+
+			rcp->tally_data = 0x00;
+
+			if (send_ip_tally && rcp->ip_tally_is_on && rcp->camera_is_on) send_tally_off_control_command (rcp);
+		}
+	}
+
+	if (tsl_umd_v5_thread != NULL) {
+		g_thread_join (tsl_umd_v5_thread);
+		tsl_umd_v5_thread = NULL;
+	}
 }
 

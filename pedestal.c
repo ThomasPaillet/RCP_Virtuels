@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -24,23 +24,27 @@
 
 extern GtkCssProvider *css_provider_black, *css_provider_raz;
 
-char *pedestal_label = "Piédestal: ";
+char *pedestal_label = "Piédestal: 0";
 
+
+#define MIN_VALUE 0x000
+#define MAX_VALUE 0x12C
 
 void set_pedestal_label (rcp_t *rcp)
 {
 	char label[24];
 
-	if (rcp->current_scene.pedestal == 0x096) sprintf (label, "%s0", pedestal_label);
-	else sprintf (label, "%s%+d", pedestal_label, rcp->current_scene.pedestal - 0x096);
-
-	gtk_frame_set_label (GTK_FRAME (rcp->pedestal_frame), label);
+	if (rcp->current_scene.pedestal == 0x096) gtk_frame_set_label (GTK_FRAME (rcp->pedestal_frame), pedestal_label);
+	else {
+		sprintf (label, "Piédestal: %+d", rcp->current_scene.pedestal - 0x096);
+		gtk_frame_set_label (GTK_FRAME (rcp->pedestal_frame), label);
+	}
 }
 
-#define MIN_VALUE 0x000
-#define MAX_VALUE 0x12C
-
 CAM_CMD_FUNCS(pedestal,"OTP:",3)
+
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void pedestal_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {

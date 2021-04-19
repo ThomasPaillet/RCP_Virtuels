@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #ifndef __RCP_H
@@ -24,8 +24,14 @@
 //#define MAIN_SETTINGS_READ_ONLY
 
 
+#include <gtk/gtk.h>
+#include <sys/time.h>
+
+
 #ifdef _WIN32
 	#include <winsock2.h>
+
+	#define SHUT_RD SD_RECEIVE
 
 	void WSAInit (void);
 
@@ -42,10 +48,6 @@
 	#define WSAInit()
 	#define WSACleanup()
 #endif
-
-
-#include <gtk/gtk.h>
-#include <sys/time.h>
 
 
 typedef enum {_59_94fps, _29_97fps, _23_98fps, _50fps, _25fps} fps_t;
@@ -160,7 +162,7 @@ typedef struct {
 	char new_ip_address[16];
 	gboolean ip_address_is_valid;
 
-	int matrix_source_number;
+	int index;
 
 	char cmd_buffer[272];
 	char *last_cmd;
@@ -178,6 +180,8 @@ typedef struct {
 	gboolean camera_is_on;
 	gboolean camera_is_working;
 
+	time_t last_version_information_notification_time;
+
 	GThread *thread;
 	struct timeval last_time;
 	guint timeout_id;
@@ -188,6 +192,10 @@ typedef struct {
 	gboolean green_timeout_return_value;
 
 	int jpeg_page;
+
+	gboolean OSD_menu;
+
+	gboolean auto_focus;
 
 	scene_t current_scene;
 	scene_t scenes[NB_SCENES];
@@ -374,7 +382,7 @@ typedef struct {
 	GtkWidget *tally_widgets[4];
 	guint16 tally_data;
 	double tally_brightness;
-	gboolean tally_1_is_on;
+	gboolean ip_tally_is_on;
 
 	GtkWidget *sensitive_widgets;
 	GtkWidget *event_box;
@@ -590,11 +598,14 @@ typedef struct cameras_set_s {
 extern char *cameras_set_label;
 extern char *cameras_label;
 
+extern GMutex cameras_sets_mutex;
+extern GMutex current_cameras_set_mutex;
+
 extern int number_of_cameras_sets;
 
 extern cameras_set_t *cameras_sets;
 
-extern cameras_set_t *current_camera_set;
+extern cameras_set_t *current_cameras_set;
 
 extern cameras_set_t *new_cameras_set;
 
@@ -633,11 +644,7 @@ typedef struct {
 
 extern gboolean backup_needed;
 
-extern gboolean format_is_50Hz;
-extern fps_t output_fps;
-
 extern GList *rcp_glist;
-extern GMutex rcp_start_glist_mutex;
 extern GList *rcp_start_glist;
 extern GList *ghost_rcp_glist;
 
@@ -650,6 +657,9 @@ extern char *format_answers_array_ntsc[8];
 
 extern setting_t settings_array[NB_SETTINGS];
 extern int settings_parameters_indexes_array[NB_SETTINGS];
+
+extern gboolean format_is_50Hz;
+extern fps_t output_fps;
 
 extern int picture_level;
 extern int tally_input;
@@ -731,6 +741,8 @@ void send_cam_request_command_string (rcp_t *rcp, char* cmd, char *response);
 
 void send_cam_control_command (rcp_t *rcp, char* cmd);
 
+void send_cam_control_command_now (rcp_t *rcp, char* cmd);
+
 void send_cam_control_command_string (rcp_t *rcp, char* cmd, char* value);
 
 void send_cam_control_command_1_digit (rcp_t *rcp, char* cmd, int value);
@@ -747,6 +759,10 @@ void send_ptz_control_command (rcp_t *rcp, char* cmd);
 
 void send_ptz_control_command_3_digits (rcp_t *rcp, char* cmd, int value, gboolean wait);
 
+void send_tally_on_control_command (rcp_t *rcp);
+
+void send_tally_off_control_command (rcp_t *rcp);
+
 gboolean send_ABB_execution_control_command (rcp_t *rcp);
 
 void send_update_start_cmd (rcp_t *rcp);
@@ -754,6 +770,60 @@ void send_update_start_cmd (rcp_t *rcp);
 void send_update_stop_cmd (rcp_t *rcp);
 
 gpointer send_jpeg_image_request_cmd (rcp_t *rcp);
+
+
+//update_ihm.h
+#define NO_POST_ACTION 0
+
+#define NIGHT_POST_ACTION 1
+#define DRS_POST_ACTION 2
+
+#define KNEE_SETTINGS_POST_ACTION 3
+#define KNEE_POINT_POST_ACTION 4
+#define KNEE_SLOPE_POST_ACTION 5
+
+#define MATRIX_TYPE_POST_ACTION 6
+#define LINEAR_MATRIX_R_G_POST_ACTION 7
+#define LINEAR_MATRIX_R_B_POST_ACTION 8
+#define LINEAR_MATRIX_G_R_POST_ACTION 9
+#define LINEAR_MATRIX_G_B_POST_ACTION 10
+#define LINEAR_MATRIX_B_R_POST_ACTION 11
+#define LINEAR_MATRIX_B_G_POST_ACTION 12
+
+#define DETAIL_POST_ACTION 43
+#define MASTER_DETAIL_POST_ACTION 44
+#define V_DETAIL_LEVEL_POST_ACTION 45
+#define DETAIL_BAND_POST_ACTION 46
+#define NOISE_SUPPRESS_POST_ACTION 47
+#define FLESHTONE_NOISESUP_POST_ACTION 48
+
+#define SATURATION_POST_ACTION 49
+
+#define SHUTTER_TYPE_POST_ACTION 50
+#define SHUTTER_SYNCHRO_POST_ACTION 51
+
+#define PEDESTAL_POST_ACTION 52
+#define IRIS_AUTO_POST_ACTION 53
+
+
+typedef struct {
+	GtkWidget *widget;
+	int handler_id;
+	int *value;
+	int post_action;
+	rcp_t *rcp;
+} int_widget_t;
+
+
+gboolean update_toggle_button (int_widget_t *int_widget);
+
+gboolean update_combo_box (int_widget_t *int_widget);
+
+gboolean update_scale (int_widget_t *int_widget);
+
+gboolean update_saturation_color_correction_frame (int_widget_t *int_widget);
+
+gboolean update_phase_color_correction_frame (int_widget_t *int_widget);
 
 
 //update_notification.h
@@ -781,11 +851,9 @@ gpointer check_if_camera_is_on (rcp_t *rcp);
 
 gpointer start_rcp (rcp_t *rcp);
 
-gpointer update_rcp (rcp_t *rcp);
-
 void copy_rcp (rcp_t *rcp_dest, rcp_t *rcp_src);
 
-void rcp_work_start (rcp_t *rcp, GThreadFunc thread_func);
+gboolean rcp_work_start (rcp_t *rcp);
 
 gboolean rcp_work_end (rcp_t *rcp);
 
@@ -880,16 +948,21 @@ extern remote_device_t remote_devices[2];
 
 extern char rs_port_name[16];
 
-extern int number_of_matrix_source;
-
 extern rcp_t *rcp_vision;
 extern rcp_t *rcp_pgm;
 extern rcp_t *rcp_pvw;
 
+extern char tally_pgm;
+extern char tally_pvw;
+
 extern gboolean knee_matrix_detail_popup;
 
 
+void tell_camera_set_is_selected (gint page_num);
+
 void ask_to_connect_pgm_to_ctrl_vision (void);
+
+void ask_to_connect_camera_to_ctrl_vision (rcp_t *rcp);
 
 gboolean rcp_button_press_event (GtkWidget *widget, GdkEventButton *event, rcp_t *rcp);
 
@@ -907,12 +980,93 @@ void stop_rs_communication (void);
 
 
 //physical_rcp.h
-extern struct sockaddr_in remote_rcp_address;
+#define PHYSICAL_RCP_TCP_PORT 9000
 
+
+typedef struct {
+	int iris;
+	gboolean iris_auto;
+
+	int pedestal;
+
+	int r_gain;
+	int b_gain;
+
+	int r_pedestal;
+	int b_pedestal;
+
+	gboolean detail;
+	int master_detail;
+
+	int ND_filter;
+
+	int gain;
+
+	int shutter_type;
+	int shutter_step;
+
+	gboolean mire;
+
+	gboolean OSD_menu;
+
+	gboolean auto_focus;
+
+	gboolean ABB;
+
+	gboolean connected;
+
+	guint version_timeout_id;
+
+	SOCKET socket;
+	struct sockaddr_in address;
+
+	SOCKET socket_for_update_notification;
+	struct sockaddr_in address_for_update_notification;
+
+	GMutex mutex;
+} physical_rcp_t;
+
+
+extern physical_rcp_t physical_rcp;
+
+
+void send_iris_auto_update_notification (void);
+
+void send_r_gain_update_notification (void);
+
+void send_b_gain_update_notification (void);
+
+void send_r_pedestal_update_notification (void);
+
+void send_b_pedestal_update_notification (void);
+
+void send_detail_update_notification (void);
+
+void send_master_detail_update_notification (void);
+
+void send_ND_filter_update_notification (void);
+
+void send_gain_update_notification (void);
+
+void send_shutter_update_notification (void);
+
+void send_mire_update_notification (void);
+
+void send_auto_focus_update_notification (void);
+
+void send_frequency_update_notification (void);
+
+void send_format_update_notification (void);
+
+void send_picture_level_update_notification (void);
+
+gboolean update_physical_rcp (rcp_t *rcp);
 
 void init_physical_rcp (void);
 
 void start_physical_rcp (void);
+
+void stop_physical_rcp (void);
 
 
 //error.h
@@ -940,6 +1094,26 @@ gboolean camera_is_unreachable (rcp_t *rcp);
 gboolean ABB_execution_failed (rcp_t *rcp);
 gboolean ABB_execution_failed_busy_status (rcp_t *rcp);
 
+gboolean log_clear_rcp_error (rcp_t *rcp);
+gboolean log_Motor_Driver_Error (rcp_t *rcp);
+gboolean log_Pan_Sensor_Error (rcp_t *rcp);
+gboolean log_Tilt_Sensor_Error (rcp_t *rcp);
+gboolean log_Controller_RX_Over_run_Error (rcp_t *rcp);
+gboolean log_Controller_RX_Framing_Error (rcp_t *rcp);
+gboolean log_Network_RX_Over_run_Error (rcp_t *rcp);
+gboolean log_Network_RX_Framing_Error (rcp_t *rcp);
+gboolean log_Controller_RX_Command_Buffer_Overflow (rcp_t *rcp);
+gboolean log_Network_RX_Command_Buffer_Overflow (rcp_t *rcp);
+gboolean log_System_Error (rcp_t *rcp);
+gboolean log_Spec_Limit_Over (rcp_t *rcp);
+gboolean log_Network_communication_Error (rcp_t *rcp);
+gboolean log_CAMERA_communication_Error (rcp_t *rcp);
+gboolean log_CAMERA_RX_Over_run_Error (rcp_t *rcp);
+gboolean log_CAMERA_RX_Framing_Error (rcp_t *rcp);
+gboolean log_CAMERA_RX_Command_Buffer_Overflow (rcp_t *rcp);
+gboolean log_ABB_execution_failed (rcp_t *rcp);
+gboolean log_ABB_execution_failed_busy_status (rcp_t *rcp);
+
 void start_error_log (void);
 
 void stop_error_log (void);
@@ -953,6 +1127,10 @@ extern char gamma_type_tooltip[];
 extern char gamma_tooltip[];
 extern char drs_tooltip[];
 
+
+gpointer load_scene (rcp_t *rcp);
+
+void ABB_button_clicked (GtkButton *button, rcp_t *rcp);
 
 void create_ghost_rcp_widgets (rcp_t *rcp);
 

@@ -15,3 +15,4 @@ pixbufs.o: pixbufs.c $(PIXBUF) $(PNG)
 clean:
 	rm -f *.h
 	rm -f *.o
+

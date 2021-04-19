@@ -4,8 +4,12 @@
     <file alias="icon.png">Pixbufs/icon.png</file>
     <file alias="grille_1_light.png">Pixbufs/grille_1_light.png</file>
     <file alias="grille_2_light.png">Pixbufs/grille_2_light.png</file>
+    <file alias="grille_3_light.png">Pixbufs/grille_3_light.png</file>
+    <file alias="grille_4_light.png">Pixbufs/grille_4_light.png</file>
     <file alias="grille_1_dark.png">Pixbufs/grille_1_dark.png</file>
     <file alias="grille_2_dark.png">Pixbufs/grille_2_dark.png</file>
+    <file alias="grille_3_dark.png">Pixbufs/grille_3_dark.png</file>
+    <file alias="grille_4_dark.png">Pixbufs/grille_4_dark.png</file>
     <file alias="logo_light.png">Pixbufs/logo_light.png</file>
     <file alias="logo_dark.png">Pixbufs/logo_dark.png</file>
   </gresource>

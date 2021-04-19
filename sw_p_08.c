@@ -1,5 +1,5 @@
-/*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+﻿/*
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -52,18 +52,33 @@ remote_device_t remote_devices[2];
 
 char rs_port_name[16] = { ' ', '\0'};
 
-int number_of_matrix_source = 2;
-
 rcp_t *rcp_vision = NULL;
 rcp_t *rcp_pgm = NULL;
 rcp_t *rcp_pvw = NULL;
 
-char tally_vision = 0;
-char tally_pgm = 0;
-char tally_pvw = 0;
+
+char tally_camera_set = MAX_CAMERAS + 1;
+char tally_rcp = MAX_CAMERAS + 1;
+char tally_memory = MAX_CAMERAS + 1;
+char tally_pgm = MAX_CAMERAS + 1;
+char tally_pvw = MAX_CAMERAS + 1;
 
 gboolean knee_matrix_detail_popup = FALSE;
 
+
+gboolean g_source_select_camera_set_page (gpointer page_num)
+{
+	cameras_set_t *cameras_set_itr;
+
+	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
+		if (cameras_set_itr->page_num == GPOINTER_TO_INT (page_num)) {
+			gtk_notebook_set_current_page (GTK_NOTEBOOK (main_window_notebook), cameras_set_itr->page_num);
+			break;
+		}
+	}
+
+	return G_SOURCE_REMOVE;
+}
 
 gboolean g_source_rcp_event_box_set_above_child (rcp_t *rcp)
 {
@@ -87,71 +102,49 @@ gboolean g_source_rcp_event_box_set_below_child (rcp_t *rcp)
 	return G_SOURCE_REMOVE;
 }
 
-void ask_to_connect_pgm_to_ctrl_vision (void)
+gboolean g_source_recall_memories (gpointer index)
 {
-	g_mutex_lock (&sw_p_08_mutex);
+	int i;
+	rcp_t *rcp;
 
-	tally_vision = 1;
+	if (current_cameras_set != NULL) {
+		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
+			rcp = current_cameras_set->rcp_ptr_array[i];
 
-	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
-	sw_p_08_buffer[3] = 0;
-	sw_p_08_buffer[4] = 0;
-	sw_p_08_buffer[5] = 0;	//CTRL VISION/CTRL OPV
-	sw_p_08_buffer[6] = 1;	//Source PGM
-	sw_p_08_buffer[7] = 5;
-	sw_p_08_buffer[8] = -10;
-	sw_p_08_buffer[9] = DLE;
-	sw_p_08_buffer[10] = ETX;
-	sw_p_08_buffer_len = 11;
+			if (!rcp->camera_is_on) continue;
+			if (rcp->camera_is_working) continue;
 
-	if (ip_rs) {
-		if (remote_devices[0].src_socket != INVALID_SOCKET) send (remote_devices[0].src_socket, sw_p_08_buffer, 11, 0);
-		if (remote_devices[1].src_socket != INVALID_SOCKET) send (remote_devices[1].src_socket, sw_p_08_buffer, 11, 0);
-	} else if (sw_p_08_thread != NULL) {
-		send_to_rs_port (sw_p_08_buffer, 11);
-		rs_try = 5;
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->store_toggle_button), FALSE);
+
+			rcp->scene_to_load = GPOINTER_TO_INT (index);
+
+			rcp->camera_is_working = TRUE;
+			gtk_widget_show (rcp->spinner);
+			gtk_spinner_start (GTK_SPINNER (rcp->spinner));
+			gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
+			gtk_widget_set_sensitive (rcp->standard_button, FALSE);
+			gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
+			gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
+			gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+
+			rcp->thread = g_thread_new (NULL, (GThreadFunc)load_scene, rcp);
+		}
 	}
 
-	if (rcp_vision != NULL) {
-		g_source_rcp_queue_draw (rcp_vision);
-		if (rcp_vision->active) g_source_rcp_event_box_set_above_child (rcp_vision);
-		rcp_vision = NULL;
-	}
-
-	g_mutex_unlock (&sw_p_08_mutex);
+	return G_SOURCE_REMOVE;
 }
 
-gboolean rcp_button_press_event (GtkWidget *widget, GdkEventButton *event, rcp_t *rcp)
+void tell_camera_set_is_selected (gint page_num)
 {
-	g_mutex_lock (&sw_p_08_mutex);
-
-	if (knee_matrix_detail_popup) {
-		knee_matrix_detail_popup = FALSE;
-		if (rcp_vision != NULL) {
-			if (rcp_vision->active) gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp_vision->event_box), FALSE);
-		}
-		gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp->camera_set))->master_rcp.root_widget), FALSE);
-
-		g_mutex_unlock (&sw_p_08_mutex);
-
-		return GDK_EVENT_PROPAGATE;
-	}
-
-	if (rcp == rcp_vision) {
-		g_mutex_unlock (&sw_p_08_mutex);
-
-		return GDK_EVENT_PROPAGATE;
-	}
-
-	tally_vision = rcp->matrix_source_number;
+	tally_camera_set = page_num;
 
 	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
 	sw_p_08_buffer[3] = 0;
 	sw_p_08_buffer[4] = 0;
-	sw_p_08_buffer[5] = 0;	//CTRL VISION
+	sw_p_08_buffer[5] = 0;	//Destination: ensemble de caméras
 
-	if (tally_vision == DLE) {
-		sw_p_08_buffer[6] = DLE;
+	if (tally_camera_set == DLE) {
+		sw_p_08_buffer[6] = DLE;	//Source: camera_set->page_num
 		sw_p_08_buffer[7] = DLE;
 		sw_p_08_buffer[8] = 5;
 		sw_p_08_buffer[9] = -25;
@@ -167,9 +160,105 @@ gboolean rcp_button_press_event (GtkWidget *widget, GdkEventButton *event, rcp_t
 			rs_try = 5;
 		}
 	} else {
-		sw_p_08_buffer[6] = tally_vision;
+		sw_p_08_buffer[6] = tally_camera_set;	//Source: camera_set->page_num
 		sw_p_08_buffer[7] = 5;
-		sw_p_08_buffer[8] = -(tally_vision + 9);
+		sw_p_08_buffer[8] = -9 - tally_camera_set;
+		sw_p_08_buffer[9] = DLE;
+		sw_p_08_buffer[10] = ETX;
+		sw_p_08_buffer_len = 11;
+
+		if (ip_rs) {
+			if (remote_devices[0].src_socket != INVALID_SOCKET) send (remote_devices[0].src_socket, sw_p_08_buffer, 11, 0);
+			if (remote_devices[1].src_socket != INVALID_SOCKET) send (remote_devices[1].src_socket, sw_p_08_buffer, 11, 0);
+		} else if (sw_p_08_thread != NULL) {
+			send_to_rs_port (sw_p_08_buffer, 11);
+			rs_try = 5;
+		}
+	}
+}
+
+void ask_to_connect_pgm_to_ctrl_vision (void)
+{
+	g_mutex_lock (&sw_p_08_mutex);
+
+	tally_rcp = MAX_CAMERAS;
+
+	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
+	sw_p_08_buffer[3] = 0;
+	sw_p_08_buffer[4] = 0;
+	sw_p_08_buffer[5] = 1;	//RCP (CTRL VISION)
+#if MAX_CAMERAS == DLE
+	sw_p_08_buffer[6] = DLE;
+	sw_p_08_buffer[7] = DLE;
+	sw_p_08_buffer[8] = 5;
+	sw_p_08_buffer[9] = -26;
+	sw_p_08_buffer[10] = DLE;
+//	sw_p_08_buffer[11] = ETX;
+	sw_p_08_buffer_len = 12;
+
+	if (ip_rs) {
+		if (remote_devices[0].src_socket != INVALID_SOCKET) send (remote_devices[0].src_socket, sw_p_08_buffer, 12, 0);
+		if (remote_devices[1].src_socket != INVALID_SOCKET) send (remote_devices[1].src_socket, sw_p_08_buffer, 12, 0);
+	} else if (sw_p_08_thread != NULL) {
+		send_to_rs_port (sw_p_08_buffer, 12);
+		rs_try = 5;
+	}
+#else
+	sw_p_08_buffer[6] = MAX_CAMERAS;	//Source PGM
+	sw_p_08_buffer[7] = 5;
+	sw_p_08_buffer[8] = -10 - MAX_CAMERAS;
+	sw_p_08_buffer[9] = DLE;
+	sw_p_08_buffer[10] = ETX;
+	sw_p_08_buffer_len = 11;
+
+	if (ip_rs) {
+		if (remote_devices[0].src_socket != INVALID_SOCKET) send (remote_devices[0].src_socket, sw_p_08_buffer, 11, 0);
+		if (remote_devices[1].src_socket != INVALID_SOCKET) send (remote_devices[1].src_socket, sw_p_08_buffer, 11, 0);
+	} else if (sw_p_08_thread != NULL) {
+		send_to_rs_port (sw_p_08_buffer, 11);
+		rs_try = 5;
+	}
+#endif
+	if (rcp_vision != NULL) {
+		g_source_rcp_queue_draw (rcp_vision);
+		if (rcp_vision->active) g_source_rcp_event_box_set_above_child (rcp_vision);
+		rcp_vision = NULL;
+	}
+
+	g_mutex_unlock (&sw_p_08_mutex);
+}
+
+void ask_to_connect_camera_to_ctrl_vision (rcp_t *rcp)
+{
+	g_mutex_lock (&sw_p_08_mutex);
+
+	tally_rcp = rcp->index;
+
+	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
+	sw_p_08_buffer[3] = 0;
+	sw_p_08_buffer[4] = 0;
+	sw_p_08_buffer[5] = 1;	//RCP (CTRL VISION)
+
+	if (tally_rcp == DLE) {
+		sw_p_08_buffer[6] = DLE;
+		sw_p_08_buffer[7] = DLE;
+		sw_p_08_buffer[8] = 5;
+		sw_p_08_buffer[9] = -26;
+		sw_p_08_buffer[10] = DLE;
+//		sw_p_08_buffer[11] = ETX;
+		sw_p_08_buffer_len = 12;
+
+		if (ip_rs) {
+			if (remote_devices[0].src_socket != INVALID_SOCKET) send (remote_devices[0].src_socket, sw_p_08_buffer, 12, 0);
+			if (remote_devices[1].src_socket != INVALID_SOCKET) send (remote_devices[1].src_socket, sw_p_08_buffer, 12, 0);
+		} else if (sw_p_08_thread != NULL) {
+			send_to_rs_port (sw_p_08_buffer, 12);
+			rs_try = 5;
+		}
+	} else {
+		sw_p_08_buffer[6] = tally_rcp;
+		sw_p_08_buffer[7] = 5;
+		sw_p_08_buffer[8] = -10 - tally_rcp;
 		sw_p_08_buffer[9] = DLE;
 		sw_p_08_buffer[10] = ETX;
 		sw_p_08_buffer_len = 11;
@@ -194,18 +283,18 @@ gboolean rcp_button_press_event (GtkWidget *widget, GdkEventButton *event, rcp_t
 	if (rcp->active) gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp->event_box), FALSE);
 
 	g_mutex_unlock (&sw_p_08_mutex);
-
-	return GDK_EVENT_PROPAGATE;
 }
 
 void send_ok_plus_crosspoint_tally_message_to_rs (char dest)
 {
 	char src;
 
-	if (dest == 0) src = tally_vision;
-	else if (dest == 1) src = tally_pgm;
-	else if (dest == 2) src = tally_pvw;
-	else src = 0;
+	if (dest == 0) src = tally_camera_set;
+	else if (dest == 1) src = tally_rcp;
+	else if (dest == 2) src = tally_memory;
+	else if (dest == 3) src = tally_pgm;
+	else if (dest == 4) src = tally_pvw;
+	else src = MAX_CAMERAS + 1;
 
 	full_sw_p_08_buffer[4] = 0x03;
 	full_sw_p_08_buffer[5] = 0x00;
@@ -270,8 +359,6 @@ void send_crosspoint_message_to_rs (char dest, char src)
 gpointer listen_to_rs_port (void)
 {
 	char buffer[8];
-	int i;
-	cameras_set_t *cameras_set_itr;
 	rcp_t *rcp;
 
 	while (receive_from_rs_port (buffer, 2)) {
@@ -300,56 +387,89 @@ gpointer listen_to_rs_port (void)
 					if ((0x02 + buffer[0] + buffer[1] + buffer[2] + buffer[3] + buffer[4] + buffer[5]) == 0) {
 						send_to_rs_port (OK, 2);
 
-						rcp = NULL;
-						if (buffer[3] > 1) {
-							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									if (cameras_set_itr->rcp_ptr_array[i]->matrix_source_number == buffer[3]) {
-										rcp = cameras_set_itr->rcp_ptr_array[i];
-										break;
-									}
-								}
-								if (rcp != NULL) break;
-							}
-						}
-
 						if (buffer[2] == 0) {
+							if (buffer[3] < number_of_cameras_sets) {
+								g_idle_add ((GSourceFunc)g_source_select_camera_set_page, GINT_TO_POINTER (buffer[3]));
+
+								tally_camera_set = buffer[3];
+							} else tally_camera_set = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 1) {
+							g_mutex_lock (&current_cameras_set_mutex);
+
+							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
+								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+							else rcp = NULL;
+
+							g_mutex_unlock (&current_cameras_set_mutex);
+
 							if ((rcp_vision != NULL) && (rcp_vision != rcp)) {
 								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_vision);
+
 								if (rcp_vision->active) g_idle_add ((GSourceFunc)g_source_rcp_event_box_set_above_child, rcp_vision);
 							}
 
 							rcp_vision = rcp;
 
 							if (rcp_vision != NULL) {
-								if (rcp_vision->active) g_idle_add ((GSourceFunc)g_source_rcp_event_box_set_below_child, rcp_vision);
-								tally_vision = rcp_vision->matrix_source_number;
-							} else tally_vision = 0;
-						} else if (buffer[2] == 1) {
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_vision);
+
+								if (rcp_vision->active) {
+									g_idle_add ((GSourceFunc)g_source_rcp_event_box_set_below_child, rcp_vision);
+
+									if (physical_rcp.connected) g_idle_add ((GSourceFunc)update_physical_rcp, rcp_vision);
+								}
+
+								tally_rcp = buffer[3];
+							} else tally_rcp = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 2) {
+							if (buffer[3] < NB_SCENES) {
+								g_idle_add ((GSourceFunc)g_source_recall_memories, GINT_TO_POINTER (buffer[3]));
+
+								tally_memory = buffer[3];
+							} else tally_memory = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 3) {
+							g_mutex_lock (&current_cameras_set_mutex);
+
+							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
+								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+							else rcp = NULL;
+
+							g_mutex_unlock (&current_cameras_set_mutex);
+
 							if (rcp_pgm != NULL) {
-								if (send_ip_tally && rcp_pgm->tally_1_is_on && rcp_pgm->ip_address_is_valid && (rcp_pgm->error_code != 0x30)) send_ptz_control_command (rcp_pgm, "#DA0");
-								rcp_pgm->tally_1_is_on = FALSE;
+								if (send_ip_tally && rcp_pgm->ip_tally_is_on && rcp_pgm->camera_is_on) send_tally_off_control_command (rcp_pgm);
+
 								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
 							}
 
 							rcp_pgm = rcp;
 
 							if (rcp_pgm != NULL) {
-								if (send_ip_tally && !rcp_pgm->tally_1_is_on && rcp_pgm->ip_address_is_valid && (rcp_pgm->error_code != 0x30)) send_ptz_control_command (rcp_pgm, "#DA1");
-								rcp_pgm->tally_1_is_on = TRUE;
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
 
-								tally_pgm = rcp_pgm->matrix_source_number;
-							} else tally_pgm = 0;
-						} else if (buffer[2] == 2) {
+								if (send_ip_tally && !rcp_pgm->ip_tally_is_on && rcp_pgm->camera_is_on) send_tally_on_control_command (rcp_pgm);
+
+								tally_pgm = buffer[3];
+							} else tally_pgm = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 4) {
+							g_mutex_lock (&current_cameras_set_mutex);
+
+							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
+								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+							else rcp = NULL;
+
+							g_mutex_unlock (&current_cameras_set_mutex);
+
 							if (rcp_pvw != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pvw);
 
 							rcp_pvw = rcp;
 
-							if (rcp_pvw != NULL) tally_pvw = rcp_pvw->matrix_source_number;
-							else tally_pvw = 0;
-						}
+							if (rcp_pvw != NULL) {
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pvw);
 
-						if (rcp != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
+								tally_pvw = buffer[3];
+							} else tally_pvw = MAX_CAMERAS + 1;
+						}
 
 						send_crosspoint_message_to_rs (buffer[2], buffer[3]);
 					} else send_to_rs_port (NOK, 2);
@@ -388,6 +508,11 @@ gboolean sw_p_08_tcp_remote_device_connect (remote_device_t *remote_device)
 
 gboolean sw_p_08_tcp_remote_device_disconnect (remote_device_t *remote_device)
 {
+	if (remote_device->thread != NULL) {
+		g_thread_join (remote_device->thread);
+		remote_device->thread = NULL;
+	}
+
 	gtk_widget_hide (remote_device->connected_label);
 	gtk_widget_show (ip_waiting_label);
 
@@ -398,10 +523,12 @@ void send_ok_plus_crosspoint_tally_message_to_socket (SOCKET sock, char dest)
 {
 	char src;
 
-	if (dest == 0) src = tally_vision;
-	else if (dest == 1) src = tally_pgm;
-	else if (dest == 2) src = tally_pvw;
-	else src = 0;
+	if (dest == 0) src = tally_camera_set;
+	else if (dest == 1) src = tally_rcp;
+	else if (dest == 2) src = tally_memory;
+	else if (dest == 3) src = tally_pgm;
+	else if (dest == 4) src = tally_pvw;
+	else src = MAX_CAMERAS + 1;
 
 	full_sw_p_08_buffer[4] = 0x03;
 	full_sw_p_08_buffer[5] = 0x00;
@@ -478,17 +605,13 @@ gboolean recv_from_remote_device_socket (remote_device_t *remote_device, char* b
 gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 {
 	char buffer[8];
-	cameras_set_t *cameras_set_itr;
 	rcp_t *rcp;
-	int i;
 
 	while (recv_from_remote_device_socket (remote_device, buffer, 2)) {
 		g_mutex_lock (&sw_p_08_mutex);
 
 		if (buffer[0] == DLE) {
-			/*if (buffer[1] == ACK) {
-			} else if (buffer[1] == NAK) {
-			} else*/ if (buffer[1] == STX) {
+			if (buffer[1] == STX) {
 				if (!recv_from_remote_device_socket (remote_device, buffer, 1)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 
 				if (buffer[0] == 0x01) {	//8.1.1. Crosspoint Interrogate Message page 20
@@ -505,20 +628,21 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 					if ((0x02 + buffer[0] + buffer[1] + buffer[2] + buffer[3] + buffer[4] + buffer[5]) == 0) {
 						send (remote_device->src_socket, OK, 2, 0);
 
-						rcp = NULL;
-						if (buffer[3] > 1) {
-							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									if (cameras_set_itr->rcp_ptr_array[i]->matrix_source_number == buffer[3]) {
-										rcp = cameras_set_itr->rcp_ptr_array[i];
-										break;
-									}
-								}
-								if (rcp != NULL) break;
-							}
-						}
-
 						if (buffer[2] == 0) {
+							if (buffer[3] < number_of_cameras_sets) {
+								g_idle_add ((GSourceFunc)g_source_select_camera_set_page, GINT_TO_POINTER ((int)buffer[3]));
+
+								tally_camera_set = buffer[3];
+							} else tally_camera_set = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 1) {
+							g_mutex_lock (&current_cameras_set_mutex);
+
+							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
+								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+							else rcp = NULL;
+
+							g_mutex_unlock (&current_cameras_set_mutex);
+
 							if ((rcp_vision != NULL) && (rcp_vision != rcp)) {
 								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_vision);
 								if (rcp_vision->active) g_idle_add ((GSourceFunc)g_source_rcp_event_box_set_above_child, rcp_vision);
@@ -527,41 +651,76 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 							rcp_vision = rcp;
 
 							if (rcp_vision != NULL) {
-								if (rcp_vision->active) g_idle_add ((GSourceFunc)g_source_rcp_event_box_set_below_child, rcp_vision);
-								tally_vision = rcp_vision->matrix_source_number;
-							} else tally_vision = 0;
-						} else if (buffer[2] == 1) {
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_vision);
+
+								if (rcp_vision->active) {
+									g_idle_add ((GSourceFunc)g_source_rcp_event_box_set_below_child, rcp_vision);
+
+									if (physical_rcp.connected) g_idle_add ((GSourceFunc)update_physical_rcp, rcp_vision);
+								}
+
+								tally_rcp = buffer[3];
+							} else tally_rcp = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 2) {
+							if (buffer[3] < NB_SCENES) {
+								g_idle_add ((GSourceFunc)g_source_recall_memories, GINT_TO_POINTER ((int)buffer[3]));
+
+								tally_memory = buffer[3];
+							} else tally_memory = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 3) {
+							g_mutex_lock (&current_cameras_set_mutex);
+
+							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
+								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+							else rcp = NULL;
+
+							g_mutex_unlock (&current_cameras_set_mutex);
+
 							if (rcp_pgm != NULL) {
-								if (send_ip_tally && rcp_pgm->tally_1_is_on && rcp_pgm->camera_is_on) send_ptz_control_command (rcp_pgm, "#DA0");
-								rcp_pgm->tally_1_is_on = FALSE;
+								if (send_ip_tally && rcp_pgm->ip_tally_is_on && rcp_pgm->camera_is_on) send_tally_off_control_command (rcp_pgm);
+
 								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
 							}
 
 							rcp_pgm = rcp;
 
 							if (rcp_pgm != NULL) {
-								if (send_ip_tally && !rcp_pgm->tally_1_is_on && rcp_pgm->camera_is_on) send_ptz_control_command (rcp_pgm, "#DA1");
-								rcp_pgm->tally_1_is_on = TRUE;
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pgm);
 
-								tally_pgm = rcp_pgm->matrix_source_number;
-							} else tally_pgm = 0;
-						} else if (buffer[2] == 2) {
+								if (send_ip_tally && !rcp_pgm->ip_tally_is_on && rcp_pgm->camera_is_on) send_tally_on_control_command (rcp_pgm);
+
+								tally_pgm = buffer[3];
+							} else tally_pgm = MAX_CAMERAS + 1;
+						} else if (buffer[2] == 4) {
+							g_mutex_lock (&current_cameras_set_mutex);
+
+							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
+								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+							else rcp = NULL;
+
+							g_mutex_unlock (&current_cameras_set_mutex);
+
 							if (rcp_pvw != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pvw);
 
 							rcp_pvw = rcp;
 
-							if (rcp_pvw != NULL) tally_pvw = rcp_pvw->matrix_source_number;
-							else tally_pvw = 0;
-						}
+							if (rcp_pvw != NULL) {
+								g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp_pvw);
 
-						if (rcp != NULL) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
+								tally_pvw = buffer[3];
+							} else tally_pvw = MAX_CAMERAS + 1;
+						}
 
 						send_crosspoint_message_to_socket (remote_device->src_socket, buffer[2], buffer[3]);
 					} else send (remote_device->src_socket, NOK, 2, 0);
 				} else {
 					send (remote_device->src_socket, OK, 2, 0);
 
-					if ((remote_device->recv_len = recv (remote_device->src_socket, remote_device->buffer, 256, 0)) <= 0) { g_mutex_unlock (&sw_p_08_mutex); break; }
+					if ((remote_device->recv_len = recv (remote_device->src_socket, remote_device->buffer, 256, 0)) <= 0) {
+						g_mutex_unlock (&sw_p_08_mutex);
+						break;
+					}
+
 					remote_device->index = 0;
 				}
 			}
@@ -572,6 +731,7 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 
 	closesocket (remote_device->src_socket);
 	remote_device->src_socket = INVALID_SOCKET;
+
 	g_idle_add ((GSourceFunc)sw_p_08_tcp_remote_device_disconnect, remote_device);
 
 	return NULL;
@@ -710,22 +870,27 @@ void stop_sw_p_08_tcp_server (void)
 	}
 
 	if (remote_devices[0].src_socket != INVALID_SOCKET) {
+		shutdown (remote_devices[0].src_socket, SHUT_RD);
 		closesocket (remote_devices[0].src_socket);
 		remote_devices[0].src_socket = INVALID_SOCKET;
 	}
 
 	if (remote_devices[1].src_socket != INVALID_SOCKET) {
+		shutdown (remote_devices[1].src_socket, SHUT_RD);
 		closesocket (remote_devices[1].src_socket);
 		remote_devices[1].src_socket = INVALID_SOCKET;
 	}
 
+	shutdown (sw_p_08_socket, SHUT_RD);
 	closesocket (sw_p_08_socket);
 
-	tally_vision = 0;
-	tally_pgm = 0;
-	tally_pvw = 0;
+	tally_camera_set = MAX_CAMERAS + 1;
+	tally_rcp = MAX_CAMERAS + 1;
+	tally_memory = MAX_CAMERAS + 1;
+	tally_pgm = MAX_CAMERAS + 1;
+	tally_pvw = MAX_CAMERAS + 1;
 
-/*	if (remote_devices[0].thread != NULL) {
+	if (remote_devices[0].thread != NULL) {
 		g_thread_join (remote_devices[0].thread);
 		remote_devices[0].thread = NULL;
 	}
@@ -733,10 +898,10 @@ void stop_sw_p_08_tcp_server (void)
 	if (remote_devices[1].thread != NULL) {
 		g_thread_join (remote_devices[1].thread);
 		remote_devices[1].thread = NULL;
-	}*/
+	}
 
 	if (sw_p_08_thread != NULL) {
-//		g_thread_join (sw_p_08_thread);
+		g_thread_join (sw_p_08_thread);
 		sw_p_08_thread = NULL;
 	}
 }

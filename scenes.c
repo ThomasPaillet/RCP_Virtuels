@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -417,9 +417,13 @@ void shutter_check_button_toggled (GtkToggleButton *toggle_button)
 }
 
 #define SCENE_PARAMETER_CHECK_BUTTON(l,s,x,w) \
-	l##_check_button = gtk_check_button_new_with_label (s); \
+	l##_check_button = gtk_check_button_new (); \
 	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (l##_check_button), TRUE); \
-	gtk_grid_attach (GTK_GRID (grid), l##_check_button, x, i, w, 1); \
+	gtk_grid_attach (GTK_GRID (grid), l##_check_button, x, i, 1, 1); \
+	widget = gtk_label_new (s); \
+	gtk_widget_set_halign (widget, GTK_ALIGN_START); \
+	gtk_widget_set_margin_start (widget, MARGIN_VALUE); \
+	gtk_grid_attach (GTK_GRID (grid), widget, x + 1, i, w, 1); \
 	i++;
 
 #undef MARGIN_VALUE
@@ -538,7 +542,7 @@ void create_scenes_page (void)
 			widget = gtk_label_new ("Tout");
 			gtk_widget_set_halign (widget, GTK_ALIGN_START);
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
-			gtk_grid_attach (GTK_GRID (grid), widget, 1, 0, 2, 1);
+			gtk_grid_attach (GTK_GRID (grid), widget, 1, 0, 3, 1);
 
 			i = 1;
 
@@ -552,7 +556,7 @@ void create_scenes_page (void)
 			widget = gtk_label_new ("Gamma");
 			gtk_widget_set_halign (widget, GTK_ALIGN_START);
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
-			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 1, 1);
+			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 2, 1);
 			i++;
 
 			SCENE_PARAMETER_CHECK_BUTTON(gamma_type,"Gamma type (HD, SD, FILMLIKE1, FILMLIKE2, FILMLIKE3)",2,1)
@@ -571,7 +575,7 @@ void create_scenes_page (void)
 			widget = gtk_label_new ("Knee");
 			gtk_widget_set_halign (widget, GTK_ALIGN_START);
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
-			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 1, 1);
+			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 2, 1);
 			i++;
 
 			SCENE_PARAMETER_CHECK_BUTTON(knee_settings,"Knee (Off/Manual/Auto)",2,1)
@@ -585,7 +589,7 @@ void create_scenes_page (void)
 			widget = gtk_label_new ("Matrix");
 			gtk_widget_set_halign (widget, GTK_ALIGN_START);
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
-			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 1, 1);
+			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 2, 1);
 			i++;
 
 			SCENE_PARAMETER_CHECK_BUTTON(matrix_type,"Matrix type (Normal, EBU, NTSC, User)",2,1)
@@ -600,7 +604,7 @@ void create_scenes_page (void)
 			widget = gtk_label_new ("Détail");
 			gtk_widget_set_halign (widget, GTK_ALIGN_START);
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
-			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 1, 1);
+			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 2, 1);
 			i++;
 
 			SCENE_PARAMETER_CHECK_BUTTON(detail,"Détail (On/Off)",2,1)
@@ -630,7 +634,7 @@ void create_scenes_page (void)
 			widget = gtk_label_new ("Shutter");
 			gtk_widget_set_halign (widget, GTK_ALIGN_START);
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
-			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 1, 1);
+			gtk_grid_attach (GTK_GRID (grid), widget, 2, i, 2, 1);
 			i++;
 
 			SCENE_PARAMETER_CHECK_BUTTON(shutter_type,"Shutter mode (Off, Step, Synchro, ELC)",2,1)

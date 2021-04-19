@@ -1,3 +1,10 @@
+@define-color red_gain_color rgb(238,0,0);
+@define-color green_gain_color rgb(0,238,0);
+@define-color blue_gain_color rgb(0,0,236);
+
+@define-color iris_color rgb(238,238,236);
+@define-color pedestal_color rgb(42,42,42);
+
 /* Default Color Scheme */
 
 @define-color theme_bg_color #d6d6d6;

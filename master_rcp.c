@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,11 +14,13 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
 
+
+extern GtkCssProvider *css_provider_store;
 
 extern GtkCssProvider *css_provider_raz;
 
@@ -206,6 +208,206 @@ MASTER_BUTTON_PRESSED_MINUS_FUNC(l,c,d,10) \
 MASTER_BUTTON_PRESSED_MINUS_FUNC(l,c,d,1) \
 MASTER_BUTTON_PRESSED_PLUS_FUNC(l,c,d,1) \
 MASTER_BUTTON_PRESSED_PLUS_FUNC(l,c,d,10)
+
+
+#define MASTER_BUTTON_PRESSED_PLUS_FUNC_PLUS_UPDATE_NOTIFICATION(l,c,d,v) \
+gboolean l##_plus_##v##_master_button_pressed (GtkButton *button, GdkEventButton *event, cameras_set_t *cameras_set) \
+{ \
+	int value, i, rcp_value; \
+	rcp_t *rcp; \
+ \
+	if (event->button == GDK_BUTTON_SECONDARY) { \
+		gtk_widget_set_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE, FALSE); \
+		value = cameras_set->master_rcp.l - v; \
+		if (value < MIN_VALUE) value = MIN_VALUE; \
+		cameras_set->master_rcp.timeout_value = -v; \
+	} else { \
+		value = cameras_set->master_rcp.l + v; \
+		if (value > MAX_VALUE) value = MAX_VALUE; \
+		cameras_set->master_rcp.timeout_value = v; \
+	} \
+ \
+	if (cameras_set->master_rcp.timeout_id != 0) { \
+		g_source_remove (cameras_set->master_rcp.timeout_id); \
+		cameras_set->master_rcp.timeout_id = 0; \
+	} \
+ \
+	if (cameras_set->master_rcp.l != value) { \
+		for (i = 0; i < cameras_set->number_of_cameras; i++) { \
+			rcp = cameras_set->rcp_ptr_array[i]; \
+ \
+			if (!rcp->camera_is_on) continue; \
+			if (rcp->camera_is_working) continue; \
+ \
+			rcp_value = rcp->current_scene.l + value - cameras_set->master_rcp.l; \
+			if (rcp_value > MAX_VALUE) rcp_value = MAX_VALUE; \
+			else if (rcp_value < MIN_VALUE) rcp_value = MIN_VALUE; \
+ \
+			if (rcp->current_scene.l != rcp_value) { \
+				rcp->current_scene.l = rcp_value; \
+ \
+				g_signal_handler_block (rcp->l##_scale, rcp->l##_handler_id); \
+				gtk_range_set_value (GTK_RANGE (rcp->l##_scale), rcp_value); \
+				g_signal_handler_unblock (rcp->l##_scale, rcp->l##_handler_id); \
+ \
+				send_cam_control_command_##d##_digits (rcp, c, rcp_value, TRUE); \
+ \
+				if (physical_rcp.connected && (rcp == rcp_vision)) { \
+					g_mutex_lock (&physical_rcp.mutex); \
+					physical_rcp.l = rcp->current_scene.l; \
+					send_##l##_update_notification (); \
+					g_mutex_unlock (&physical_rcp.mutex); \
+				} \
+			} \
+		} \
+ \
+		cameras_set->master_rcp.l = value; \
+		g_signal_handler_block (cameras_set->master_rcp.l##_scale, cameras_set->master_rcp.l##_handler_id); \
+		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.l##_scale), value); \
+		g_signal_handler_unblock (cameras_set->master_rcp.l##_scale, cameras_set->master_rcp.l##_handler_id); \
+ \
+		cameras_set->master_rcp.timeout_id = g_timeout_add (130, (GSourceFunc)l##_master_button_held, cameras_set); \
+	} \
+ \
+	return FALSE; \
+}
+
+#define MASTER_BUTTON_PRESSED_MINUS_FUNC_PLUS_UPDATE_NOTIFICATION(l,c,d,v) \
+gboolean l##_minus_##v##_master_button_pressed (GtkButton *button, GdkEventButton *event, cameras_set_t *cameras_set) \
+{ \
+	int value, i, rcp_value; \
+	rcp_t *rcp; \
+ \
+	if (event->button == GDK_BUTTON_SECONDARY) { \
+		gtk_widget_set_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE, FALSE); \
+		value = cameras_set->master_rcp.l + v; \
+		if (value > MAX_VALUE) value = MAX_VALUE; \
+		cameras_set->master_rcp.timeout_value = v; \
+	} else { \
+		value = cameras_set->master_rcp.l - v; \
+		if (value < MIN_VALUE) value = MIN_VALUE; \
+		cameras_set->master_rcp.timeout_value = -v; \
+	} \
+ \
+	if (cameras_set->master_rcp.timeout_id != 0) { \
+		g_source_remove (cameras_set->master_rcp.timeout_id); \
+		cameras_set->master_rcp.timeout_id = 0; \
+	} \
+ \
+	if (cameras_set->master_rcp.l != value) { \
+		for (i = 0; i < cameras_set->number_of_cameras; i++) { \
+			rcp = cameras_set->rcp_ptr_array[i]; \
+ \
+			if (!rcp->camera_is_on) continue; \
+			if (rcp->camera_is_working) continue; \
+ \
+			rcp_value = rcp->current_scene.l + value - cameras_set->master_rcp.l; \
+			if (rcp_value > MAX_VALUE) rcp_value = MAX_VALUE; \
+			else if (rcp_value < MIN_VALUE) rcp_value = MIN_VALUE; \
+ \
+			if (rcp->current_scene.l != rcp_value) { \
+				rcp->current_scene.l = rcp_value; \
+ \
+				g_signal_handler_block (rcp->l##_scale, rcp->l##_handler_id); \
+				gtk_range_set_value (GTK_RANGE (rcp->l##_scale), rcp_value); \
+				g_signal_handler_unblock (rcp->l##_scale, rcp->l##_handler_id); \
+ \
+				send_cam_control_command_##d##_digits (rcp, c, rcp_value, TRUE); \
+ \
+				if (physical_rcp.connected && (rcp == rcp_vision)) { \
+					g_mutex_lock (&physical_rcp.mutex); \
+					physical_rcp.l = rcp->current_scene.l; \
+					send_##l##_update_notification (); \
+					g_mutex_unlock (&physical_rcp.mutex); \
+				} \
+			} \
+		} \
+ \
+		cameras_set->master_rcp.l = value; \
+		g_signal_handler_block (cameras_set->master_rcp.l##_scale, cameras_set->master_rcp.l##_handler_id); \
+		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.l##_scale), value); \
+		g_signal_handler_unblock (cameras_set->master_rcp.l##_scale, cameras_set->master_rcp.l##_handler_id); \
+ \
+		cameras_set->master_rcp.timeout_id = g_timeout_add (130, (GSourceFunc)l##_master_button_held, cameras_set); \
+	} \
+ \
+	return FALSE; \
+}
+
+
+#define MASTER_RCP_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(l,c,d) \
+void l##_master_value_changed (GtkRange *l##_scale, cameras_set_t *cameras_set) \
+{ \
+	int i, l; \
+	rcp_t *rcp; \
+ \
+	l = (int)gtk_range_get_value (l##_scale); \
+ \
+	for (i = 0; i < cameras_set->number_of_cameras; i++) { \
+		rcp = cameras_set->rcp_ptr_array[i]; \
+ \
+		if (!rcp->camera_is_on) continue; \
+		if (rcp->camera_is_working) continue; \
+ \
+		gtk_range_set_value (GTK_RANGE (rcp->l##_scale), rcp->current_scene.l + l - cameras_set->master_rcp.l); \
+	} \
+ \
+	cameras_set->master_rcp.l = l; \
+} \
+ \
+gboolean l##_master_button_held (cameras_set_t *cameras_set) \
+{ \
+	int value, i, rcp_value; \
+	rcp_t *rcp; \
+ \
+	value = cameras_set->master_rcp.l + cameras_set->master_rcp.timeout_value; \
+	if (value > MAX_VALUE) value = MAX_VALUE; \
+	else if (value < MIN_VALUE) value = MIN_VALUE; \
+ \
+	if (cameras_set->master_rcp.l != value) { \
+		for (i = 0; i < cameras_set->number_of_cameras; i++) { \
+			rcp = cameras_set->rcp_ptr_array[i]; \
+ \
+			if (!rcp->camera_is_on) continue; \
+			if (rcp->camera_is_working) continue; \
+ \
+			rcp_value = rcp->current_scene.l + value - cameras_set->master_rcp.l; \
+			if (rcp_value > MAX_VALUE) rcp_value = MAX_VALUE; \
+			else if (rcp_value < MIN_VALUE) rcp_value = MIN_VALUE; \
+ \
+			if (rcp->current_scene.l != rcp_value) { \
+				rcp->current_scene.l = rcp_value; \
+ \
+				g_signal_handler_block (rcp->l##_scale, rcp->l##_handler_id); \
+				gtk_range_set_value (GTK_RANGE (rcp->l##_scale), rcp_value); \
+				g_signal_handler_unblock (rcp->l##_scale, rcp->l##_handler_id); \
+ \
+				send_cam_control_command_##d##_digits (rcp, c, rcp_value, FALSE); \
+ \
+				if (physical_rcp.connected && (rcp == rcp_vision)) { \
+					g_mutex_lock (&physical_rcp.mutex); \
+					physical_rcp.l = rcp->current_scene.l; \
+					send_##l##_update_notification (); \
+					g_mutex_unlock (&physical_rcp.mutex); \
+				} \
+			} \
+		} \
+ \
+		cameras_set->master_rcp.l = value; \
+		g_signal_handler_block (cameras_set->master_rcp.l##_scale, cameras_set->master_rcp.l##_handler_id); \
+		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.l##_scale), value); \
+		g_signal_handler_unblock (cameras_set->master_rcp.l##_scale, cameras_set->master_rcp.l##_handler_id); \
+ \
+		return G_SOURCE_CONTINUE; \
+	} else { \
+		cameras_set->master_rcp.timeout_id = 0; \
+		return G_SOURCE_REMOVE; \
+	} \
+} \
+MASTER_BUTTON_PRESSED_MINUS_FUNC_PLUS_UPDATE_NOTIFICATION(l,c,d,10) \
+MASTER_BUTTON_PRESSED_MINUS_FUNC_PLUS_UPDATE_NOTIFICATION(l,c,d,1) \
+MASTER_BUTTON_PRESSED_PLUS_FUNC_PLUS_UPDATE_NOTIFICATION(l,c,d,1) \
+MASTER_BUTTON_PRESSED_PLUS_FUNC_PLUS_UPDATE_NOTIFICATION(l,c,d,10)
 
 
 extern int color_temperature_array[];
@@ -403,20 +605,20 @@ void ABB_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 		gtk_button_clicked (GTK_BUTTON (rcp->ABB_button));
 	}
 
+	cameras_set->master_rcp.r_pedestal = R_PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), R_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
-	cameras_set->master_rcp.r_pedestal = R_PEDESTAL_DEFAULT;
 
+	cameras_set->master_rcp.g_pedestal = G_PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), G_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
-	cameras_set->master_rcp.g_pedestal = G_PEDESTAL_DEFAULT;
 
+	cameras_set->master_rcp.b_pedestal = B_PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), B_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
-	cameras_set->master_rcp.b_pedestal = B_PEDESTAL_DEFAULT;
 }
 
 void ND_filter_master_changed (GtkComboBox *ND_filter_combo_box, cameras_set_t *cameras_set)
@@ -434,6 +636,7 @@ void ND_filter_master_changed (GtkComboBox *ND_filter_combo_box, cameras_set_t *
 		if (rcp->camera_is_working) continue;
 
 		if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (rcp->day_night_toggle_button))) continue;	//ND filter switching is not possible in Night mode
+
 		gtk_combo_box_set_active (GTK_COMBO_BOX (rcp->ND_filter_combo_box), active_item);
 	}
 
@@ -643,6 +846,7 @@ void knee_settings_master_changed (GtkComboBox *knee_settings_combo_box, cameras
 		if (rcp->camera_is_working) continue;
 
 		if (rcp->current_scene.drs != 3) continue;	//When DRS is set to On, the knee setting is disabled
+
 		gtk_combo_box_set_active (GTK_COMBO_BOX (rcp->knee_settings_combo_box), active_item);
 	}
 
@@ -693,20 +897,20 @@ void detail_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set
 	}
 }
 
-#define MIN_VALUE 0x1D
+#define MIN_VALUE 0x1C
 #define MAX_VALUE 0xA8
 
 MASTER_RCP_CMD_FUNCS(saturation,"OSD:B0:",2)
 
-void saturation_100_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
+void saturation_0_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 {
 	int i;
 	rcp_t *rcp;
 
+	cameras_set->master_rcp.saturation = SATURATION_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.saturation_scale, cameras_set->master_rcp.saturation_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.saturation_scale), SATURATION_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.saturation_scale, cameras_set->master_rcp.saturation_handler_id);
-	cameras_set->master_rcp.saturation = SATURATION_DEFAULT;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
 		rcp = cameras_set->rcp_ptr_array[i];
@@ -720,12 +924,11 @@ void saturation_100_master_button_clicked (GtkButton *button, cameras_set_t *cam
 
 #undef MIN_VALUE
 #undef MAX_VALUE
+
 #define MIN_VALUE 0x000
 #define MAX_VALUE 0x12C
 
-#define set_r_gain_label(r)
-
-MASTER_RCP_CMD_FUNCS(r_gain,"ORI:",3)
+MASTER_RCP_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(r_gain,"ORI:",3)
 
 void g_gain_master_value_changed (GtkRange *g_gain_scale, cameras_set_t *cameras_set)
 {
@@ -735,13 +938,13 @@ void g_gain_master_value_changed (GtkRange *g_gain_scale, cameras_set_t *cameras
 	g_gain = (int)gtk_range_get_value (g_gain_scale);
 	delta = g_gain - cameras_set->master_rcp.g_gain;
 
-	g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 	cameras_set->master_rcp.r_gain -= delta;
+	g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), cameras_set->master_rcp.r_gain);
 	g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 
-	g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 	cameras_set->master_rcp.b_gain -= delta;
+	g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), cameras_set->master_rcp.b_gain);
 	g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
@@ -779,13 +982,13 @@ gboolean g_gain_master_button_held (cameras_set_t *cameras_set)
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_gain_scale), g_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		cameras_set->master_rcp.r_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), cameras_set->master_rcp.r_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		cameras_set->master_rcp.b_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), cameras_set->master_rcp.b_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
@@ -835,13 +1038,13 @@ gboolean g_gain_plus_10_master_button_pressed (GtkButton *button, GdkEventButton
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_gain_scale), g_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		cameras_set->master_rcp.r_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), cameras_set->master_rcp.r_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		cameras_set->master_rcp.b_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), cameras_set->master_rcp.b_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
@@ -890,13 +1093,13 @@ gboolean g_gain_plus_1_master_button_pressed (GtkButton *button, GdkEventButton 
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_gain_scale), g_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		cameras_set->master_rcp.r_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), cameras_set->master_rcp.r_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		cameras_set->master_rcp.b_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), cameras_set->master_rcp.b_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
@@ -945,13 +1148,13 @@ gboolean g_gain_minus_1_master_button_pressed (GtkButton *button, GdkEventButton
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_gain_scale), g_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		cameras_set->master_rcp.r_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), cameras_set->master_rcp.r_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		cameras_set->master_rcp.b_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), cameras_set->master_rcp.b_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
@@ -1000,13 +1203,13 @@ gboolean g_gain_minus_10_master_button_pressed (GtkButton *button, GdkEventButto
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_gain_scale), g_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		cameras_set->master_rcp.r_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), cameras_set->master_rcp.r_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		cameras_set->master_rcp.b_gain -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), cameras_set->master_rcp.b_gain);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
@@ -1016,26 +1219,10 @@ gboolean g_gain_minus_10_master_button_pressed (GtkButton *button, GdkEventButto
 	return FALSE;
 }
 
-#define set_b_gain_label(r)
+MASTER_RCP_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(b_gain,"OBI:",3)
 
-MASTER_RCP_CMD_FUNCS(b_gain,"OBI:",3)
-
-gpointer reset_white (rcp_t *rcp)
-{
-	if (rcp->current_scene.r_gain != R_GAIN_DEFAULT) {
-		rcp->current_scene.r_gain = R_GAIN_DEFAULT;
-		set_r_gain (rcp);
-	}
-
-	rcp->g_gain = G_GAIN_DEFAULT;
-
-	if (rcp->current_scene.b_gain != B_GAIN_DEFAULT) {
-		rcp->current_scene.b_gain = B_GAIN_DEFAULT;
-		set_b_gain (rcp);
-	}
-
-	return NULL;
-}
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void white_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 {
@@ -1048,23 +1235,28 @@ void white_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
 
-		rcp->thread = g_thread_new (NULL, (GThreadFunc)reset_white, rcp);
+		gtk_range_set_value (GTK_RANGE (rcp->r_gain_scale), R_GAIN_DEFAULT);
+
+		rcp->g_gain = G_GAIN_DEFAULT;
+		g_signal_handler_block (rcp->g_gain_scale, rcp->g_gain_handler_id);
+		gtk_range_set_value (GTK_RANGE (rcp->g_gain_scale), G_GAIN_DEFAULT);
+		g_signal_handler_unblock (rcp->g_gain_scale, rcp->g_gain_handler_id);
 	}
 
+	cameras_set->master_rcp.r_gain = R_GAIN_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_gain_scale), R_GAIN_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.r_gain_scale, cameras_set->master_rcp.r_gain_handler_id);
-	cameras_set->master_rcp.r_gain = R_GAIN_DEFAULT;
 
+	cameras_set->master_rcp.g_gain = G_GAIN_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_gain_scale), G_GAIN_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.g_gain_scale, cameras_set->master_rcp.g_gain_handler_id);
-	cameras_set->master_rcp.g_gain = G_GAIN_DEFAULT;
 
+	cameras_set->master_rcp.b_gain = B_GAIN_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_gain_scale), B_GAIN_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
-	cameras_set->master_rcp.b_gain = B_GAIN_DEFAULT;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
 		rcp = cameras_set->rcp_ptr_array[i];
@@ -1072,31 +1264,14 @@ void white_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
 
-		g_signal_handler_block (rcp->r_gain_scale, rcp->r_gain_handler_id);
-		gtk_range_set_value (GTK_RANGE (rcp->r_gain_scale), R_GAIN_DEFAULT);
-		g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
-
-		g_signal_handler_block (rcp->g_gain_scale, rcp->g_gain_handler_id);
-		gtk_range_set_value (GTK_RANGE (rcp->g_gain_scale), G_GAIN_DEFAULT);
-		g_signal_handler_unblock (rcp->g_gain_scale, rcp->g_gain_handler_id);
-
-		g_signal_handler_block (rcp->b_gain_scale, rcp->b_gain_handler_id);
 		gtk_range_set_value (GTK_RANGE (rcp->b_gain_scale), B_GAIN_DEFAULT);
-		g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
-
-		g_thread_join (rcp->thread);
-		rcp->thread = NULL;
 	}
 }
 
-#undef MIN_VALUE
-#undef MAX_VALUE
 #define MIN_VALUE 0x032
 #define MAX_VALUE 0x0FA
 
-#define set_r_pedestal_label(r)
-
-MASTER_RCP_CMD_FUNCS(r_pedestal,"ORP:",3)
+MASTER_RCP_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(r_pedestal,"ORP:",3)
 
 void g_pedestal_master_value_changed (GtkRange *g_pedestal_scale, cameras_set_t *cameras_set)
 {
@@ -1106,13 +1281,13 @@ void g_pedestal_master_value_changed (GtkRange *g_pedestal_scale, cameras_set_t 
 	g_pedestal = (int)gtk_range_get_value (g_pedestal_scale);
 	delta = g_pedestal - cameras_set->master_rcp.g_pedestal;
 
-	g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 	cameras_set->master_rcp.r_pedestal -= delta;
+	g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), cameras_set->master_rcp.r_pedestal);
 	g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 
-	g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 	cameras_set->master_rcp.b_pedestal -= delta;
+	g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), cameras_set->master_rcp.b_pedestal);
 	g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
@@ -1150,13 +1325,13 @@ gboolean g_pedestal_master_button_held (cameras_set_t *cameras_set)
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), g_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		cameras_set->master_rcp.r_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), cameras_set->master_rcp.r_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		cameras_set->master_rcp.b_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), cameras_set->master_rcp.b_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
@@ -1206,13 +1381,13 @@ gboolean g_pedestal_plus_10_master_button_pressed (GtkButton *button, GdkEventBu
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), g_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		cameras_set->master_rcp.r_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), cameras_set->master_rcp.r_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		cameras_set->master_rcp.b_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), cameras_set->master_rcp.b_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
@@ -1261,13 +1436,13 @@ gboolean g_pedestal_plus_1_master_button_pressed (GtkButton *button, GdkEventBut
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), g_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		cameras_set->master_rcp.r_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), cameras_set->master_rcp.r_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		cameras_set->master_rcp.b_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), cameras_set->master_rcp.b_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
@@ -1316,13 +1491,13 @@ gboolean g_pedestal_minus_1_master_button_pressed (GtkButton *button, GdkEventBu
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), g_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		cameras_set->master_rcp.r_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), cameras_set->master_rcp.r_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		cameras_set->master_rcp.b_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), cameras_set->master_rcp.b_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
@@ -1371,13 +1546,13 @@ gboolean g_pedestal_minus_10_master_button_pressed (GtkButton *button, GdkEventB
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), g_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		cameras_set->master_rcp.r_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), cameras_set->master_rcp.r_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 
-		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		cameras_set->master_rcp.b_pedestal -= delta;
+		g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), cameras_set->master_rcp.b_pedestal);
 		g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
@@ -1387,26 +1562,10 @@ gboolean g_pedestal_minus_10_master_button_pressed (GtkButton *button, GdkEventB
 	return FALSE;
 }
 
-#define set_b_pedestal_label(r)
+MASTER_RCP_CMD_FUNCS_PLUS_UPDATE_NOTIFICATION(b_pedestal,"OBP:",3)
 
-MASTER_RCP_CMD_FUNCS(b_pedestal,"OBP:",3)
-
-gpointer reset_black (rcp_t *rcp)
-{
-	if (rcp->current_scene.r_pedestal != R_PEDESTAL_DEFAULT) {
-		rcp->current_scene.r_pedestal = R_PEDESTAL_DEFAULT;
-		set_r_pedestal (rcp);
-	}
-
-	rcp->g_pedestal = G_PEDESTAL_DEFAULT;
-
-	if (rcp->current_scene.b_pedestal != B_PEDESTAL_DEFAULT) {
-		rcp->current_scene.b_pedestal = B_PEDESTAL_DEFAULT;
-		set_b_pedestal (rcp);
-	}
-
-	return NULL;
-}
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void black_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 {
@@ -1419,23 +1578,28 @@ void black_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
 
-		rcp->thread = g_thread_new (NULL, (GThreadFunc)reset_black, rcp);
+		gtk_range_set_value (GTK_RANGE (rcp->r_pedestal_scale), R_PEDESTAL_DEFAULT);
+
+		rcp->g_pedestal = G_PEDESTAL_DEFAULT;
+		g_signal_handler_block (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
+		gtk_range_set_value (GTK_RANGE (rcp->g_pedestal_scale), G_PEDESTAL_DEFAULT);
+		g_signal_handler_unblock (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
 	}
 
+	cameras_set->master_rcp.r_pedestal = R_PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.r_pedestal_scale), R_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.r_pedestal_scale, cameras_set->master_rcp.r_pedestal_handler_id);
-	cameras_set->master_rcp.r_pedestal = R_PEDESTAL_DEFAULT;
 
+	cameras_set->master_rcp.g_pedestal = G_PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.g_pedestal_scale), G_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.g_pedestal_scale, cameras_set->master_rcp.g_pedestal_handler_id);
-	cameras_set->master_rcp.g_pedestal = G_PEDESTAL_DEFAULT;
 
+	cameras_set->master_rcp.b_pedestal = B_PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.b_pedestal_scale), B_PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
-	cameras_set->master_rcp.b_pedestal = B_PEDESTAL_DEFAULT;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
 		rcp = cameras_set->rcp_ptr_array[i];
@@ -1443,20 +1607,7 @@ void black_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
 
-		g_signal_handler_block (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
-		gtk_range_set_value (GTK_RANGE (rcp->r_pedestal_scale), R_PEDESTAL_DEFAULT);
-		g_signal_handler_unblock (rcp->r_pedestal_scale, rcp->r_pedestal_handler_id);
-
-		g_signal_handler_block (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
-		gtk_range_set_value (GTK_RANGE (rcp->g_pedestal_scale), G_PEDESTAL_DEFAULT);
-		g_signal_handler_unblock (rcp->g_pedestal_scale, rcp->g_pedestal_handler_id);
-
-		g_signal_handler_block (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
 		gtk_range_set_value (GTK_RANGE (rcp->b_pedestal_scale), B_PEDESTAL_DEFAULT);
-		g_signal_handler_unblock (rcp->b_pedestal_scale, rcp->b_pedestal_handler_id);
-
-		g_thread_join (rcp->thread);
-		rcp->thread = NULL;
 	}
 }
 
@@ -1472,6 +1623,7 @@ void shutter_type_master_changed (GtkComboBox *shutter_type_combo_box, cameras_s
 		gtk_widget_show (cameras_set->master_rcp.shutter_step_combo_box);
 	} else {
 		gtk_widget_hide (cameras_set->master_rcp.shutter_step_combo_box);
+
 		g_signal_handler_block (shutter_type_combo_box, cameras_set->master_rcp.shutter_type_handler_id);
 		gtk_combo_box_set_active (shutter_type_combo_box, -1);
 		g_signal_handler_unblock (shutter_type_combo_box, cameras_set->master_rcp.shutter_type_handler_id);
@@ -1512,22 +1664,23 @@ void shutter_step_master_changed (GtkComboBox *shutter_step_combo_box, cameras_s
 	g_signal_handler_unblock (shutter_step_combo_box, cameras_set->master_rcp.shutter_step_handler_id);
 }
 
-#undef MIN_VALUE
-#undef MAX_VALUE
 #define MIN_VALUE 0x000
 #define MAX_VALUE 0x12C
 
 MASTER_RCP_CMD_FUNCS(pedestal,"OTP:",3)
+
+#undef MIN_VALUE
+#undef MAX_VALUE
 
 void pedestal_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 {
 	int i;
 	rcp_t *rcp;
 
+	cameras_set->master_rcp.pedestal = PEDESTAL_DEFAULT;
 	g_signal_handler_block (cameras_set->master_rcp.pedestal_scale, cameras_set->master_rcp.pedestal_handler_id);
 	gtk_range_set_value (GTK_RANGE (cameras_set->master_rcp.pedestal_scale), PEDESTAL_DEFAULT);
 	g_signal_handler_unblock (cameras_set->master_rcp.pedestal_scale, cameras_set->master_rcp.pedestal_handler_id);
-	cameras_set->master_rcp.pedestal = PEDESTAL_DEFAULT;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
 		rcp = cameras_set->rcp_ptr_array[i];
@@ -1539,8 +1692,6 @@ void pedestal_raz_master_button_clicked (GtkButton *button, cameras_set_t *camer
 	}
 }
 
-#undef MIN_VALUE
-#undef MAX_VALUE
 #define MIN_VALUE 0x555
 #define MAX_VALUE 0xFFF
 
@@ -1887,8 +2038,9 @@ void init_master_rcp (cameras_set_t *cameras_set)
 		gtk_box_pack_start (GTK_BOX (box1), box2, FALSE, FALSE, 0);
 		
 		widget = gtk_toggle_button_new_with_label ("S");
-		gtk_box_pack_end (GTK_BOX (box1), widget, FALSE, FALSE, 0);
+		gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_store), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
 		g_signal_connect (widget, "toggled", G_CALLBACK (store_master_toggle_button_clicked), cameras_set);
+		gtk_box_pack_end (GTK_BOX (box1), widget, FALSE, FALSE, 0);
 		cameras_set->master_rcp.store_toggle_button = widget;
 	gtk_container_add (GTK_CONTAINER (frame), box1);
 	gtk_box_pack_start (GTK_BOX (main_box), frame, FALSE, FALSE, 0);
@@ -2095,7 +2247,7 @@ void init_master_rcp (cameras_set_t *cameras_set)
 			widget = gtk_button_new_with_label ("0%");
 			gtk_widget_set_margin_start (widget, MARGIN_VALUE);
 			gtk_widget_set_margin_end (widget, MARGIN_VALUE);
-			g_signal_connect (widget, "clicked", G_CALLBACK (saturation_100_master_button_clicked), cameras_set);
+			g_signal_connect (widget, "clicked", G_CALLBACK (saturation_0_master_button_clicked), cameras_set);
 			gtk_box_pack_start (GTK_BOX (box2), widget, FALSE, FALSE, 0);
 
 			widget = gtk_button_new_with_label ("+1%");

@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -23,6 +23,8 @@
 
 
 extern GtkCssProvider *css_provider_raz;
+
+const char *matrix_txt = "Matriçage";
 
 char *linear_matrix_R_G_label = "R_G: ";
 char *linear_matrix_R_B_label = "R_B: ";
@@ -202,24 +204,14 @@ LINEAR_MATRIX_FUNCS(G_B,"OSD:A7:")
 LINEAR_MATRIX_FUNCS(B_R,"OSD:A8:")
 LINEAR_MATRIX_FUNCS(B_G,"OSD:A9:")
 
-#define LINEAR_MATRIX_RESET(l) \
-	if (rcp->current_scene.linear_matrix.l != LINEAR_MATRIX_DEFAULT) { \
-		rcp->current_scene.linear_matrix.l = LINEAR_MATRIX_DEFAULT; \
-		set_linear_matrix_##l (rcp); \
-		g_signal_handler_block (rcp->linear_matrix_##l##_scale, rcp->linear_matrix_##l##_handler_id); \
-		gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_##l##_scale), LINEAR_MATRIX_DEFAULT); \
-		g_signal_handler_unblock (rcp->linear_matrix_##l##_scale, rcp->linear_matrix_##l##_handler_id); \
-		set_linear_matrix_##l##_label (rcp); \
-	}
-
 void linear_matrix_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	LINEAR_MATRIX_RESET(R_G)
-	LINEAR_MATRIX_RESET(R_B)
-	LINEAR_MATRIX_RESET(G_R)
-	LINEAR_MATRIX_RESET(G_B)
-	LINEAR_MATRIX_RESET(B_R)
-	LINEAR_MATRIX_RESET(B_G)
+	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_R_G_scale), LINEAR_MATRIX_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_R_B_scale), LINEAR_MATRIX_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_G_R_scale), LINEAR_MATRIX_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_G_B_scale), LINEAR_MATRIX_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_B_R_scale), LINEAR_MATRIX_DEFAULT);
+	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_B_G_scale), LINEAR_MATRIX_DEFAULT);
 
 	if (rcp->selected_color != nothing) {
 		rcp->selected_color = nothing;
@@ -701,8 +693,6 @@ gboolean hide_matrix_window (GtkWidget *window, GdkEvent *event, rcp_t *rcp)
 
 	return GDK_EVENT_STOP;
 }
-
-const char *matrix_txt = "Matriçage";
 
 void create_matrix_window (rcp_t *rcp)
 {

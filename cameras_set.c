@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "rcp.h"
@@ -26,11 +26,14 @@
 char *cameras_set_label = "Ensembles de caméras";
 char *cameras_label = "Caméras";
 
+GMutex cameras_sets_mutex;
+GMutex current_cameras_set_mutex;
+
 int number_of_cameras_sets = 0;
 
 cameras_set_t *cameras_sets = NULL;
 
-cameras_set_t *current_camera_set = NULL;
+cameras_set_t *current_cameras_set = NULL;
 
 cameras_set_t *new_cameras_set = NULL;
 
@@ -120,11 +123,13 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 	rcp_t *rcp, *updated_rcp, *other_rcp;
 	GtkWidget *box, *widget, *settings_list_box_row;
 	gboolean camera_is_active;
-	GList *glist_itr;
+	GList *glist_itr, *glist_itr_next;
 	GSList *ip_addresss_list, *gslist_itr;
 	GtkListBoxRow *source_cameras_set_row, *destination_cameras_set_row;
 	const gchar *source_cameras_set_row_name, *destination_cameras_set_row_name;
 	gboolean source_cameras_set_is_selected, destination_cameras_set_is_selected;
+
+	g_mutex_lock (&cameras_sets_mutex);
 
 	entry_buffer_text = gtk_entry_buffer_get_text (cameras_set_configuration_name_entry_buffer);
 	if (strcmp (cameras_set->name, entry_buffer_text) != 0) {
@@ -171,8 +176,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 			entry_buffer_text = gtk_entry_buffer_get_text (cameras_configuration_widgets[i].name_entry_buffer);
 			strcpy (rcp->name, entry_buffer_text);
-
-			rcp->matrix_source_number = number_of_matrix_source++;
 
 			if (rcp->active) {
 				create_rcp_widgets (rcp);
@@ -267,9 +270,20 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 			if (!rcp->active) cameras_set->number_of_ghost_cameras--;
 
-			g_mutex_lock (&rcp_start_glist_mutex);
-			rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
-			g_mutex_unlock (&rcp_start_glist_mutex);
+			glist_itr = rcp_start_glist;
+			while (glist_itr != NULL) {
+				glist_itr_next = glist_itr->next;
+
+				if (glist_itr->data == rcp) {
+					if (((rcp_t*)(glist_itr->data))->other_rcp != NULL) glist_itr->data = ((rcp_t*)(glist_itr->data))->other_rcp;
+					else rcp_start_glist = g_list_delete_link (rcp_start_glist, glist_itr);
+					break;
+				}
+
+				glist_itr = glist_itr_next;
+			}
+
+//			rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 			rcp_glist = g_list_remove (rcp_glist, rcp);
 
 			for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -292,10 +306,12 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 			g_mutex_lock (&rcp->other_rcp_mutex);
 			g_slist_free (rcp->other_rcp);
+			rcp->other_rcp = NULL;
 			g_mutex_unlock (&rcp->other_rcp_mutex);
 			g_mutex_clear (&rcp->other_rcp_mutex);
 
 			if (!rcp->camera_is_working) {
+				if (rcp->thread != NULL) g_thread_join (rcp->thread);
 				g_mutex_clear (&rcp->cmd_mutex);
 				g_free (rcp);
 			}
@@ -315,9 +331,9 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 			init_rcp (rcp);
 
-			rcp->active = gtk_switch_get_active (GTK_SWITCH (cameras_configuration_widgets[i].camera_switch));
+			rcp->index = i;
 
-			rcp->matrix_source_number = number_of_matrix_source++;
+			rcp->active = gtk_switch_get_active (GTK_SWITCH (cameras_configuration_widgets[i].camera_switch));
 
 			if (rcp->active) {
 				create_rcp_widgets (rcp);
@@ -393,9 +409,20 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 					}
 				}
 
-				g_mutex_lock (&rcp_start_glist_mutex);
-				rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
-				g_mutex_unlock (&rcp_start_glist_mutex);
+				glist_itr = rcp_start_glist;
+				while (glist_itr != NULL) {
+					glist_itr_next = glist_itr->next;
+
+					if (glist_itr->data == rcp) {
+						if (((rcp_t*)(glist_itr->data))->other_rcp != NULL) glist_itr->data = ((rcp_t*)(glist_itr->data))->other_rcp;
+						else rcp_start_glist = g_list_delete_link (rcp_start_glist, glist_itr);
+						break;
+					}
+
+					glist_itr = glist_itr_next;
+				}
+
+//				rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 				rcp_glist = g_list_remove (rcp_glist, rcp);
 
 				for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -517,9 +544,20 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 						}
 					}
 
-					g_mutex_lock (&rcp_start_glist_mutex);
-					rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
-					g_mutex_unlock (&rcp_start_glist_mutex);
+					glist_itr = rcp_start_glist;
+					while (glist_itr != NULL) {
+						glist_itr_next = glist_itr->next;
+
+						if (glist_itr->data == rcp) {
+							if (((rcp_t*)(glist_itr->data))->other_rcp != NULL) glist_itr->data = ((rcp_t*)(glist_itr->data))->other_rcp;
+							else rcp_start_glist = g_list_delete_link (rcp_start_glist, glist_itr);
+							break;
+						}
+
+						glist_itr = glist_itr_next;
+					}
+
+//					rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 
 					for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 						other_rcp = (rcp_t*)(glist_itr->data);
@@ -551,11 +589,10 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 					strcpy (rcp->ip_address, rcp->new_ip_address);
 
 					if (rcp->other_rcp == NULL) {
-						g_mutex_lock (&rcp_start_glist_mutex);
 						rcp_start_glist = g_list_prepend (rcp_start_glist, rcp);
-						g_mutex_unlock (&rcp_start_glist_mutex);
 
-						rcp_work_start (rcp, (GThreadFunc)check_if_camera_is_on);
+						rcp_work_start (rcp);
+						rcp->thread = g_thread_new (NULL, (GThreadFunc)check_if_camera_is_on, rcp);
 					} else {
 						updated_rcp = (rcp_t*)(rcp->other_rcp->data);
 
@@ -568,7 +605,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 						}
 
 						copy_rcp (rcp, updated_rcp);
-						if (rcp->camera_is_on) g_idle_add ((GSourceFunc)set_rcp_on, rcp);
+						if (rcp->camera_is_on) set_rcp_on (rcp);
 					}
 				}
 			}
@@ -588,8 +625,8 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 			g_mutex_lock (&rcp->other_rcp_mutex);
 			g_slist_free (rcp->other_rcp);
-			g_mutex_unlock (&rcp->other_rcp_mutex);
 			rcp->other_rcp = NULL;
+			g_mutex_unlock (&rcp->other_rcp_mutex);
 
 			set_rcp_off (rcp);
 			gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
@@ -616,7 +653,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 			gtk_list_box_select_row (GTK_LIST_BOX (destination_cameras_set_list_box), GTK_LIST_BOX_ROW (cameras_set->destination_list_box_row));
 			destination_cameras_set = cameras_set;
 
-#ifdef RCP_ELECTRO
+#ifdef MAIN_SETTINGS_READ_ONLY
 			g_thread_new (NULL, (GThreadFunc)check_cameras_settings_ro, NULL);
 #endif
 		}
@@ -631,6 +668,8 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 	}
 
 	cameras_set->number_of_cameras = new_number_of_cameras;
+
+	g_mutex_unlock (&cameras_sets_mutex);
 
 	backup_needed = TRUE;
 }
@@ -739,7 +778,7 @@ void show_cameras_set_configuration_window (void)
 		widget = gtk_label_new ("Nom :");
 		gtk_grid_attach (GTK_GRID (cameras_set_configuration_window_grid), widget, 1, 0, 1, 1);
 
-		widget = gtk_label_new ("address IP :");
+		widget = gtk_label_new ("adresse IP :");
 		gtk_grid_attach (GTK_GRID (cameras_set_configuration_window_grid), widget, 2, 0, 7, 1);
 
 		cameras_configuration_widgets = g_malloc (MAX_CAMERAS * sizeof (camera_configuration_widgets_t));
@@ -937,12 +976,14 @@ void add_cameras_set (void)
 	new_cameras_set->name[0] = '\0';
 	new_cameras_set->number_of_cameras = 5;
 	new_cameras_set->rcp_ptr_array = g_malloc (5 * sizeof (rcp_t*));
+
 	for (i = 0; i < 5; i++) {
 		rcp = g_malloc (sizeof (rcp_t));
 		new_cameras_set->rcp_ptr_array[i] = rcp;
 		rcp->camera_set = new_cameras_set;
 		sprintf (rcp->name, "%d", i + 1);
 		init_rcp (rcp);
+		rcp->index = i;
 	}
 
 	new_cameras_set->rcp_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
@@ -953,7 +994,7 @@ void add_cameras_set (void)
 void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 {
 	GtkListBoxRow *list_box_row;
-	GList *glist_itr;
+	GList *glist_itr, *glist_itr_next;
 	const gchar *name;
 	cameras_set_t *cameras_set_tmp, *cameras_set_prev;
 	int i;
@@ -965,9 +1006,12 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 		name = gtk_label_get_text (GTK_LABEL (gtk_bin_get_child (GTK_BIN (list_box_row))));
 
 		if (strcmp (cameras_sets->name, name) == 0) {
+			g_mutex_lock (&cameras_sets_mutex);
 			cameras_set_tmp = cameras_sets;
 			cameras_sets = cameras_sets->next;
+			g_mutex_unlock (&cameras_sets_mutex);
 		} else {
+			g_mutex_lock (&cameras_sets_mutex);
 			cameras_set_prev = cameras_sets;
 			cameras_set_tmp = cameras_sets->next;
 
@@ -979,6 +1023,7 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 				cameras_set_prev = cameras_set_tmp;
 				cameras_set_tmp = cameras_set_tmp->next;
 			}
+			g_mutex_unlock (&cameras_sets_mutex);
 		}
 
 		for (i = 0; i < cameras_set_tmp->number_of_cameras; i++) {
@@ -992,9 +1037,20 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 
 			if ((rcp->ip_address_is_valid) && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) send_update_stop_cmd (rcp);
 
-			g_mutex_lock (&rcp_start_glist_mutex);
-			rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
-			g_mutex_unlock (&rcp_start_glist_mutex);
+			glist_itr = rcp_start_glist;
+			while (glist_itr != NULL) {
+				glist_itr_next = glist_itr->next;
+
+				if (glist_itr->data == rcp) {
+					if (((rcp_t*)(glist_itr->data))->other_rcp != NULL) glist_itr->data = ((rcp_t*)(glist_itr->data))->other_rcp;
+					else rcp_start_glist = g_list_delete_link (rcp_start_glist, glist_itr);
+					break;
+				}
+
+				glist_itr = glist_itr_next;
+			}
+
+//			rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 			rcp_glist = g_list_remove (rcp_glist, rcp);
 
 			for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -1013,15 +1069,15 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 				gtk_widget_destroy (rcp->knee_point_slope_window);
 			}
 
+			g_mutex_lock (&rcp->other_rcp_mutex);
+			g_slist_free (rcp->other_rcp);
+			rcp->other_rcp = NULL;
+			g_mutex_unlock (&rcp->other_rcp_mutex);
+			g_mutex_clear (&rcp->other_rcp_mutex);
+
 			if (!rcp->camera_is_working) {
 				if (rcp->thread != NULL) g_thread_join (rcp->thread);
-
-				g_mutex_lock (&rcp->other_rcp_mutex);
-				g_slist_free (rcp->other_rcp);
-				g_mutex_unlock (&rcp->other_rcp_mutex);
-				g_mutex_clear (&rcp->other_rcp_mutex);
 				g_mutex_clear (&rcp->cmd_mutex);
-
 				g_free (rcp);
 			}
 		}

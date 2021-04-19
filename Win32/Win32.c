@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr
+ * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
 
  * You should have received a copy of the GNU General Public License
- * along with RCP-Virtuels.  If not, see <https://www.gnu.org/licenses/>.
+ * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "../rcp.h"
@@ -63,6 +63,7 @@ GSList *list_rs_port (void)
 
 	if (RegQueryInfoKey (key, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &max_value_len, &max_data_size, NULL, NULL) != ERROR_SUCCESS) {
 		RegCloseKey (key);
+
 		return NULL;
 	}
 
@@ -168,6 +169,7 @@ int receive_from_rs_port (char *buffer, long unsigned int buffer_len)
 	if (ReadFileEx (rs_port, buffer, buffer_len, overlapped, receive_from_rs_port_completion_routine) == 0) {
 		g_free (overlapped);
 		g_idle_add ((GSourceFunc)show_rs_connection_error_window, NULL);
+
 		return 0;
 	}
 
