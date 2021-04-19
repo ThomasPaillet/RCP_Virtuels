@@ -307,11 +307,7 @@ gpointer ask_format (rcp_t *rcp)
 
 gpointer receive_update_notification (gpointer nothing)
 {
-#ifdef _WIN32
-	int addrlen;
-#elif defined (__linux)
 	socklen_t addrlen;
-#endif
 	SOCKET src_socket;
 	struct sockaddr_in src_addr;
 	char buffer[556];

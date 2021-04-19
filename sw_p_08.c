@@ -741,11 +741,7 @@ gpointer sw_p_08_tcp_server (void)
 {
 	SOCKET src_socket;
 	struct sockaddr_in src_addr;
-#ifdef _WIN32
-	int addrlen;
-#elif defined (__linux)
 	socklen_t addrlen;
-#endif
 
 	sw_p_08_tcp_server_started = TRUE;
 

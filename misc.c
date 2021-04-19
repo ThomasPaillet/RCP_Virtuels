@@ -85,6 +85,7 @@ void init_rcp (rcp_t *rcp)
 	rcp->current_scene.linear_matrix.G_B = LINEAR_MATRIX_DEFAULT;
 	rcp->current_scene.linear_matrix.B_R = LINEAR_MATRIX_DEFAULT;
 	rcp->current_scene.linear_matrix.B_G = LINEAR_MATRIX_DEFAULT;
+
 	for (j = 0; j < 15; j++) {
 		rcp->current_scene.cc_saturation[j] = COLOR_CORRECTION_DEFAULT;
 		rcp->current_scene.cc_phase[j] = COLOR_CORRECTION_DEFAULT;
@@ -215,6 +216,13 @@ gboolean set_rcp_off (rcp_t *rcp)
 		rcp->timeout_id = 0;
 	}
 
+	if (rcp->root_widget == NULL) {
+		g_mutex_clear (&rcp->cmd_mutex);
+		g_free (rcp);
+
+		return G_SOURCE_REMOVE;
+	}
+
 	g_signal_handler_block (rcp->on_standby_switch, rcp->on_standby_handler_id);
 	gtk_switch_set_active (GTK_SWITCH (rcp->on_standby_switch), FALSE);
 	g_signal_handler_unblock (rcp->on_standby_switch, rcp->on_standby_handler_id);
@@ -338,22 +346,23 @@ gboolean set_rcp_off (rcp_t *rcp)
 
 gpointer check_if_camera_is_on (rcp_t *rcp)
 {
-	int response = 0;
+	int response;
 	GSList *gslist_itr;
 
 	send_update_start_cmd (rcp);
 
-	if (rcp->error_code != 0x30) send_ptz_request_command (rcp, "#O", &response);
+	if (rcp->error_code != 0x30) {
+		send_ptz_request_command (rcp, "#O", &response);
 
-	if (response == 1) {
-		start_rcp (rcp);
-	} else {
-		g_idle_add ((GSourceFunc)set_rcp_off, rcp);
+		if (response == 1) start_rcp (rcp);
+		else {
+			g_idle_add ((GSourceFunc)set_rcp_off, rcp);
 
-		g_mutex_lock (&rcp->other_rcp_mutex);
-		for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next)
-			g_idle_add ((GSourceFunc)set_rcp_off, gslist_itr->data);
-		g_mutex_unlock (&rcp->other_rcp_mutex);
+			g_mutex_lock (&rcp->other_rcp_mutex);
+			for (gslist_itr = rcp->other_rcp; gslist_itr != NULL; gslist_itr = gslist_itr->next)
+				g_idle_add ((GSourceFunc)set_rcp_off, gslist_itr->data);
+			g_mutex_unlock (&rcp->other_rcp_mutex);
+		}
 	}
 
 	return NULL;
@@ -729,12 +738,14 @@ gboolean rcp_work_end (rcp_t *rcp)
 
 	if (!rcp->camera_is_on) {
 		set_rcp_off (rcp);
+
 		return G_SOURCE_REMOVE;
 	}
 
 	if (rcp->root_widget == NULL) {
 		g_mutex_clear (&rcp->cmd_mutex);
 		g_free (rcp);
+
 		return G_SOURCE_REMOVE;
 	}
 

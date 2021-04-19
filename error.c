@@ -112,7 +112,8 @@ gboolean camera_is_unreachable (rcp_t *rcp)	//error_code = 0x30
 	rcp_t *other_rcp;
 	struct timeval current_time;
 
-	gtk_label_set_text (GTK_LABEL (rcp->error_label), unreachable_msg);
+	if (rcp->root_widget != NULL) gtk_label_set_text (GTK_LABEL (rcp->error_label), unreachable_msg);
+
 	set_rcp_off (rcp);
 
 	g_mutex_lock (&rcp->other_rcp_mutex);

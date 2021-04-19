@@ -67,8 +67,8 @@ int user_id_len = 0;
 		gettimeofday (&rcp->last_time, NULL); \
  \
 	} else { \
+		if (rcp->error_code != 0x30) g_idle_add ((GSourceFunc)camera_is_unreachable, rcp); \
 		rcp->error_code = 0x30; \
-		g_idle_add ((GSourceFunc)camera_is_unreachable, rcp); \
 	} \
  \
 	closesocket (sock); \
@@ -498,8 +498,9 @@ g_mutex_lock (&rcp->cmd_mutex);
 		gettimeofday (&rcp->last_time, NULL);
 	} else {
 		*response = 0;
+
+		if (rcp->error_code != 0x30) g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
 		rcp->error_code = 0x30;
-		g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
 	}
 
 	closesocket (sock);
@@ -879,8 +880,8 @@ g_mutex_lock (&rcp->cmd_mutex);
 		gettimeofday (&rcp->last_time, NULL);
 
 	} else {
+		if (rcp->error_code != 0x30) g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
 		rcp->error_code = 0x30;
-		g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
 	}
 
 	closesocket (sock);

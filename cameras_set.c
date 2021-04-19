@@ -219,7 +219,11 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		gtk_widget_show_all (cameras_set->page);
 
 		for (i = 0; ((i < cameras_set->number_of_cameras) && (i < new_number_of_cameras)); i++) {
-			if (cameras_set->rcp_ptr_array[i]->active) gtk_widget_hide (cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
+			if (cameras_set->rcp_ptr_array[i]->active) {
+				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
+				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->shutter_step_combo_box);
+				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->shutter_synchro_button);
+			}
 		}
 		gtk_widget_hide (cameras_set->master_rcp.scenes_bank_2_box);
 
@@ -259,13 +263,11 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 			if (rcp == rcp_pvw) rcp_pvw = NULL;
 			g_mutex_unlock (&sw_p_08_mutex);
 
-			if (rcp->camera_is_on) {
-				cameras_set->on_standby_count--;
+			if (rcp->camera_is_on) cameras_set->on_standby_count--;
 
-				if ((rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
-					send_ptz_control_command (rcp, "#LPC0");
-					send_update_stop_cmd (rcp);
-				}
+			if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+				send_ptz_control_command (rcp, "#LPC0");
+				send_update_stop_cmd (rcp);
 			}
 
 			if (!rcp->active) cameras_set->number_of_ghost_cameras--;
@@ -283,7 +285,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 				glist_itr = glist_itr_next;
 			}
 
-//			rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 			rcp_glist = g_list_remove (rcp_glist, rcp);
 
 			for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -352,6 +353,8 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 				gtk_widget_show_all (rcp->root_widget);
 				gtk_widget_hide (rcp->scenes_bank_2_box);
+				gtk_widget_hide (rcp->shutter_step_combo_box);
+				gtk_widget_hide (rcp->shutter_synchro_button);
 			} else {
 				cameras_set->number_of_ghost_cameras++;
 				create_ghost_rcp_widgets (rcp);
@@ -397,16 +400,16 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 				gtk_widget_show_all (rcp->root_widget);
 				gtk_widget_hide (rcp->scenes_bank_2_box);
+				gtk_widget_hide (rcp->shutter_step_combo_box);
+				gtk_widget_hide (rcp->shutter_synchro_button);
 			} else {
 				rcp->active = FALSE;
 
-				if (rcp->camera_is_on) {
-					cameras_set->on_standby_count--;
+				if (rcp->camera_is_on) cameras_set->on_standby_count--;
 
-					if ((rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
-						send_ptz_control_command (rcp, "#LPC0");
-						send_update_stop_cmd (rcp);
-					}
+				if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+					send_ptz_control_command (rcp, "#LPC0");
+					send_update_stop_cmd (rcp);
 				}
 
 				glist_itr = rcp_start_glist;
@@ -422,7 +425,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 					glist_itr = glist_itr_next;
 				}
 
-//				rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 				rcp_glist = g_list_remove (rcp_glist, rcp);
 
 				for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -1035,7 +1037,10 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 			if (rcp == rcp_pvw) rcp_pvw = NULL;
 			g_mutex_unlock (&sw_p_08_mutex);
 
-			if ((rcp->ip_address_is_valid) && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) send_update_stop_cmd (rcp);
+			if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+				send_ptz_control_command (rcp, "#LPC0");
+				send_update_stop_cmd (rcp);
+			}
 
 			glist_itr = rcp_start_glist;
 			while (glist_itr != NULL) {
@@ -1050,7 +1055,6 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 				glist_itr = glist_itr_next;
 			}
 
-//			rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 			rcp_glist = g_list_remove (rcp_glist, rcp);
 
 			for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {

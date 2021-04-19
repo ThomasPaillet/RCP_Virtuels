@@ -696,11 +696,7 @@ gboolean update_physical_rcp (rcp_t *rcp)
 
 gpointer physical_rcp_server (gpointer nothing)
 {
-#ifdef _WIN32
-	int addrlen;
-#elif defined (__linux)
 	socklen_t addrlen;
-#endif
 	char buffer[556];
 	SOCKET src_socket;
 	struct sockaddr_in src_addr;

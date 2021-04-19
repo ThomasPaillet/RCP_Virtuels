@@ -33,6 +33,8 @@
 
 	#define SHUT_RD SD_RECEIVE
 
+	typedef int socklen_t;
+
 	void WSAInit (void);
 
 	void timersub (const struct timeval* tvp, const struct timeval* uvp, struct timeval* vvp);
