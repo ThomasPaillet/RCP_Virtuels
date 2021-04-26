@@ -46,7 +46,7 @@ void set_iris_auto (rcp_t *rcp)
 	if (rcp->current_scene.iris_auto) send_cam_control_command (rcp, "ORS:1");
 	else send_cam_control_command (rcp, "ORS:0");
 
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
+	if ((rcp == rcp_vision) && physical_rcp.connected) {
 		g_mutex_lock (&physical_rcp.mutex);
 		physical_rcp.iris_auto = rcp->current_scene.iris_auto;
 		send_iris_auto_update_notification ();

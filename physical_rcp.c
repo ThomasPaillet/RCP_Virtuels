@@ -255,36 +255,31 @@ char answer_session[] = { "HTTP/1.0 200 OK\r\nConnection: Close\r\nContent-Type:
 
 char answer_error[] = { "HTTP/1.0 500 Internal Server Error\r\nStatus: 500\r\nDate: Sat, 27 Apr 2013 02:42:58 GMT\r\nConnection: Close\r\nContent-length: 109\r\n\r\n<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD><BODY><H1>Internal Server Error</H1></BODY></HTML>" };
 
-//char answer[] = { "HTTP/1.0 200 OK\r\nConnection: Close\r\nContent-Type: text/plain\r\nContent-length: 0\r\n\r\n" };
-
 //Camera information batch acquisition
-char answer_camdata[] = { "HTTP/1.0 200 OK\r\nStatus: 200\r\nDate: Sat, 27 Apr 2013 02:42:58 GMT\r\nConnection: Close\r\nContent-Type: text/html\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache\r\nContent-length: 218\r\n\r\np1\r\nOID:AW-HE130\r\nCGI_TIME:130\r\nOSA:87:0x05\r\nTITLE:RCP-VIRTUELS\r\nOGU:0x08\r\nOAW:9\r\nOSH:0x0\r\nODT:1\r\nOSF:0\r\nOBR:0\r\nsWZ1\r\nOSE:71:2\r\niNS0\r\nOUS:0\r\nd10\r\nd30\r\ns50\r\nOSA:30:80\r\nd20\r\nd60\r\nd40\r\nOSD:4F:95\r\nOER:0\r\nrt1\r\naxzAFF\r\nrER00" };
+char answer_camdata[] = { "HTTP/1.0 200 OK\r\nStatus: 200\r\nDate: Sat, 27 Apr 2013 02:42:58 GMT\r\nConnection: Close\r\nContent-Type: text/html\r\nAccept-Ranges: bytes\r\nCache-Control: no-cache\r\nContent-length: 218\r\n\r\np1\r\nOID:AW-HE130\r\nCGI_TIME:130\r\nOSA:87:0x05\r\nTITLE:RCP-VIRTUELS\r\nOGU:0x08\r\nOAW:9\r\nOSH:0x0\r\nODT:1\r\nOSF:0\r\nOBR:0\r\nsWZ1\r\nOSE:71:2\r\niNS0\r\nOUS:0\r\nd10\r\nd30\r\ns50\r\nOSA:30:80\r\nd20\r\nd60\r\nd40\r\nOSD:4F:95\r\nOER:0\r\nrt1\r\naxzAAA\r\nrER00" };
 //OSA:87:0x05	[222]	//Format
-//OGU:0x08	[252]	//Gain
-//OAW:9				//AWB Mode = VAR
+//OGU:0x08		[252]	//Gain
+//OAW:9					//AWB Mode = VAR
 //OSH:0x0		[269]	//Shutter
-//ODT:1		[276]	//Detail
-//OSF:0				//Scene = Scene1
-//OBR:0		[290]	//Mire
-//sWZ1				//Speed With Zoom Pos = On
-//OSE:71:2			//Preset Mode = Mode C
-//iNS0				//Install Position = Desktop
-//OUS:0				//OSD Off
-//d10		[324]	//Focus auto
-//d30		[329]	//Iris auto
-//s50				//Latest Call Preset No. = 50
-//OSA:30:80	[344]	//Total Detail Level
-//d20				//ND Filter = 0 (fixed)
-//d60				//Day/Night switching = Day
-//d40				//Lamp = 0 (fixed)
-//OSD:4F:95	[370]	//Iris Follow (00h --> FFh)
-//OER:0				//Error Notice = Normal
-//rt1				//P/T Mode of Preset = 1 (fixed)
+//ODT:1			[276]	//Detail
+//OSF:0					//Scene = Scene1
+//OBR:0			[290]	//Mire
+//sWZ1					//Speed With Zoom Pos = On
+//OSE:71:2				//Preset Mode = Mode C
+//iNS0					//Install Position = Desktop
+//OUS:0					//OSD = Off
+//d10			[324]	//Focus auto
+//d30			[329]	//Iris auto
+//s50					//Latest Call Preset No. = 50
+//OSA:30:80		[344]	//Total Detail Level
+//d20					//ND Filter = 0 (fixed)
+//d60					//Day/Night switching = Day
+//d40					//Lamp = 0 (fixed)
+//OSD:4F:95		[370]	//Iris Follow (00h --> FFh)
+//OER:0					//Error Notice = Normal
+//rt1					//P/T Mode of Preset = 1 (fixed)
 //axzAAA				//Zoom Position
-//rER00				//Error Status Info. = No Error
-
-//axfAAA				//Focus Position
-//
+//rER00					//Error Status Info. = No Error
 
 char zoom_cmd[] = { "#Z50" };
 char focus_cmd[] = { "#F50" };
@@ -1340,10 +1335,16 @@ gpointer physical_rcp_server (gpointer nothing)
 
 				send (src_socket, answer_OGU, sizeof (answer_OGU), 0);
 			} else if (*((int*)(buffer + 24)) == CAM_OSH_CMD) {			//"aw_cam?cmd=OSH:"		//Shutter control command
-				if (buffer[28] == '0') physical_rcp.shutter_type = 0;
-				else if (buffer[28] == 'B') physical_rcp.shutter_type = 2;
-				else if (buffer[28] == 'C') physical_rcp.shutter_type = 3;
-				else {
+				if (buffer[28] == '0') {
+					physical_rcp.shutter_type = 0;
+					physical_rcp.shutter_step = -1;
+				} else if (buffer[28] == 'B') {
+					physical_rcp.shutter_type = 2;
+					physical_rcp.shutter_step = -1;
+				} else if (buffer[28] == 'C') {
+					physical_rcp.shutter_type = 3;
+					physical_rcp.shutter_step = -1;
+				} else {
 					physical_rcp.shutter_type = 1;
 
 					if (buffer[28] == '2') physical_rcp.shutter_step = 0;

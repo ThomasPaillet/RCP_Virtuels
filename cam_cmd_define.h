@@ -206,7 +206,7 @@ gboolean l##_plus_##v##_button_pressed (GtkButton *button, GdkEventButton *event
  \
 		send_cam_control_command_##d##_digits (rcp, c, value, TRUE); \
  \
-		if (physical_rcp.connected && (rcp == rcp_vision)) { \
+		if ((rcp == rcp_vision) && physical_rcp.connected) { \
 			g_mutex_lock (&physical_rcp.mutex); \
 			physical_rcp.l = rcp->current_scene.l; \
 			send_##l##_update_notification (); \
@@ -250,7 +250,7 @@ gboolean l##_minus_##v##_button_pressed (GtkButton *button, GdkEventButton *even
  \
 		send_cam_control_command_##d##_digits (rcp, c, value, TRUE); \
  \
-		if (physical_rcp.connected && (rcp == rcp_vision)) { \
+		if ((rcp == rcp_vision) && physical_rcp.connected) { \
 			g_mutex_lock (&physical_rcp.mutex); \
 			physical_rcp.l = rcp->current_scene.l; \
 			send_##l##_update_notification (); \
@@ -271,7 +271,7 @@ void set_##l (rcp_t *rcp) \
 { \
 	send_cam_control_command_##d##_digits (rcp, c, rcp->current_scene.l, TRUE); \
  \
-	if (physical_rcp.connected && (rcp == rcp_vision)) { \
+	if ((rcp == rcp_vision) && physical_rcp.connected) { \
 		g_mutex_lock (&physical_rcp.mutex); \
 		physical_rcp.l = rcp->current_scene.l; \
 		send_##l##_update_notification (); \
@@ -285,7 +285,7 @@ gboolean set_##l##_delayed (rcp_t *rcp) \
 { \
 	send_cam_control_command_##d##_digits (rcp, c, rcp->current_scene.l, FALSE); \
  \
-	if (physical_rcp.connected && (rcp == rcp_vision)) { \
+	if ((rcp == rcp_vision) && physical_rcp.connected) { \
 		g_mutex_lock (&physical_rcp.mutex); \
 		physical_rcp.l = rcp->current_scene.l; \
 		send_##l##_update_notification (); \
@@ -321,7 +321,7 @@ void l##_value_changed (GtkRange *l##_scale, rcp_t *rcp) \
 			} \
 			send_cam_control_command_##d##_digits (rcp, c, value, FALSE); \
  \
-			if (physical_rcp.connected && (rcp == rcp_vision)) { \
+			if ((rcp == rcp_vision) && physical_rcp.connected) { \
 				g_mutex_lock (&physical_rcp.mutex); \
 				physical_rcp.l = rcp->current_scene.l; \
 				send_##l##_update_notification (); \
@@ -350,7 +350,7 @@ gboolean l##_button_held (rcp_t *rcp) \
  \
 		send_cam_control_command_##d##_digits (rcp, c, value, FALSE); \
  \
-		if (physical_rcp.connected && (rcp == rcp_vision)) { \
+		if ((rcp == rcp_vision) && physical_rcp.connected) { \
 			g_mutex_lock (&physical_rcp.mutex); \
 			physical_rcp.l = rcp->current_scene.l; \
 			send_##l##_update_notification (); \

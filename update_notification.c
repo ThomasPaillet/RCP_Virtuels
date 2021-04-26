@@ -78,7 +78,7 @@ GThread *update_notification_thread;
 	g_mutex_unlock (&cameras_sets_mutex);
 
 #define PHYSICAL_RCP_AND_UPDATE_NOTIFICATION_END(p) \
-					if (physical_rcp.connected && (rcp == rcp_vision)) { \
+					if ((rcp == rcp_vision) && physical_rcp.connected) { \
 						g_mutex_lock (&physical_rcp.mutex); \
  \
 						physical_rcp.p = rcp->current_scene.p; \
@@ -346,7 +346,7 @@ gpointer receive_update_notification (gpointer nothing)
 							if (buffer[32] == '1') rcp->auto_focus = TRUE;
 							else rcp->auto_focus = FALSE;
 
-							if (physical_rcp.connected && (rcp == rcp_vision)) {
+							if ((rcp == rcp_vision) && physical_rcp.connected) {
 								g_mutex_lock (&physical_rcp.mutex);
 
 								physical_rcp.auto_focus = rcp->auto_focus;
@@ -404,7 +404,7 @@ gpointer receive_update_notification (gpointer nothing)
 								IHM_UPDATE_TOGGLE_BUTTON_2(mire,NO_POST_ACTION)
 							}
 
-							if (physical_rcp.connected && (rcp == rcp_vision)) {
+							if ((rcp == rcp_vision) && physical_rcp.connected) {
 								g_mutex_lock (&physical_rcp.mutex);
 
 								physical_rcp.mire = rcp->mire;
@@ -463,7 +463,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_idle_add ((GSourceFunc)ABB_execution_failed, rcp);
 							g_idle_add ((GSourceFunc)ABB_rcp_work_end, rcp);
 
-							if (physical_rcp.connected && (rcp == rcp_vision)) {
+							if ((rcp == rcp_vision) && physical_rcp.connected) {
 								g_mutex_lock (&physical_rcp.mutex);
 
 								physical_rcp.socket_for_update_notification = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -492,7 +492,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_idle_add ((GSourceFunc)ABB_execution_failed_busy_status, rcp);
 							g_idle_add ((GSourceFunc)ABB_rcp_work_end, rcp);
 
-							if (physical_rcp.connected && (rcp == rcp_vision)) {
+							if ((rcp == rcp_vision) && physical_rcp.connected) {
 								g_mutex_lock (&physical_rcp.mutex);
 
 								physical_rcp.socket_for_update_notification = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -558,7 +558,7 @@ gpointer receive_update_notification (gpointer nothing)
 								if (buffer[34] == '1') rcp->auto_focus = TRUE;
 								else rcp->auto_focus = FALSE;
 
-								if (physical_rcp.connected && (rcp == rcp_vision)) {
+								if ((rcp == rcp_vision) && physical_rcp.connected) {
 									g_mutex_lock (&physical_rcp.mutex);
 
 									physical_rcp.auto_focus = rcp->auto_focus;
@@ -588,7 +588,7 @@ gpointer receive_update_notification (gpointer nothing)
 							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 								g_idle_add ((GSourceFunc)ABB_rcp_work_end, rcp);
 
-								if (physical_rcp.connected && (rcp == rcp_vision)) {
+								if ((rcp == rcp_vision) && physical_rcp.connected) {
 									g_mutex_lock (&physical_rcp.mutex);
 
 									physical_rcp.ABB = FALSE;
@@ -1359,10 +1359,16 @@ gpointer receive_update_notification (gpointer nothing)
 								} else {
 									g_mutex_unlock (&rcp->cmd_mutex);
 
-									if (buffer[34] == '0') rcp->current_scene.shutter_type = 0;
-									else if (buffer[34] == 'B') rcp->current_scene.shutter_type = 2;
-									else if (buffer[34] == 'C') rcp->current_scene.shutter_type = 3;
-									else {
+									if (buffer[34] == '0') {
+										rcp->current_scene.shutter_type = 0;
+										rcp->current_scene.shutter_step = -1;
+									} else if (buffer[34] == 'B') {
+										rcp->current_scene.shutter_type = 2;
+										rcp->current_scene.shutter_step = -1;
+									} else if (buffer[34] == 'C') {
+										rcp->current_scene.shutter_type = 3;
+										rcp->current_scene.shutter_step = -1;
+									} else {
 										rcp->current_scene.shutter_type = 1;
 
 										if (buffer[34] == '2') rcp->current_scene.shutter_step = 0;
@@ -1380,7 +1386,7 @@ gpointer receive_update_notification (gpointer nothing)
 									}
 									IHM_UPDATE_COMBO_BOX(shutter_type,SHUTTER_TYPE_POST_ACTION)
 
-									if (physical_rcp.connected && (rcp == rcp_vision)) {
+									if ((rcp == rcp_vision) && physical_rcp.connected) {
 										g_mutex_lock (&physical_rcp.mutex);
 
 										physical_rcp.shutter_type = rcp->current_scene.shutter_type;

@@ -998,7 +998,7 @@ void show_about_window (void)
 		gtk_label_set_markup (GTK_LABEL (widget), "<b>RCP virtuels pour caméras Panasonic AW-HE130</b>");
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
-		widget = gtk_label_new ("Version 3.0");
+		widget = gtk_label_new ("Version 3.1");
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 #ifdef _WIN32
@@ -1662,13 +1662,21 @@ void load_settings_from_config_file (void)
 	fread (&send_ip_tally, sizeof (gboolean), 1, config_file);
 
 	fread (&physical_rcp.address.sin_port, sizeof (guint16), 1, config_file);
+	if ((ntohs (physical_rcp.address.sin_port) < 1024) || (physical_rcp.address.sin_port == update_notification_address.sin_port))
+		physical_rcp.address.sin_port = htons (PHYSICAL_RCP_TCP_PORT);
+
+	fread (&physical_rcp.iris, sizeof (int), 1, config_file);
+	if ((physical_rcp.iris < 0x555) || (physical_rcp.iris > 0xFFF)) physical_rcp.iris = IRIS_DEFAULT;
+
+	fread (&physical_rcp.pedestal, sizeof (int), 1, config_file);
+	if ((physical_rcp.pedestal < 0x000) || (physical_rcp.pedestal > 0x12C)) physical_rcp.pedestal = PEDESTAL_DEFAULT;
 
 	fread (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
 
 	fread (&ip_rs, sizeof (gboolean), 1, config_file);
 
 	fread (&sw_p_08_address.sin_port, sizeof (guint16), 1, config_file);
-	if ((ntohs (sw_p_08_address.sin_port) < 1024) || (sw_p_08_address.sin_port == update_notification_address.sin_port))
+	if ((ntohs (sw_p_08_address.sin_port) < 1024) || (sw_p_08_address.sin_port == update_notification_address.sin_port) || (sw_p_08_address.sin_port == physical_rcp.address.sin_port))
 		sw_p_08_address.sin_port = htons (SW_P_08_TCP_PORT);
 
 	fread (rs_port_name, sizeof (char), 16, config_file);
@@ -1854,6 +1862,8 @@ void save_settings_and_cameras_sets_to_config_file (void)
 	fwrite (&send_ip_tally, sizeof (gboolean), 1, config_file);
 
 	fwrite (&physical_rcp.address.sin_port, sizeof (guint16), 1, config_file);
+	fwrite (&physical_rcp.iris, sizeof (int), 1, config_file);
+	fwrite (&physical_rcp.pedestal, sizeof (int), 1, config_file);
 
 	fwrite (&tsl_umd_v5_address.sin_port, sizeof (guint16), 1, config_file);
 

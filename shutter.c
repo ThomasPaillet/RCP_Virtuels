@@ -134,7 +134,7 @@ void set_shutter_type (rcp_t *rcp)
 	else if (rcp->current_scene.shutter_type == 3) send_cam_control_command (rcp, "OSH:C");
 
 	if (rcp->current_scene.shutter_type != 1) {
-		if (physical_rcp.connected && (rcp == rcp_vision)) {
+		if ((rcp == rcp_vision) && physical_rcp.connected) {
 			g_mutex_lock (&physical_rcp.mutex);
 			physical_rcp.shutter_type = rcp->current_scene.shutter_type;
 			send_shutter_update_notification ();
@@ -147,9 +147,14 @@ void shutter_type_changed (GtkComboBox *shutter_type_combo_box, rcp_t *rcp)
 {
 	int active_item;
 
+	g_signal_handler_block (rcp->shutter_step_combo_box, rcp->shutter_step_handler_id);
 	gtk_combo_box_set_active (GTK_COMBO_BOX (rcp->shutter_step_combo_box), -1);
+	g_signal_handler_unblock (rcp->shutter_step_combo_box, rcp->shutter_step_handler_id);
+	rcp->current_scene.shutter_step = -1;
 
 	active_item = gtk_combo_box_get_active (shutter_type_combo_box);
+
+	rcp->current_scene.shutter_type = active_item;
 
 	if (active_item == 1) {
 		gtk_widget_hide (rcp->shutter_synchro_button);
@@ -157,18 +162,15 @@ void shutter_type_changed (GtkComboBox *shutter_type_combo_box, rcp_t *rcp)
 	} else if (active_item == 2) {
 		gtk_widget_hide (rcp->shutter_step_combo_box);
 		gtk_widget_show (rcp->shutter_synchro_button);
-		send_cam_control_command (rcp, "OSH:B");
 	} else if (active_item == 3) {
 		gtk_widget_hide (rcp->shutter_step_combo_box);
 		gtk_widget_hide (rcp->shutter_synchro_button);
-		send_cam_control_command (rcp, "OSH:C");
 	} else {
 		gtk_widget_hide (rcp->shutter_step_combo_box);
 		gtk_widget_hide (rcp->shutter_synchro_button);
-		send_cam_control_command (rcp, "OSH:0");
 	}
 
-	rcp->current_scene.shutter_type = active_item;
+	set_shutter_type (rcp);
 }
 
 void populate_shutter_step_combo_box (GtkComboBoxText *combo_box)
@@ -215,12 +217,14 @@ void set_shutter_step (rcp_t *rcp)
 			else if (output_fps == _29_97fps) send_cam_control_command (rcp, "OSH:F");
 	}
 
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
-		g_mutex_lock (&physical_rcp.mutex);
-		physical_rcp.shutter_type = 1;
-		physical_rcp.shutter_step = rcp->current_scene.shutter_step;
-		send_shutter_update_notification ();
-		g_mutex_unlock (&physical_rcp.mutex);
+	if (rcp->current_scene.shutter_type == 1) {
+		if ((rcp == rcp_vision) && physical_rcp.connected) {
+			g_mutex_lock (&physical_rcp.mutex);
+			physical_rcp.shutter_type = 1;
+			physical_rcp.shutter_step = rcp->current_scene.shutter_step;
+			send_shutter_update_notification ();
+			g_mutex_unlock (&physical_rcp.mutex);
+		}
 	}
 }
 

@@ -40,13 +40,6 @@ char *http_abb_cmd = "GET /cgi-bin/aw_cam?cmd=OAS&res=0";	//strlen = 33
 
 char *http_camera_cmd = "GET /cgi-bin/camera?resolution=1920&quality=1&page=";	//strlen = 51
 
-char *http_getuid_cmd = "GET /cgi-bin/getuid?FILE=2&vcodec=h264_2&reply=info";	//strlen = 51
-
-char *http_h264_start_cmd = "GET /cgi-bin/h264?connect=start&protocol=rtp&stream=2&my_port=40000&UID=";	//strlen = 72
-char *http_h264_stop_cmd = "GET /cgi-bin/h264?connect=stop&protocol=rtp&my_port=40000&UID=";	//strlen = 62
-
-char *http_keep_alive_cmd = "GET /cgi-bin/keep_alive?mode=h264&protocol=rtp&UID=";	//strlen = 51
-
 char *http_cam_ptz_header = "&res=1";	//strlen = 6
 char *http_update_header = "&uid=0";	//strlen = 6
 char *http_header_1 = " HTTP/1.1\r\nAccept: image/gif, ... (omitted) ... , */*\r\nReferer: http://";	//strlen = 71

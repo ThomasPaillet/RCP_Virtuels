@@ -647,7 +647,7 @@ int main (int argc, char** argv)
 
 	gtk_main ();
 
-	if (backup_needed) save_settings_and_cameras_sets_to_config_file ();
+	if (backup_needed || physical_rcp.connected) save_settings_and_cameras_sets_to_config_file ();
 
 	stop_sw_p_08_tcp_server ();
 	stop_rs_communication ();

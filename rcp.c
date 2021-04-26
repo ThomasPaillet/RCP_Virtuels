@@ -70,21 +70,6 @@ void on_standby_switch_activated (GtkSwitch *on_standby_switch, GParamSpec *pspe
 		set_##l (rcp); \
 	}
 
-#define SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(l,v) \
-	if (rcp->current_scene.l != v) { \
-		rcp->current_scene.l = v; \
-		set_##l (rcp); \
- \
-		if (physical_rcp.connected && (rcp == rcp_vision)) { \
-			g_mutex_lock (&physical_rcp.mutex); \
-			if (physical_rcp.l != rcp->current_scene.l) { \
-				physical_rcp.l = rcp->current_scene.l; \
-				send_##l##_update_notification (); \
-			} \
-			g_mutex_unlock (&physical_rcp.mutex); \
-		} \
-	}
-
 #define SET_RCP_LINEAR_MATRIX_PARAMETER(l,v) \
 	if (rcp->current_scene.linear_matrix.l != v) { \
 		rcp->current_scene.linear_matrix.l = v; \
@@ -109,7 +94,7 @@ gpointer load_standard (rcp_t *rcp)
 		rcp->mire = FALSE;
 		send_cam_control_command (rcp, "DCB:0");
 
-		if (physical_rcp.connected && (rcp == rcp_vision)) {
+		if ((rcp == rcp_vision) && physical_rcp.connected) {
 			g_mutex_lock (&physical_rcp.mutex);
 			if (physical_rcp.mire) {
 				physical_rcp.mire = FALSE;
@@ -124,8 +109,8 @@ gpointer load_standard (rcp_t *rcp)
 		send_ptz_control_command (rcp, "#D60");
 	}
 
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(ND_filter,ND_FILTER_DEFAULT)
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(gain,GAIN_DEFAULT)
+	SET_RCP_PARAMETER(ND_filter,ND_FILTER_DEFAULT)
+	SET_RCP_PARAMETER(gain,GAIN_DEFAULT)
 
 	SET_RCP_PARAMETER(gamma_type,GAMMA_TYPE_DEFAULT)
 	SET_RCP_PARAMETER(gamma,GAMMA_DEFAULT)
@@ -178,8 +163,8 @@ gpointer load_standard (rcp_t *rcp)
 	SET_RCP_CC_PHASE_PARAMETER(Mg_R,COLOR_CORRECTION_DEFAULT)
 	SET_RCP_CC_PHASE_PARAMETER(Mg_R_R,COLOR_CORRECTION_DEFAULT)
 
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(detail,DETAIL_DEFAULT)
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(master_detail,MASTER_DETAIL_DEFAULT)
+	SET_RCP_PARAMETER(detail,DETAIL_DEFAULT)
+	SET_RCP_PARAMETER(master_detail,MASTER_DETAIL_DEFAULT)
 	SET_RCP_PARAMETER(v_detail_level,V_DETAIL_LEVEL_DEFAULT)
 	SET_RCP_PARAMETER(detail_band,DETAIL_BAND_DEFAULT)
 	SET_RCP_PARAMETER(noise_suppress,NOISE_SUPPRESS_DEFAULT)
@@ -187,32 +172,20 @@ gpointer load_standard (rcp_t *rcp)
 
 	SET_RCP_PARAMETER(saturation,SATURATION_DEFAULT)
 
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_gain,R_GAIN_DEFAULT)
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_gain,B_GAIN_DEFAULT)
+	SET_RCP_PARAMETER(r_gain,R_GAIN_DEFAULT)
+	SET_RCP_PARAMETER(b_gain,B_GAIN_DEFAULT)
 
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_pedestal,R_PEDESTAL_DEFAULT)
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_pedestal,B_PEDESTAL_DEFAULT)
+	SET_RCP_PARAMETER(r_pedestal,R_PEDESTAL_DEFAULT)
+	SET_RCP_PARAMETER(b_pedestal,B_PEDESTAL_DEFAULT)
 
 	SET_RCP_PARAMETER(shutter_type,SHUTTER_TYPE_DEFAULT);
-	SET_RCP_PARAMETER(shutter_step,-1);
-
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
-		g_mutex_lock (&physical_rcp.mutex);
-
-			if (physical_rcp.shutter_type != SHUTTER_TYPE_DEFAULT) {
-				physical_rcp.shutter_type = SHUTTER_TYPE_DEFAULT;
-				physical_rcp.shutter_step = -1;
-				send_shutter_update_notification ();
-			}
-
-		g_mutex_unlock (&physical_rcp.mutex);
-	}
+	rcp->current_scene.shutter_step = -1;
 
 	SET_RCP_PARAMETER(shutter_synchro,SHUTTER_SYNCHRO_DEFAULT)
 
 	SET_RCP_PARAMETER(pedestal,PEDESTAL_DEFAULT)
 
-	SET_RCP_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(iris_auto,IRIS_AUTO_DEFAULT)
+	SET_RCP_PARAMETER(iris_auto,IRIS_AUTO_DEFAULT)
 	SET_RCP_PARAMETER(iris,IRIS_DEFAULT)
 
 	g_idle_add ((GSourceFunc)rcp_work_end, rcp);
@@ -244,7 +217,7 @@ void mire_toggle_button_clicked (GtkToggleButton *mire_toggle_button, rcp_t *rcp
 		send_cam_control_command (rcp, "DCB:0");
 	}
 
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
+	if ((rcp == rcp_vision) && physical_rcp.connected) {
 		g_mutex_lock (&physical_rcp.mutex);
 		physical_rcp.mire = rcp->mire;
 		send_mire_update_notification ();
@@ -271,21 +244,6 @@ void day_night_toggle_button_clicked (GtkToggleButton *day_night_toggle_button, 
 		set_##l (rcp); \
 	}
 
-#define COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(l) \
-	if (rcp->current_scene.l != rcp->scenes[rcp->scene_to_load].l) { \
-		rcp->current_scene.l = rcp->scenes[rcp->scene_to_load].l; \
-		set_##l (rcp); \
- \
-		if (physical_rcp.connected && (rcp == rcp_vision)) { \
-			g_mutex_lock (&physical_rcp.mutex); \
-			if (physical_rcp.l != rcp->current_scene.l) { \
-				physical_rcp.l = rcp->current_scene.l; \
-				send_##l##_update_notification (); \
-			} \
-			g_mutex_unlock (&physical_rcp.mutex); \
-		} \
-	}
-
 #define COPY_RCP_SCENE_LINEAR_MATRIX_PARAMETER(l) \
 	if (rcp->current_scene.linear_matrix.l != rcp->scenes[rcp->scene_to_load].linear_matrix.l) { \
 		rcp->current_scene.linear_matrix.l = rcp->scenes[rcp->scene_to_load].linear_matrix.l; \
@@ -310,7 +268,7 @@ gpointer load_scene (rcp_t *rcp)
 		rcp->mire = FALSE;
 		send_cam_control_command (rcp, "DCB:0");
 
-		if (physical_rcp.connected && (rcp == rcp_vision)) {
+		if ((rcp == rcp_vision) && physical_rcp.connected) {
 			g_mutex_lock (&physical_rcp.mutex);
 			if (physical_rcp.mire) {
 				physical_rcp.mire = FALSE;
@@ -325,8 +283,8 @@ gpointer load_scene (rcp_t *rcp)
 		send_ptz_control_command (rcp, "#D60");
 	}
 
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(ND_filter)
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(gain)
+	COPY_RCP_SCENE_PARAMETER(ND_filter)
+	COPY_RCP_SCENE_PARAMETER(gain)
 
 	COPY_RCP_SCENE_PARAMETER(gamma_type)
 	COPY_RCP_SCENE_PARAMETER(gamma)
@@ -379,8 +337,8 @@ gpointer load_scene (rcp_t *rcp)
 	COPY_RCP_SCENE_CC_PHASE_PARAMETER(Mg_R)
 	COPY_RCP_SCENE_CC_PHASE_PARAMETER(Mg_R_R)
 
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(detail)
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(master_detail)
+	COPY_RCP_SCENE_PARAMETER(detail)
+	COPY_RCP_SCENE_PARAMETER(master_detail)
 	COPY_RCP_SCENE_PARAMETER(v_detail_level)
 	COPY_RCP_SCENE_PARAMETER(detail_band)
 	COPY_RCP_SCENE_PARAMETER(noise_suppress)
@@ -388,33 +346,20 @@ gpointer load_scene (rcp_t *rcp)
 
 	COPY_RCP_SCENE_PARAMETER(saturation)
 
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_gain)
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_gain)
+	COPY_RCP_SCENE_PARAMETER(r_gain)
+	COPY_RCP_SCENE_PARAMETER(b_gain)
 
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(r_pedestal)
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(b_pedestal)
+	COPY_RCP_SCENE_PARAMETER(r_pedestal)
+	COPY_RCP_SCENE_PARAMETER(b_pedestal)
 
 	COPY_RCP_SCENE_PARAMETER(shutter_type)
 	COPY_RCP_SCENE_PARAMETER(shutter_step)
-
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
-		g_mutex_lock (&physical_rcp.mutex);
-
-			if ((physical_rcp.shutter_type != rcp->current_scene.shutter_type) || \
-				((physical_rcp.shutter_type == 1) && (physical_rcp.shutter_step != rcp->current_scene.shutter_step))) {
-				physical_rcp.shutter_type = rcp->current_scene.shutter_type;
-				physical_rcp.shutter_step = rcp->current_scene.shutter_step;
-				send_shutter_update_notification ();
-			}
-
-		g_mutex_unlock (&physical_rcp.mutex);
-	}
 
 	COPY_RCP_SCENE_PARAMETER(shutter_synchro)
 
 	COPY_RCP_SCENE_PARAMETER(pedestal)
 
-	COPY_RCP_SCENE_PARAMETER_PLUS_UPDATE_PHYSICAL_RCP(iris_auto)
+	COPY_RCP_SCENE_PARAMETER(iris_auto)
 	COPY_RCP_SCENE_PARAMETER(iris)
 
 	g_idle_add ((GSourceFunc)rcp_work_end, rcp);
@@ -492,7 +437,7 @@ void set_ND_filter (rcp_t *rcp)
 		send_cam_control_command (rcp, "OFT:0");
 	}
 
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
+	if ((rcp == rcp_vision) && physical_rcp.connected) {
 		g_mutex_lock (&physical_rcp.mutex);
 		physical_rcp.ND_filter = rcp->current_scene.ND_filter;
 		send_ND_filter_update_notification ();
@@ -512,7 +457,7 @@ void set_gain (rcp_t *rcp)
 	if (rcp->current_scene.gain == 37) send_cam_control_command (rcp, "OGU:80");
 	else send_cam_control_command_2_digits (rcp, "OGU:", 0x2C - rcp->current_scene.gain, TRUE);
 
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
+	if ((rcp == rcp_vision) && physical_rcp.connected) {
 		g_mutex_lock (&physical_rcp.mutex);
 		physical_rcp.gain = rcp->current_scene.gain;
 		send_gain_update_notification ();

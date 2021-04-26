@@ -42,7 +42,7 @@ gboolean set_g_gain_delayed (rcp_t *rcp)
 			send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 			rcp->r_gain_need_update = FALSE;
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.r_gain = rcp->current_scene.r_gain;
 				send_r_gain_update_notification ();
@@ -55,7 +55,7 @@ gboolean set_g_gain_delayed (rcp_t *rcp)
 				send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 				rcp->b_gain_need_update = FALSE;
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -69,7 +69,7 @@ gboolean set_g_gain_delayed (rcp_t *rcp)
 			send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 			rcp->b_gain_need_update = FALSE;
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.b_gain = rcp->current_scene.b_gain;
 				send_b_gain_update_notification ();
@@ -82,7 +82,7 @@ gboolean set_g_gain_delayed (rcp_t *rcp)
 				send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 				rcp->r_gain_need_update = FALSE;
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.r_gain = rcp->current_scene.r_gain;
 					send_r_gain_update_notification ();
@@ -152,7 +152,7 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 					send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 					rcp->r_gain_need_update = FALSE;
 
-					if (physical_rcp.connected && (rcp == rcp_vision)) {
+					if ((rcp == rcp_vision) && physical_rcp.connected) {
 						g_mutex_lock (&physical_rcp.mutex);
 						physical_rcp.r_gain = rcp->current_scene.r_gain;
 						send_r_gain_update_notification ();
@@ -167,7 +167,7 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 					send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 					rcp->b_gain_need_update = FALSE;
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -179,7 +179,7 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 					send_cam_control_command_3_digits (rcp, "OBI:", rcp->current_scene.b_gain, FALSE);
 					rcp->b_gain_need_update = FALSE;
 
-					if (physical_rcp.connected && (rcp == rcp_vision)) {
+					if ((rcp == rcp_vision) && physical_rcp.connected) {
 						g_mutex_lock (&physical_rcp.mutex);
 						physical_rcp.b_gain = rcp->current_scene.b_gain;
 						send_b_gain_update_notification ();
@@ -194,7 +194,7 @@ void g_gain_value_changed (GtkRange *g_gain_scale, rcp_t *rcp)
 					send_cam_control_command_3_digits (rcp, "ORI:", rcp->current_scene.r_gain, FALSE);
 					rcp->r_gain_need_update = FALSE;
 
-					if (physical_rcp.connected && (rcp == rcp_vision)) {
+					if ((rcp == rcp_vision) && physical_rcp.connected) {
 						g_mutex_lock (&physical_rcp.mutex);
 						physical_rcp.r_gain = rcp->current_scene.r_gain;
 						send_r_gain_update_notification ();
@@ -228,7 +228,7 @@ gboolean g_gain_button_held (rcp_t *rcp)
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, FALSE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.r_gain = rcp->current_scene.r_gain;
 				send_r_gain_update_notification ();
@@ -247,7 +247,7 @@ gboolean g_gain_button_held (rcp_t *rcp)
 				rcp->need_last_call = FALSE;
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, FALSE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -271,7 +271,7 @@ gboolean g_gain_button_held (rcp_t *rcp)
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, FALSE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.b_gain = rcp->current_scene.b_gain;
 				send_b_gain_update_notification ();
@@ -290,7 +290,7 @@ gboolean g_gain_button_held (rcp_t *rcp)
 				rcp->need_last_call = FALSE;
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, FALSE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.r_gain = rcp->current_scene.r_gain;
 					send_r_gain_update_notification ();
@@ -352,7 +352,7 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.r_gain = rcp->current_scene.r_gain;
 				send_r_gain_update_notification ();
@@ -373,7 +373,7 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -397,7 +397,7 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.b_gain = rcp->current_scene.b_gain;
 				send_b_gain_update_notification ();
@@ -418,7 +418,7 @@ gboolean g_gain_plus_10_button_pressed (GtkButton *button, GdkEventButton *event
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.r_gain = rcp->current_scene.r_gain;
 					send_r_gain_update_notification ();
@@ -470,7 +470,7 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.r_gain = rcp->current_scene.r_gain;
 				send_r_gain_update_notification ();
@@ -491,7 +491,7 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -515,7 +515,7 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.b_gain = rcp->current_scene.b_gain;
 				send_b_gain_update_notification ();
@@ -536,7 +536,7 @@ gboolean g_gain_plus_1_button_pressed (GtkButton *button, GdkEventButton *event,
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.r_gain = rcp->current_scene.r_gain;
 					send_r_gain_update_notification ();
@@ -588,7 +588,7 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.r_gain = rcp->current_scene.r_gain;
 				send_r_gain_update_notification ();
@@ -609,7 +609,7 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -633,7 +633,7 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.b_gain = rcp->current_scene.b_gain;
 				send_b_gain_update_notification ();
@@ -654,7 +654,7 @@ gboolean g_gain_minus_1_button_pressed (GtkButton *button, GdkEventButton *event
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.r_gain = rcp->current_scene.r_gain;
 					send_r_gain_update_notification ();
@@ -706,7 +706,7 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.r_gain = rcp->current_scene.r_gain;
 				send_r_gain_update_notification ();
@@ -727,7 +727,7 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.b_gain = rcp->current_scene.b_gain;
 					send_b_gain_update_notification ();
@@ -751,7 +751,7 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, TRUE);
 
-			if (physical_rcp.connected && (rcp == rcp_vision)) {
+			if ((rcp == rcp_vision) && physical_rcp.connected) {
 				g_mutex_lock (&physical_rcp.mutex);
 				physical_rcp.b_gain = rcp->current_scene.b_gain;
 				send_b_gain_update_notification ();
@@ -772,7 +772,7 @@ gboolean g_gain_minus_10_button_pressed (GtkButton *button, GdkEventButton *even
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, TRUE);
 
-				if (physical_rcp.connected && (rcp == rcp_vision)) {
+				if ((rcp == rcp_vision) && physical_rcp.connected) {
 					g_mutex_lock (&physical_rcp.mutex);
 					physical_rcp.r_gain = rcp->current_scene.r_gain;
 					send_r_gain_update_notification ();

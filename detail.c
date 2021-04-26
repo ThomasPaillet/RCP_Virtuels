@@ -456,7 +456,7 @@ void set_detail (rcp_t *rcp)
 	if (rcp->current_scene.detail) send_cam_control_command (rcp, "ODT:1");
 	else send_cam_control_command (rcp, "ODT:0");
 
-	if (physical_rcp.connected && (rcp == rcp_vision)) {
+	if ((rcp == rcp_vision) && physical_rcp.connected) {
 		g_mutex_lock (&physical_rcp.mutex);
 		physical_rcp.detail = rcp->current_scene.detail;
 		send_detail_update_notification ();
