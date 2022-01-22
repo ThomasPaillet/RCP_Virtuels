@@ -23,7 +23,17 @@ Linux/Linux.o: Linux/Linux.c rcp.h
 
 rcp.o: rcp.h
 
-gamma.o: rcp.h
+rcp_AW_HE130.o: rcp.h
+
+rcp_AW_UE150.o: rcp.h
+
+ND_filter.o: rcp.h
+
+gain.o: rcp.h
+
+gamma.o: rcp.h cam_cmd_define.h
+
+chroma_phase.o: rcp.h cam_cmd_define.h
 
 color_temperature.o: rcp.h
 
@@ -45,7 +55,7 @@ iris.o: rcp.h ptz_cmd_define.h
 
 pedestal.o: rcp.h cam_cmd_define.h
 
-master_rcp.o: rcp.h
+master_rcp.o: rcp.h master_cmd_define.h
 
 cameras_set.o: rcp.h
 

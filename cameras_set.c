@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -45,7 +45,7 @@ GtkEntryBuffer *cameras_set_configuration_name_entry_buffer;
 int new_number_of_cameras;
 int old_number_of_cameras;
 
-char *nb[MAX_CAMERAS] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"};
+char *nb[MAX_CAMERAS] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15" };
 
 GtkWidget *cameras_set_configuration_window_grid;
 
@@ -190,7 +190,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 				gtk_container_add (GTK_CONTAINER (rcp->destination_rcp_list_box_row), widget);
 				gtk_container_add (GTK_CONTAINER (cameras_set->destination_rcp_list_box), rcp->destination_rcp_list_box_row);
 			} else {
-				cameras_set->number_of_ghost_cameras++;
 				create_ghost_rcp_widgets (rcp);
 			}
 
@@ -221,17 +220,20 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		for (i = 0; ((i < cameras_set->number_of_cameras) && (i < new_number_of_cameras)); i++) {
 			if (cameras_set->rcp_ptr_array[i]->active) {
 				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
+
 				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->shutter_step_combo_box);
 				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->shutter_synchro_button);
+
+				if (rcp->model == AW_UE150) {
+					gtk_widget_hide (cameras_set->rcp_ptr_array[i]->HLG_knee_frame);
+					gtk_widget_hide (cameras_set->rcp_ptr_array[i]->ELC_limit_label);
+					gtk_widget_hide (cameras_set->rcp_ptr_array[i]->ELC_limit_combo_box);
+				}
 			}
 		}
 		gtk_widget_hide (cameras_set->master_rcp.scenes_bank_2_box);
 
-		if (show_master_rcp) {
-#if (SHUTTER_TYPE_DEFAULT != 1)
-			gtk_widget_hide (cameras_set->master_rcp.shutter_step_combo_box);
-#endif
-		} else gtk_widget_hide (cameras_set->master_rcp.root_widget);
+		if (!show_master_rcp) gtk_widget_hide (cameras_set->master_rcp.root_widget);
 
 		cameras_set->next = cameras_sets;
 		cameras_sets = cameras_set;
@@ -263,14 +265,10 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 			if (rcp == rcp_pvw) rcp_pvw = NULL;
 			g_mutex_unlock (&sw_p_08_mutex);
 
-			if (rcp->camera_is_on) cameras_set->on_standby_count--;
-
-			if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+			if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR)) {
 				send_ptz_control_command (rcp, "#LPC0");
 				send_update_stop_cmd (rcp);
 			}
-
-			if (!rcp->active) cameras_set->number_of_ghost_cameras--;
 
 			glist_itr = rcp_start_glist;
 			while (glist_itr != NULL) {
@@ -303,7 +301,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 			if (rcp->shutter_synchro_window != NULL) gtk_widget_destroy (rcp->shutter_synchro_window);
 			if (rcp->detail_window != NULL) gtk_widget_destroy (rcp->detail_window);
 			if (rcp->matrix_window != NULL) gtk_widget_destroy (rcp->matrix_window);
-			if (rcp->knee_point_slope_window != NULL) gtk_widget_destroy (rcp->knee_point_slope_window);
+			if (rcp->knee_window != NULL) gtk_widget_destroy (rcp->knee_window);
 
 			g_mutex_lock (&rcp->other_rcp_mutex);
 			g_slist_free (rcp->other_rcp);
@@ -325,7 +323,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		for (i = cameras_set->number_of_cameras; i < new_number_of_cameras; i++) {
 			rcp = g_malloc (sizeof (rcp_t));
 			cameras_set->rcp_ptr_array[i] = rcp;
-			rcp->camera_set = cameras_set;
+			rcp->cameras_set = cameras_set;
 
 			entry_buffer_text = gtk_entry_buffer_get_text (cameras_configuration_widgets[i].name_entry_buffer);
 			strcpy (rcp->name, entry_buffer_text);
@@ -353,10 +351,16 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 				gtk_widget_show_all (rcp->root_widget);
 				gtk_widget_hide (rcp->scenes_bank_2_box);
+
 				gtk_widget_hide (rcp->shutter_step_combo_box);
 				gtk_widget_hide (rcp->shutter_synchro_button);
+
+				if (rcp->model == AW_UE150) {
+					gtk_widget_hide (rcp->HLG_knee_frame);
+					gtk_widget_hide (rcp->ELC_limit_label);
+					gtk_widget_hide (rcp->ELC_limit_combo_box);
+				}
 			} else {
-				cameras_set->number_of_ghost_cameras++;
 				create_ghost_rcp_widgets (rcp);
 				gtk_widget_show_all (rcp->root_widget);
 			}
@@ -381,7 +385,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 			if (camera_is_active) {
 				rcp->active = TRUE;
 
-				cameras_set->number_of_ghost_cameras--;
 				ghost_rcp_glist = g_list_remove (ghost_rcp_glist, rcp);
 
 				create_rcp_widgets (rcp);
@@ -400,14 +403,19 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 				gtk_widget_show_all (rcp->root_widget);
 				gtk_widget_hide (rcp->scenes_bank_2_box);
+
 				gtk_widget_hide (rcp->shutter_step_combo_box);
 				gtk_widget_hide (rcp->shutter_synchro_button);
+
+				if (rcp->model == AW_UE150) {
+					gtk_widget_hide (rcp->HLG_knee_frame);
+					gtk_widget_hide (rcp->ELC_limit_label);
+					gtk_widget_hide (rcp->ELC_limit_combo_box);
+				}
 			} else {
 				rcp->active = FALSE;
 
-				if (rcp->camera_is_on) cameras_set->on_standby_count--;
-
-				if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+				if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR)) {
 					send_ptz_control_command (rcp, "#LPC0");
 					send_update_stop_cmd (rcp);
 				}
@@ -455,9 +463,9 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 					gtk_widget_destroy (rcp->matrix_window);
 					rcp->matrix_window = NULL;
 				}
-				if (rcp->knee_point_slope_window != NULL) {
-					gtk_widget_destroy (rcp->knee_point_slope_window);
-					rcp->knee_point_slope_window = NULL;
+				if (rcp->knee_window != NULL) {
+					gtk_widget_destroy (rcp->knee_window);
+					rcp->knee_window = NULL;
 				}
 
 				g_mutex_lock (&rcp->other_rcp_mutex);
@@ -471,7 +479,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 				rcp->selected_color = nothing;
 
-				cameras_set->number_of_ghost_cameras++;
 				create_ghost_rcp_widgets (rcp);
 				gtk_widget_show_all (rcp->root_widget);
 			}
@@ -512,8 +519,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 				rcp->ip_address_is_valid = FALSE;
 				rcp->ip_address[0] = '\0';
 
-				if (rcp->camera_is_on) cameras_set->on_standby_count--;
-
 				for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 					other_rcp = (rcp_t*)(glist_itr->data);
 
@@ -530,17 +535,16 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 				set_rcp_off (rcp);
 				gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
 			} else {
-				gtk_widget_set_sensitive (rcp->on_standby_switch, TRUE);
 				rcp->ip_address_is_valid = TRUE;
+				gtk_widget_set_sensitive (rcp->on_standby_switch, TRUE);
+
 				ip_addresss_list = g_slist_prepend (ip_addresss_list, rcp->new_ip_address);
 
 				rcp->address.sin_addr.s_addr = inet_addr (rcp->new_ip_address);
 
 				if (strcmp (rcp->new_ip_address, rcp->ip_address) != 0) {
 					if (rcp->camera_is_on) {
-						cameras_set->on_standby_count--;
-
-						if ((rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+						if ((rcp->other_rcp == NULL) && (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR)) {
 							send_ptz_control_command (rcp, "#LPC0");
 							send_update_stop_cmd (rcp);
 						}
@@ -558,8 +562,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 						glist_itr = glist_itr_next;
 					}
-
-//					rcp_start_glist = g_list_remove (rcp_start_glist, rcp);
 
 					for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 						other_rcp = (rcp_t*)(glist_itr->data);
@@ -593,7 +595,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 					if (rcp->other_rcp == NULL) {
 						rcp_start_glist = g_list_prepend (rcp_start_glist, rcp);
 
-						rcp_work_start (rcp);
+						rcp_start_working (rcp);
 						rcp->thread = g_thread_new (NULL, (GThreadFunc)check_if_camera_is_on, rcp);
 					} else {
 						updated_rcp = (rcp_t*)(rcp->other_rcp->data);
@@ -606,16 +608,23 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 								(other_rcp->last_time.tv_usec > updated_rcp->last_time.tv_usec)) updated_rcp = other_rcp;
 						}
 
+						if (rcp->model != updated_rcp->model) {
+							if (updated_rcp->model == AW_HE130) {
+								init_rcp_AW_HE130 (rcp);
+								switch_to_AW_HE130 (rcp);
+							} else {
+								init_rcp_AW_UE150 (rcp);
+								switch_to_AW_UE150 (rcp);
+							}
+						}
+
 						copy_rcp (rcp, updated_rcp);
-						if (rcp->camera_is_on) set_rcp_on (rcp);
 					}
 				}
 			}
 		} else {
 			rcp->ip_address_is_valid = FALSE;
 			rcp->ip_address[0] = '\0';
-
-			if (rcp->camera_is_on) cameras_set->on_standby_count--;
 
 			for (glist_itr = rcp_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 				other_rcp = (rcp_t*)(glist_itr->data);
@@ -654,10 +663,6 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 			source_cameras_set = cameras_set;
 			gtk_list_box_select_row (GTK_LIST_BOX (destination_cameras_set_list_box), GTK_LIST_BOX_ROW (cameras_set->destination_list_box_row));
 			destination_cameras_set = cameras_set;
-
-#ifdef MAIN_SETTINGS_READ_ONLY
-			g_thread_new (NULL, (GThreadFunc)check_cameras_settings_ro, NULL);
-#endif
 		}
 
 		if (number_of_cameras_sets == MAX_CAMERAS_SET) gtk_widget_set_sensitive (settings_new_button, FALSE);
@@ -808,7 +813,8 @@ void show_cameras_set_configuration_window (void)
 			gtk_grid_attach (GTK_GRID (cameras_set_configuration_window_grid), cameras_configuration_widgets[i].name_entry, 1, j, 1, 1);
 
 			if (rcp->ip_address_is_valid) {
-				for (l = 1; rcp->ip_address[l] != '.'; l++) {}
+				l = 1;
+				while (rcp->ip_address[l] != '.') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (rcp->ip_address, l);
 				k = l + 1;
 			} else cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (NULL, -1);
@@ -828,9 +834,10 @@ void show_cameras_set_configuration_window (void)
 			if (!rcp->active) gtk_widget_set_sensitive (cameras_configuration_widgets[i].dot[0], FALSE);
 
 			if (rcp->ip_address_is_valid) {
-				for (l = 1; rcp->ip_address[k+l] != '.'; l++) {}
+				l = 1;
+				while (rcp->ip_address[k + l] != '.') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (rcp->ip_address + k, l);
-				k = k + l + 1;
+				k += l + 1;
 			} else cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (NULL, -1);
 
 			cameras_configuration_widgets[i].ip_entry[1] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[1]);
@@ -848,9 +855,10 @@ void show_cameras_set_configuration_window (void)
 			if (!rcp->active) gtk_widget_set_sensitive (cameras_configuration_widgets[i].dot[1], FALSE);
 
 			if (rcp->ip_address_is_valid) {
-				for (l = 1; rcp->ip_address[k+l] != '.'; l++) {}
+				l = 1;
+				while (rcp->ip_address[k + l] != '.') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (rcp->ip_address + k, l);
-				k = k + l + 1;
+				k += l + 1;
 			} else cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (NULL, -1);
 
 			cameras_configuration_widgets[i].ip_entry[2] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[2]);
@@ -868,7 +876,8 @@ void show_cameras_set_configuration_window (void)
 			if (!rcp->active) gtk_widget_set_sensitive (cameras_configuration_widgets[i].dot[2], FALSE);
 
 			if (rcp->ip_address_is_valid) {
-				for (l = 1; rcp->ip_address[k+l] != '\0'; l++) {}
+				l = 1;
+				while (rcp->ip_address[k + l] != '\0') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[3] = gtk_entry_buffer_new (rcp->ip_address + k, l);
 			} else cameras_configuration_widgets[i].ip_entry_buffer[3] = gtk_entry_buffer_new (NULL, -1);
 
@@ -973,8 +982,6 @@ void add_cameras_set (void)
 	rcp_t *rcp;
 
 	new_cameras_set = g_malloc (sizeof (cameras_set_t));
-	new_cameras_set->number_of_ghost_cameras = 0;
-	new_cameras_set->on_standby_count = 0;
 	new_cameras_set->name[0] = '\0';
 	new_cameras_set->number_of_cameras = 5;
 	new_cameras_set->rcp_ptr_array = g_malloc (5 * sizeof (rcp_t*));
@@ -982,7 +989,7 @@ void add_cameras_set (void)
 	for (i = 0; i < 5; i++) {
 		rcp = g_malloc (sizeof (rcp_t));
 		new_cameras_set->rcp_ptr_array[i] = rcp;
-		rcp->camera_set = new_cameras_set;
+		rcp->cameras_set = new_cameras_set;
 		sprintf (rcp->name, "%d", i + 1);
 		init_rcp (rcp);
 		rcp->index = i;
@@ -1037,7 +1044,7 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 			if (rcp == rcp_pvw) rcp_pvw = NULL;
 			g_mutex_unlock (&sw_p_08_mutex);
 
-			if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != 0x30)) {
+			if (rcp->ip_address_is_valid && (rcp->other_rcp == NULL) && (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR)) {
 				send_ptz_control_command (rcp, "#LPC0");
 				send_update_stop_cmd (rcp);
 			}
@@ -1070,7 +1077,7 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 				gtk_widget_destroy (rcp->shutter_synchro_window);
 				gtk_widget_destroy (rcp->detail_window);
 				gtk_widget_destroy (rcp->matrix_window);
-				gtk_widget_destroy (rcp->knee_point_slope_window);
+				gtk_widget_destroy (rcp->knee_window);
 			}
 
 			g_mutex_lock (&rcp->other_rcp_mutex);

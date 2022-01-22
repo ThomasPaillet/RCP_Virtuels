@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -32,8 +32,6 @@ typedef struct {
 	char text[2038];
 } tsl_umd_v5_packet_t;
 
-
-gboolean send_ip_tally = FALSE;
 
 struct sockaddr_in tsl_umd_v5_address;
 SOCKET tsl_umd_v5_socket;

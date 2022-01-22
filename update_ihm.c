@@ -31,6 +31,28 @@ gboolean update_toggle_button (int_widget_t *int_widget)
 			if (int_widget->rcp->day_night) gtk_widget_set_sensitive (int_widget->rcp->ND_filter_combo_box, FALSE);	//ND filter switching is not possible in Night mode
 			else gtk_widget_set_sensitive (int_widget->rcp->ND_filter_combo_box, TRUE);
 			break;
+		case HLG_KNEE_POST_ACTION:
+			if (int_widget->rcp->current_scene.HLG_knee) {
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->HLG_knee_toggle_button), "On");
+				gtk_widget_set_sensitive (int_widget->rcp->HLG_knee_button, TRUE);
+			} else {
+				gtk_widget_set_sensitive (int_widget->rcp->HLG_knee_button, FALSE);
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->HLG_knee_toggle_button), "Off");
+			}
+			break;
+		case ADAPTIVE_MATRIX_POST_ACTION:
+			g_signal_handler_block (int_widget->rcp->adaptive_matrix_toggle_button_2, int_widget->rcp->adaptive_matrix_handler_id_2);
+			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (int_widget->rcp->adaptive_matrix_toggle_button_2), int_widget->rcp->current_scene.adaptive_matrix);
+			g_signal_handler_unblock (int_widget->rcp->adaptive_matrix_toggle_button_2, int_widget->rcp->adaptive_matrix_handler_id_2);
+
+			if (int_widget->rcp->current_scene.adaptive_matrix) {
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->adaptive_matrix_toggle_button_1), "On");
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->adaptive_matrix_toggle_button_2), "On");
+			} else {
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->adaptive_matrix_toggle_button_1), "Off");
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->adaptive_matrix_toggle_button_2), "Off");
+			}
+			break;
 		case DETAIL_POST_ACTION:
 			if (int_widget->rcp->current_scene.detail) {
 				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->detail_toggle_button), "On");
@@ -38,6 +60,15 @@ gboolean update_toggle_button (int_widget_t *int_widget)
 			} else {
 				gtk_widget_set_sensitive (int_widget->rcp->detail_settings_button, FALSE);
 				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->detail_toggle_button), "Off");
+			}
+			break;
+		case SKIN_DETAIL_POST_ACTION:
+			if (int_widget->rcp->current_scene.skin_detail) {
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->skin_detail_toggle_button), "On");
+				gtk_widget_set_sensitive (int_widget->rcp->fleshtone_noisesup_frame, TRUE);
+			} else {
+				gtk_widget_set_sensitive (int_widget->rcp->fleshtone_noisesup_frame, FALSE);
+				gtk_button_set_label (GTK_BUTTON (int_widget->rcp->skin_detail_toggle_button), "Off");
 			}
 			break;
 		case IRIS_AUTO_POST_ACTION:
@@ -67,14 +98,16 @@ gboolean update_combo_box (int_widget_t *int_widget)
 			}
 			break;
 		case KNEE_SETTINGS_POST_ACTION:
-			if (int_widget->rcp->current_scene.knee_settings != 1) gtk_widget_set_sensitive (int_widget->rcp->knee_button, FALSE);
-			else gtk_widget_set_sensitive (int_widget->rcp->knee_button, TRUE);
+			if (int_widget->rcp->current_scene.knee_settings == 1) gtk_widget_set_sensitive (int_widget->rcp->knee_button, TRUE);
+			else if ((int_widget->rcp->model == AW_UE150) && (int_widget->rcp->current_scene.knee_settings == 2))
+				gtk_widget_set_sensitive (int_widget->rcp->knee_button, TRUE);
+			else gtk_widget_set_sensitive (int_widget->rcp->knee_button, FALSE);
 			break;
 		case MATRIX_TYPE_POST_ACTION:
-			if (int_widget->rcp->current_scene.matrix_type != 3) gtk_widget_set_sensitive (int_widget->rcp->matrix_color_button, FALSE);
-			else gtk_widget_set_sensitive (int_widget->rcp->matrix_color_button, TRUE);
+			if (int_widget->rcp->current_scene.matrix_type != 3) gtk_widget_set_sensitive (int_widget->rcp->matrix_settings_button, FALSE);
+			else gtk_widget_set_sensitive (int_widget->rcp->matrix_settings_button, TRUE);
 			break;
-		case SHUTTER_TYPE_POST_ACTION:
+		case SHUTTER_TYPE_POST_ACTION_AW_HE130:
 			switch (int_widget->rcp->current_scene.shutter_type) {
 				case 1: gtk_widget_hide (int_widget->rcp->shutter_synchro_button);
 					gtk_widget_show (int_widget->rcp->shutter_step_combo_box);
@@ -88,6 +121,83 @@ gboolean update_combo_box (int_widget_t *int_widget)
 				default: gtk_widget_hide (int_widget->rcp->shutter_step_combo_box);
 					gtk_widget_hide (int_widget->rcp->shutter_synchro_button);
 			}
+			break;
+		case SHUTTER_TYPE_POST_ACTION_AW_UE150:
+			switch (int_widget->rcp->current_scene.shutter_type) {
+				case 1: gtk_widget_hide (int_widget->rcp->ELC_limit_combo_box);
+					gtk_widget_hide (int_widget->rcp->ELC_limit_label);
+					gtk_widget_hide (int_widget->rcp->shutter_synchro_button);
+					gtk_widget_show (int_widget->rcp->shutter_step_combo_box);
+					break;
+				case 2: gtk_widget_hide (int_widget->rcp->ELC_limit_combo_box);
+					gtk_widget_hide (int_widget->rcp->ELC_limit_label);
+					gtk_widget_hide (int_widget->rcp->shutter_step_combo_box);
+					gtk_widget_show (int_widget->rcp->shutter_synchro_button);
+					break;
+				case 3: gtk_widget_hide (int_widget->rcp->shutter_step_combo_box);
+					gtk_widget_hide (int_widget->rcp->shutter_synchro_button);
+					gtk_widget_show (int_widget->rcp->ELC_limit_label);
+					gtk_widget_show (int_widget->rcp->ELC_limit_combo_box);
+					break;
+				default: gtk_widget_hide (int_widget->rcp->shutter_step_combo_box);
+					gtk_widget_hide (int_widget->rcp->shutter_synchro_button);
+					gtk_widget_hide (int_widget->rcp->ELC_limit_label);
+					gtk_widget_hide (int_widget->rcp->ELC_limit_combo_box);
+			}
+			break;
+		case SHUTTER_STEP_POST_ACTION_AW_UE150:
+			g_signal_handler_block (int_widget->rcp->shutter_step_combo_box, int_widget->rcp->shutter_step_handler_id);
+			if ((output_fps_AW_UE150 == fps_23_98p) || (output_fps_AW_UE150 == fps_24p)) {
+				if (int_widget->rcp->current_scene.shutter_step == 24) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 0);
+				else if (int_widget->rcp->current_scene.shutter_step == 48) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 1);
+				else if (int_widget->rcp->current_scene.shutter_step == 60) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 2);
+				else if (int_widget->rcp->current_scene.shutter_step == 100) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 3);
+				else if (int_widget->rcp->current_scene.shutter_step == 120) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 4);
+				else if (int_widget->rcp->current_scene.shutter_step == 250) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 5);
+				else if (int_widget->rcp->current_scene.shutter_step == 500) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 6);
+				else if (int_widget->rcp->current_scene.shutter_step == 1000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 7);
+				else if (int_widget->rcp->current_scene.shutter_step == 2000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 8);
+				else if (int_widget->rcp->current_scene.shutter_step == 4000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 9);
+				else if (int_widget->rcp->current_scene.shutter_step == 8000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 10);
+				else gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 11);
+			} else if (output_fps_AW_UE150 == fps_25p) {
+				if (int_widget->rcp->current_scene.shutter_step == 25) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 0);
+				else if (int_widget->rcp->current_scene.shutter_step == 50) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 1);
+				else if (int_widget->rcp->current_scene.shutter_step == 60) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 2);
+				else if (int_widget->rcp->current_scene.shutter_step == 100) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 3);
+				else if (int_widget->rcp->current_scene.shutter_step == 120) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 4);
+				else if (int_widget->rcp->current_scene.shutter_step == 250) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 5);
+				else if (int_widget->rcp->current_scene.shutter_step == 500) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 6);
+				else if (int_widget->rcp->current_scene.shutter_step == 1000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 7);
+				else if (int_widget->rcp->current_scene.shutter_step == 2000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 8);
+				else if (int_widget->rcp->current_scene.shutter_step == 4000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 9);
+				else if (int_widget->rcp->current_scene.shutter_step == 8000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 10);
+				else gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 11);
+			} else if (output_fps_AW_UE150 == fps_29_97p) {
+				if (int_widget->rcp->current_scene.shutter_step == 30) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 0);
+				else if (int_widget->rcp->current_scene.shutter_step == 60) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 1);
+				else if (int_widget->rcp->current_scene.shutter_step == 100) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 2);
+				else if (int_widget->rcp->current_scene.shutter_step == 120) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 3);
+				else if (int_widget->rcp->current_scene.shutter_step == 250) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 4);
+				else if (int_widget->rcp->current_scene.shutter_step == 500) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 5);
+				else if (int_widget->rcp->current_scene.shutter_step == 1000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 6);
+				else if (int_widget->rcp->current_scene.shutter_step == 2000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 7);
+				else if (int_widget->rcp->current_scene.shutter_step == 4000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 8);
+				else if (int_widget->rcp->current_scene.shutter_step == 8000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 9);
+				else gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 10);
+			} else {
+				if (int_widget->rcp->current_scene.shutter_step == 60) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 0);
+				else if (int_widget->rcp->current_scene.shutter_step == 100) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 1);
+				else if (int_widget->rcp->current_scene.shutter_step == 120) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 2);
+				else if (int_widget->rcp->current_scene.shutter_step == 250) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 3);
+				else if (int_widget->rcp->current_scene.shutter_step == 500) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 4);
+				else if (int_widget->rcp->current_scene.shutter_step == 1000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 5);
+				else if (int_widget->rcp->current_scene.shutter_step == 2000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 6);
+				else if (int_widget->rcp->current_scene.shutter_step == 4000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 7);
+				else if (int_widget->rcp->current_scene.shutter_step == 8000) gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 8);
+				else gtk_combo_box_set_active (GTK_COMBO_BOX (int_widget->rcp->shutter_step_combo_box), 9);
+			}
+			g_signal_handler_unblock (int_widget->rcp->shutter_step_combo_box, int_widget->rcp->shutter_step_handler_id);
 	}
 
 	g_free (int_widget);
@@ -102,11 +212,32 @@ gboolean update_scale (int_widget_t *int_widget)
 	g_signal_handler_unblock (int_widget->widget, int_widget->handler_id);
 
 	switch (int_widget->post_action) {
+		case FILM_REC_BLACK_STRETCH_LEVEL_POST_ACTION:
+			set_film_rec_black_stretch_level_label (int_widget->rcp);
+			break;
+		case VIDEO_REC_KNEE_POINT_POST_ACTION:
+			set_video_rec_knee_point_label (int_widget->rcp);
+			break;
+		case BLACK_GAMMA_POST_ACTION:
+			set_black_gamma_label (int_widget->rcp);
+			break;
+		case CHROMA_PHASE_POST_ACTION:
+			set_chroma_phase_label (int_widget->rcp);
+			break;
 		case KNEE_POINT_POST_ACTION:
 			set_knee_point_label (int_widget->rcp);
 			break;
 		case KNEE_SLOPE_POST_ACTION:
 			set_knee_slope_label (int_widget->rcp);
+			break;
+		case AUTO_KNEE_RESPONSE_POST_ACTION:
+			set_auto_knee_response_label (int_widget->rcp);
+			break;
+		case HLG_KNEE_POINT_POST_ACTION:
+			set_HLG_knee_point_label (int_widget->rcp);
+			break;
+		case HLG_KNEE_SLOPE_POST_ACTION:
+			set_HLG_knee_slope_label (int_widget->rcp);
 			break;
 		case LINEAR_MATRIX_R_G_POST_ACTION:
 			set_linear_matrix_R_G_label (int_widget->rcp);
@@ -129,6 +260,9 @@ gboolean update_scale (int_widget_t *int_widget)
 		case MASTER_DETAIL_POST_ACTION:
 			set_master_detail_label (int_widget->rcp);
 			break;
+		case DETAIL_CORING_POST_ACTION:
+			set_detail_coring_label (int_widget->rcp);
+			break;
 		case V_DETAIL_LEVEL_POST_ACTION:
 			set_v_detail_level_label (int_widget->rcp);
 			break;
@@ -138,17 +272,35 @@ gboolean update_scale (int_widget_t *int_widget)
 		case NOISE_SUPPRESS_POST_ACTION:
 			set_noise_suppress_label (int_widget->rcp);
 			break;
+		case LEVEL_DEPEND_POST_ACTION:
+			set_level_depend_label (int_widget->rcp);
+			break;
+		case KNEE_APERTURE_LEVEL_POST_ACTION:
+			set_knee_aperture_level_label (int_widget->rcp);
+			break;
+		case DETAIL_GAIN_PLUS_POST_ACTION:
+			set_detail_gain_plus_label (int_widget->rcp);
+			break;
+		case DETAIL_GAIN_MINUS_POST_ACTION:
+			set_detail_gain_minus_label (int_widget->rcp);
+			break;
 		case FLESHTONE_NOISESUP_POST_ACTION:
 			set_fleshtone_noisesup_label (int_widget->rcp);
 			break;
 		case SATURATION_POST_ACTION:
 			set_saturation_label (int_widget->rcp);
 			break;
-		case SHUTTER_SYNCHRO_POST_ACTION:
-			set_shutter_synchro_label (int_widget->rcp);
+		case SHUTTER_SYNCHRO_POST_ACTION_AW_HE130:
+			set_shutter_synchro_label_AW_HE130 (int_widget->rcp);
 			break;
-		case PEDESTAL_POST_ACTION:
-			set_pedestal_label (int_widget->rcp);
+		case SHUTTER_SYNCHRO_POST_ACTION_AW_UE150:
+			set_shutter_synchro_label_AW_UE150 (int_widget->rcp);
+			break;
+		case PEDESTAL_POST_ACTION_AW_HE130:
+			set_pedestal_label_AW_HE130 (int_widget->rcp);
+			break;
+		case PEDESTAL_POST_ACTION_AW_UE150:
+			set_pedestal_label_AW_UE150 (int_widget->rcp);
 	}
 
 	g_free (int_widget);

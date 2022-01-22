@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -39,13 +39,14 @@ GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz, *css
 
 GtkWidget *main_window;
 GtkWidget *main_window_notebook;
+GtkWidget *popup_window = NULL;
 
 gboolean fullscreen = TRUE;
 gboolean simple_ihm = FALSE;
 
 gboolean triggered_by_master_rcp = FALSE;
 
-const char *application_name_txt = "RCP virtuels pour caméras Panasonic AW-HE130";
+const char *application_name_txt = "RCP virtuels pour caméras Panasonic AW-HE130 et AW-UE150";
 const char *key_info_1_txt = "PGM -> CTRL VISION (Echap) | CAM 1 ... x -> CTRL VISION (F1 ... Fx) | Plein écran (F) | Affichage simplifié (S, Espace) | Instantané(s) (I) | Quitter (Q, ALT + F4)";
 const char *key_info_2_txt = "Plein écran (F) | Quitter (Q, ALT + F4)";
 const char *warning_txt = "Attention !";
@@ -63,6 +64,24 @@ gboolean digit_key_press (GtkEntry *entry, GdkEventKey *event)
 	else if ((event->keyval == GDK_KEY_KP_Tab) || (event->keyval == GDK_KEY_KP_Enter)) return GDK_EVENT_PROPAGATE;
 	else if ((event->keyval >= GDK_KEY_KP_Home) && (event->keyval <= GDK_KEY_KP_Delete)) return GDK_EVENT_PROPAGATE;
 	else return GDK_EVENT_STOP;
+}
+
+gboolean hide_popup_window (GtkWidget *window)
+{
+	gtk_widget_hide (window);
+	popup_window = NULL;
+
+	gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp_vision->event_box), FALSE);
+	gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->cameras_set))->master_rcp.root_widget), FALSE);
+
+	return GDK_EVENT_STOP;
+}
+
+gboolean popup_window_key_press (GtkWidget *window, GdkEventKey *event)
+{
+	if (event->keyval == GDK_KEY_Escape) hide_popup_window (window);
+
+	return GDK_EVENT_STOP;
 }
 
 void show_rs_connection_error_window (void)
@@ -102,11 +121,13 @@ void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, g
 	rcp_t *rcp;
 	GList *list, *glist_itr;
 
-	if (knee_matrix_detail_popup) {
-		knee_matrix_detail_popup = FALSE;
+	if (popup_window != NULL) {
+		gtk_widget_hide (popup_window);
+		popup_window = NULL;
+
 		if (rcp_vision != NULL) {
 			gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp_vision->event_box), FALSE);
-			gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->camera_set))->master_rcp.root_widget), FALSE);
+			gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->cameras_set))->master_rcp.root_widget), FALSE);
 		}
 	}
 
@@ -173,11 +194,13 @@ void main_window_notebook_page_reordered (GtkNotebook *notebook)
 	int i;
 	gint current_page;
 
-	if (knee_matrix_detail_popup) {
-		knee_matrix_detail_popup = FALSE;
+	if (popup_window != NULL) {
+		gtk_widget_hide (popup_window);
+		popup_window = NULL;
+
 		if (rcp_vision != NULL) {
 			gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp_vision->event_box), FALSE);
-			gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->camera_set))->master_rcp.root_widget), FALSE);
+			gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->cameras_set))->master_rcp.root_widget), FALSE);
 		}
 	}
 
@@ -267,7 +290,7 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 	rcp_t *rcp;
 	cameras_set_t *cameras_set_itr;
 
-	static GdkEventButton event_button = {GDK_BUTTON_PRESS, NULL, TRUE, 0, 0.0, 0.0, NULL, GDK_BUTTON1_MASK, GDK_BUTTON_PRIMARY, NULL, 0.0, 0.0};
+	static GdkEventButton event_button = { GDK_BUTTON_PRESS, NULL, TRUE, 0, 0.0, 0.0, NULL, GDK_BUTTON1_MASK, GDK_BUTTON_PRIMARY, NULL, 0.0, 0.0 };
 
 	if ((event->keyval == GDK_KEY_q) || (event->keyval == GDK_KEY_Q)) show_quit_confirmation_window ();
 	else if ((event->keyval == GDK_KEY_f) || (event->keyval == GDK_KEY_F)) {
@@ -304,6 +327,7 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 						gtk_widget_show (rcp->day_night_toggle_button);
 						gtk_widget_show (rcp->ABB_filter_gain_box);
 						gtk_widget_show (rcp->gamma_frame);
+						if (rcp->model == AW_UE150) gtk_widget_show (rcp->chroma_phase_frame);
 						gtk_widget_show (rcp->color_temperature_frame);
 						gtk_widget_show (rcp->knee_matrix_detail_box);
 						gtk_widget_show (rcp->shutter_frame);
@@ -356,6 +380,7 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 						gtk_widget_hide (rcp->day_night_toggle_button);
 						gtk_widget_hide (rcp->ABB_filter_gain_box);
 						gtk_widget_hide (rcp->gamma_frame);
+						if (rcp->model == AW_UE150) gtk_widget_hide (rcp->chroma_phase_frame);
 						gtk_widget_hide (rcp->color_temperature_frame);
 						gtk_widget_hide (rcp->knee_matrix_detail_box);
 						gtk_widget_hide (rcp->shutter_frame);
@@ -417,15 +442,8 @@ gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 {
 	int i;
 
-	if (rcp_vision != NULL) {
-		if (event->keyval == GDK_KEY_Up) remove_timeout (rcp_vision->iris_plus_10_button, NULL, rcp_vision);
-		else if (event->keyval == GDK_KEY_Down) remove_timeout (rcp_vision->iris_minus_10_button, NULL, rcp_vision);
-		else if (event->keyval == GDK_KEY_Right) remove_timeout (rcp_vision->iris_plus_1_button, NULL, rcp_vision);
-		else if (event->keyval == GDK_KEY_Left) remove_timeout (rcp_vision->iris_minus_1_button, NULL, rcp_vision);
-	}
-
-	if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
-		if (current_cameras_set != NULL) {
+	if (current_cameras_set != NULL) {
+		if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
 			for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
 				if (current_cameras_set->rcp_ptr_array[i]->active) {
 					gtk_widget_hide (current_cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
@@ -434,8 +452,13 @@ gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 			}
 			gtk_widget_hide (current_cameras_set->master_rcp.scenes_bank_2_box);
 			gtk_widget_show (current_cameras_set->master_rcp.scenes_bank_1_box);
-		}
-	}
+		} else if (rcp_vision != NULL) {
+			if (event->keyval == GDK_KEY_Up) remove_timeout (rcp_vision->iris_plus_10_button, NULL, rcp_vision);
+			else if (event->keyval == GDK_KEY_Down) remove_timeout (rcp_vision->iris_minus_10_button, NULL, rcp_vision);
+			else if (event->keyval == GDK_KEY_Right) remove_timeout (rcp_vision->iris_plus_1_button, NULL, rcp_vision);
+			else if (event->keyval == GDK_KEY_Left) remove_timeout (rcp_vision->iris_minus_1_button, NULL, rcp_vision);
+		} else return GDK_EVENT_PROPAGATE;
+	} else return GDK_EVENT_PROPAGATE;
 
 	return GDK_EVENT_STOP;
 }
@@ -577,7 +600,7 @@ int main (int argc, char** argv)
 	g_mutex_init (&cameras_sets_mutex);
 	g_mutex_init (&current_cameras_set_mutex);
 
-	load_cameras_set_from_config_file ();
+	load_cameras_sets_from_config_file ();
 
 	g_signal_connect (G_OBJECT (source_cameras_set_list_box), "row-selected", G_CALLBACK (source_cameras_set_list_box_row_selected), NULL);
 	g_signal_connect (G_OBJECT (destination_cameras_set_list_box), "row-selected", G_CALLBACK (destination_cameras_set_list_box_row_selected), NULL);
@@ -590,28 +613,25 @@ int main (int argc, char** argv)
 
 			if (rcp->active) {
 				gtk_widget_hide (rcp->scenes_bank_2_box);
+
 				gtk_widget_hide (rcp->shutter_step_combo_box);
 				gtk_widget_hide (rcp->shutter_synchro_button);
 
-				if (rcp->ip_address_is_valid) {
-					rcp->camera_is_working = TRUE;
-					gtk_spinner_start (GTK_SPINNER (rcp->spinner));
-					gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
-					gtk_widget_set_sensitive (rcp->standard_button, FALSE);
-					gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
-					gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
-					gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+				if (rcp->model == AW_UE150) {
+					gtk_widget_set_size_request (rcp->HLG_knee_frame, gtk_widget_get_allocated_width (rcp->knee_frame), gtk_widget_get_allocated_height (rcp->knee_frame));
+
+					gtk_widget_hide (rcp->HLG_knee_frame);
+					gtk_widget_hide (rcp->ELC_limit_label);
+					gtk_widget_hide (rcp->ELC_limit_combo_box);
 				}
+
+				if (rcp->ip_address_is_valid) rcp_start_working (rcp);
 			}
 		}
 
 		gtk_widget_hide (cameras_set_itr->master_rcp.scenes_bank_2_box);
 
-		if (show_master_rcp) {
-#if (SHUTTER_TYPE_DEFAULT != 1)
-			gtk_widget_hide (cameras_set_itr->master_rcp.shutter_step_combo_box);
-#endif
-		} else gtk_widget_hide (cameras_set_itr->master_rcp.root_widget);
+		if (!show_master_rcp) gtk_widget_hide (cameras_set_itr->master_rcp.root_widget);
 
 		if (cameras_set_itr->next != NULL) {
 			gtk_widget_hide (cameras_set_itr->source_rcp_list_box);
@@ -634,10 +654,6 @@ int main (int argc, char** argv)
 	for (glist_itr = rcp_start_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
 		((rcp_t*)(glist_itr->data))->thread = g_thread_new (NULL, (GThreadFunc)check_if_camera_is_on, glist_itr->data);
 	}
-
-#ifdef MAIN_SETTINGS_READ_ONLY
-	g_thread_new (NULL, (GThreadFunc)check_cameras_settings_ro, NULL);
-#endif
 
 	start_physical_rcp ();
 
@@ -668,7 +684,7 @@ int main (int argc, char** argv)
 		gtk_widget_destroy (rcp->shutter_synchro_window);
 		gtk_widget_destroy (rcp->detail_window);
 		gtk_widget_destroy (rcp->matrix_window);
-		gtk_widget_destroy (rcp->knee_point_slope_window);
+		gtk_widget_destroy (rcp->knee_window);
 		g_slist_free (rcp->other_rcp);
 	}
 	g_list_free (rcp_glist);

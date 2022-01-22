@@ -1,13 +1,15 @@
-# RCP virtuels pour caméras Panasonic AW-HE130
+# RCP virtuels pour caméras Panasonic AW-HE130 et AW-UE150
 ![RCP-Virtuels](Screenshots/RCP-Virtuels.png "RCP-Virtuels")
 
 ## Paramètres :
-![Paramètres](Screenshots/Paramètres.png "Paramètres")
+![Paramètres](Screenshots/Paramètres-v4.png "Paramètres")
 ### Réglages communs à toutes les caméras :
 
-Les **2 réglages importants** (et qui ne peuvent pas être modifiés) sont, le « Preset Scope » qui est en « mode C » pour que personne d'autre ne touche à la colorimétrie des caméras, et le « White Balance Mode » qui est réglé sur « VAR » pour que le logiciel puisse sauvegarder la température de couleur (parce qu’il n’est pas possible d’accéder aux valeurs calculées par les caméras dans les mémoires AWB A et B). Cela permet d’implémenter 10 vraies mémoires que l'on peut enregistrer et rappeler à la demande (les 4 scènes des caméras sont ignorées).
+Le **réglage important** (et qui ne peut pas être modifié) est le « White Balance Mode » qui est réglé sur « VAR » pour que le logiciel puisse sauvegarder la température de couleur (parce qu’il n’est pas possible d’accéder aux valeurs calculées par les caméras dans les mémoires AWB A et B). Cela permet d’implémenter 10 vraies mémoires que l'on peut enregistrer et rappeler à la demande (les 4 scènes des caméras sont ignorées).
 
-Tous ces paramètres sont contrôlés au démarrage et en permanence via le mécanisme des « update notifications » pour que personne ne puisse les modifier par inadvertance depuis un autre pupitre (par contre il ne faudrait surtout pas qu'il y ai plusieurs logiciels avec des réglages différents qui s'exécutent en même temps, ils se battraient pour imposer leurs réglages et abîmeraient la mémoire interne des caméras).
+Le « Preset Scope » sera probablement toujours en « mode C » pour que personne d'autre ne touche à la colorimétrie des caméras.
+
+Tous ces paramètres sont contrôlés au démarrage (sauf les réglages des 4 sorties vidéos pour les AW-UE150) et en permanence via le mécanisme des « update notifications » pour que personne ne puisse les modifier par inadvertance depuis un autre pupitre (par contre il ne faudrait surtout pas qu'il y ai plusieurs logiciels avec des réglages différents qui s'exécutent en même temps, ils se battraient pour imposer leurs réglages et abîmeraient la mémoire interne des caméras). Il est possible de désactiver cette fonctionnalité en ajoutant la ligne « #define MAIN_SETTINGS_READ_ONLY » en tête du fichier « rcp.h ».
 
 ### Connexion avec la régie :
 Il est possible d'interfacer le logiciel avec la régie (Tallyman, Cerebrum, …) via le protocole « SW-P-08 » (en liaison IP ou série) pour choisir l’ « ensemble de caméras » actif, commuter automatiquement la sortie SDI de la caméra sélectionnée dans un moniteur de contrôle (et vice versa), et rappeler des mémoires.
@@ -20,7 +22,7 @@ Appuyer sur la touche « Echap » réalise le point de croisement « Echap �
 
 A l’inverse, en demandant le point de croisement approprié, la régie peut sélectionner l’ « ensemble de caméras » actif (changement de configuration d’émission), le RCP actif (pour suivre l’action « des coups de poing » au poste vision) et rappeler la mémoire n°X de tous les RCP de l’ « ensemble de caméras » actif.
 
-Si l’utilisation du protocole TSL UMD V5 est impossible, il est possible d’avoir les rouges antennes par le même mécanisme. Si la caméra 6 est à l'antenne la programmation du Tallyman/Cerebrum/ou autres doit faire en sorte de demander la réalisation du point de croisement « 6 » -> « 4 : PGM » et le RCP virtuel n°6 sera cerclé de rouge dans l'interface.
+Si l’utilisation du protocole « TSL UMD V5 » est impossible, il est possible d’avoir les rouges antennes par le même mécanisme. Si la caméra 6 est à l'antenne la programmation du Tallyman/Cerebrum/ou autres doit faire en sorte de demander la réalisation du point de croisement « 6 » -> « 4 : PGM » et le RCP virtuel n°6 sera cerclé de rouge dans l'interface.
 
 ### Utilisation d’un RCP Physique :
 Il est possible d’utiliser un RCP Panasonic AK-HRP200 pour piloter la caméra sélectionnée à travers le logiciel.
@@ -28,7 +30,7 @@ Il est possible d’utiliser un RCP Panasonic AK-HRP200 pour piloter la caméra 
 Pour la configuration, le logiciel est vu par le RCP comme une caméra normale et il faut utiliser un port TCP/IP supérieur à 1024.
 ![ROP-Setup](Screenshots/ROP-Setup.png "ROP-Setup")
 
-Toutes les fonctionnalités sont accessibles (sauf l’ « auto white » et le rappel des 4 scènes qui n’ont pas de sens) et une fois que le RCP a rattrapé les valeurs du logiciel (voyant « IRIS/M.PED LOCK » qui ne clignote plus), nous bénéficions d’un iris et d’un piédestal relatif peu importe la caméra réellement pilotée.
+Toutes les fonctionnalités sont accessibles (sauf l’ « auto white » et le rappel des 4 scènes qui n’ont pas de sens) et une fois que le RCP a rattrapé les valeurs du logiciel (voyant « IRIS/M.PED LOCK » qui ne clignote plus), nous bénéficions d’un iris et d’un piédestal relatif peu importe la caméra réellement pilotée. (Pour une raison encore inconnue le piédestal ne marche pas!)
 
 Le bouton « HEAD POWER » allume ou éteint la caméra sélectionnée.
 
@@ -60,9 +62,9 @@ La température de couleur se règle manuellement (pour pouvoir la sauvegarder, 
 Les différents boutons « +1 », « +10 », ... font évoluer leurs paramètres respectivement de plus une unité, plus dix unités, ...
 Si on maintient ces boutons appuyés, ils continuent d'incrémenter toutes les 130ms. L'utilisation du clic droit « inverse » ces boutons (le + devient un - et vice versa), cela permet d'affiner un réglage sans quitter le moniteur de contrôle des yeux. 
 
-Le gain « Vert », qui n’existe pas dans la réalité, fait évoluer les gains rouge et bleu en sens inverse.
+Le gain « Vert », qui n’existe pas dans la réalité (sauf celui des blancs pour les AW-UE150), fait évoluer les gains rouge et bleu en sens inverse.
 
-Les valeurs de « Shutter synchro » affichées ne sont pas celles de Panasonic (j’ai eu la flemme de taper à la main les 2x255 valeurs)
+Les valeurs de « Shutter synchro » affichées ne sont pas celles de Panasonic (il faudrait certainement taper à la main les 2x255 valeurs pour les AW-HE130 et pour les AW-UE150 c'est pire)
 
 ## Scènes :
 Dans l'onglet « Scènes », il est possible de copier une mémoire d'une caméra dans une autre caméra (y compris partiellement, on peut par exemple appliquer un matriçage complexe à plusieurs caméras sans toucher aux réglages de détail).
@@ -74,7 +76,7 @@ S ou Espace : affichage complet/simplifié des RCP.
 
 F : mode plein écran/mode fenêtré.
 
-Fn : Sélectionne le n_ème_ RCP et en informe la régie (point de croisement « n° » -> « 2 : RCP »).
+Fn : Sélectionne le n^ème RCP et en informe la régie (point de croisement « n° » -> « 2 : RCP »).
 
 Echap : Informe la régie du point de croisement « Echap » -> « 2 : RCP ».
 

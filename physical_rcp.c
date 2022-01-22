@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2021-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -284,14 +284,17 @@ char answer_camdata[] = { "HTTP/1.0 200 OK\r\nStatus: 200\r\nDate: Sat, 27 Apr 2
 char zoom_cmd[] = { "#Z50" };
 char focus_cmd[] = { "#F50" };
 
-char r_gain_cmd[] = { "ORI:096" };
-char b_gain_cmd[] = { "OBI:096" };
+char r_gain_cmd_HE_130[] = { "ORI:096" };
+char b_gain_cmd_HE_130[] = { "OBI:096" };
+char r_gain_cmd_UE_150[] = { "OSG:39:800" };
+char b_gain_cmd_UE_150[] = { "OSG:3A:800" };
 char r_pedestal_cmd[] = { "ORP:096" };
 char b_pedestal_cmd[] = { "OBP:096" };
 char master_detail_cmd[] = { "OSA:30:80" };
 char ND_filter_cmd[] = { "OFT:0" };
 char gain_cmd[] = { "OGU:08" };
-char shutter_cmd[] = { "OSH:0" };
+char shutter_cmd_HE_130[] = { "OSH:0" };
+char shutter_type_cmd_UE_150[] = { "OSJ:03:0" };
 
 char iris_update_notification[] = { "\x0a\x5e\xf4\xe9\x0f\xdf\x13\x01\x02\x05\x26\x36\x00\x01\x00\x80\x00\x00\x00\x00\x00\x01\x00\x1c\x01\x00\x00\x00\x0d\x0a\x6c\x50\x49\x41\x41\x41\x41\x41\x41\x41\x41\x41\x0d\x0a\x00\x00\x00\x00\x00\x02\x00\x18\xa8\x13\x74\x76\x87\x81\x00\x01\x13\x01\x02\x05\x26\x36\x00\x00\x00\x00\x00" };
 //20 [lPIAAAAAAAAA    ]
@@ -353,7 +356,7 @@ char AWB_execution_successful_update_notification[] = { "\x0a\x5e\xf4\xe9\x02\xc
 char version_update_notification[] = { "\x0a\x5e\xf4\xeb\x29\x0c\x13\x01\x06\x06\x53\x19\x00\x01\x00\x80\x00\x00\x00\x00\x00\x01\x00\x1c\x01\x00\x00\x00\x0d\x0a\x71\x53\x56\x33\x56\x30\x31\x2e\x30\x36\x4c\x30\x30\x30\x0d\x0a\x00\x00\x00\x02\x00\x18\xa8\x13\x74\x76\x87\x76\x00\x01\x13\x01\x06\x06\x53\x19\x00\x00\x00\x00\x00" };
 //20 [qSV3V01.06L000  ]
 
-physical_rcp_t physical_rcp = { IRIS_DEFAULT, IRIS_AUTO_DEFAULT, PEDESTAL_DEFAULT, R_GAIN_DEFAULT, B_GAIN_DEFAULT, R_PEDESTAL_DEFAULT, B_PEDESTAL_DEFAULT, DETAIL_DEFAULT, MASTER_DETAIL_DEFAULT, ND_FILTER_DEFAULT, GAIN_DEFAULT, SHUTTER_TYPE_DEFAULT, -1, FALSE, FALSE, FALSE, FALSE, FALSE, 0 };
+physical_rcp_t physical_rcp = { IRIS_DEFAULT, IRIS_AUTO_DEFAULT, PEDESTAL_DEFAULT_AW_HE130, R_GAIN_DEFAULT_AW_HE130, B_GAIN_DEFAULT_AW_HE130, R_PEDESTAL_DEFAULT, B_PEDESTAL_DEFAULT, DETAIL_DEFAULT, MASTER_DETAIL_DEFAULT, ND_FILTER_DEFAULT, GAIN_DEFAULT_AW_HE130, SHUTTER_TYPE_DEFAULT, -1, FALSE, FALSE, FALSE, FALSE, FALSE, 0 };
 
 gboolean physical_rcp_started = FALSE;
 
@@ -448,11 +451,11 @@ void send_master_detail_update_notification (void)
 
 void send_ND_filter_update_notification (void)
 {
-	if (physical_rcp.ND_filter == 2) ND_filter_update_notification[34] = '3';
-	else if (physical_rcp.ND_filter == 1) ND_filter_update_notification[34] = '4';
-	else ND_filter_update_notification[34] = '0';
+	if ((physical_rcp.ND_filter != 1) && (physical_rcp.ND_filter != 2)) {
+		ND_filter_update_notification[34] = '0' + physical_rcp.ND_filter;
 
-	SEND_UPDATE_NOTIFICATION(ND_filter)
+		SEND_UPDATE_NOTIFICATION(ND_filter)
+	}
 }
 
 void send_gain_update_notification (void)
@@ -481,10 +484,10 @@ void send_shutter_update_notification (void)
 	else if (physical_rcp.shutter_type == 3) shutter_update_notification[34] = 'C';
 	else {
 		if (physical_rcp.shutter_step == 0) {
-			if (output_fps == _59_94fps) shutter_update_notification[34] = '3';
+			if ((output_fps_AW_HE130 == fps_59_94p) || (output_fps_AW_HE130 == fps_59_94i)) shutter_update_notification[34] = '3';
 			else shutter_update_notification[34] = '2';
 		} else if (physical_rcp.shutter_step == 1) {
-			if ((output_fps == _25fps) || (output_fps == _50fps)) shutter_update_notification[34] = '3';
+			if ((output_fps_AW_HE130 == fps_50p) || (output_fps_AW_HE130 == fps_50i) || (output_fps_AW_HE130 == fps_25p)) shutter_update_notification[34] = '3';
 			else shutter_update_notification[34] = '4';
 		} else if (physical_rcp.shutter_step == 2) shutter_update_notification[34] = '5';
 		else if (physical_rcp.shutter_step == 3) shutter_update_notification[34] = '6';
@@ -493,9 +496,9 @@ void send_shutter_update_notification (void)
 		else if (physical_rcp.shutter_step == 6) shutter_update_notification[34] = '9';
 		else if (physical_rcp.shutter_step == 7) shutter_update_notification[34] = 'A';
 		else if (physical_rcp.shutter_step == 8) {
-			if (output_fps == _23_98fps) shutter_update_notification[34] = 'D';
-			else if (output_fps == _25fps) shutter_update_notification[34] = 'E';
-			else if (output_fps == _29_97fps) shutter_update_notification[34] = 'F';
+			if (output_fps_AW_HE130 == fps_23_98p) shutter_update_notification[34] = 'D';
+			else if (output_fps_AW_HE130 == fps_25p) shutter_update_notification[34] = 'E';
+			else if (output_fps_AW_HE130 == fps_29_97p) shutter_update_notification[34] = 'F';
 		}
 	}
 
@@ -520,7 +523,7 @@ void send_auto_focus_update_notification (void)
 
 void send_frequency_update_notification (void)
 {
-	if (format_is_50Hz) frequency_update_notification[37] = '1';
+	if (settings_parameters_indexes_array_AW_HE130[FREQUENCY_INDEX_AW_HE130] == 1) frequency_update_notification[37] = '1';
 	else frequency_update_notification[37] = '0';
 
 	SEND_UPDATE_NOTIFICATION(frequency)
@@ -528,14 +531,14 @@ void send_frequency_update_notification (void)
 
 void send_format_update_notification (void)
 {
-	format_update_notification[37] = settings_array[1].answers[settings_parameters_indexes_array[1]][0];
+	format_update_notification[37] = settings_array[FORMAT_INDEX_AW_HE130].answers[settings_parameters_indexes_array[FORMAT_INDEX_AW_HE130]][0];
 
-	if (settings_array[1].answers[settings_parameters_indexes_array[1]][1] == '\0') {
+	if (settings_array[FORMAT_INDEX_AW_HE130].answers[settings_parameters_indexes_array[FORMAT_INDEX_AW_HE130]][1] == '\0') {
 		format_update_notification[38] = '\r';
 		format_update_notification[39] = '\n';
 		format_update_notification[40] = '\0';
 	} else {
-		format_update_notification[38] = settings_array[1].answers[settings_parameters_indexes_array[1]][1];
+		format_update_notification[38] = settings_array[FORMAT_INDEX_AW_HE130].answers[settings_parameters_indexes_array[FORMAT_INDEX_AW_HE130]][1];
 		format_update_notification[39] = '\r';
 		format_update_notification[40] = '\n';
 	}
@@ -596,6 +599,8 @@ gboolean send_version_update_notification (gpointer nothing)
 
 gpointer update_physical_rcp_in_background (rcp_t *rcp)
 {
+	int value;
+
 	g_mutex_lock (&physical_rcp.mutex);
 
 	if (physical_rcp.OSD_menu != rcp->OSD_menu) {
@@ -623,14 +628,28 @@ gpointer update_physical_rcp_in_background (rcp_t *rcp)
 		send_mire_update_notification ();
 	}
 
-	if (physical_rcp.r_gain != rcp->current_scene.r_gain) {
-		physical_rcp.r_gain = rcp->current_scene.r_gain;
-		send_r_gain_update_notification ();
-	}
+	if (rcp->model == AW_UE150) {
+		value = (rcp->current_scene.r_gain - 0x738) * 0.75;
+		if (physical_rcp.r_gain != value) {
+			physical_rcp.r_gain = value;
+			send_r_gain_update_notification ();
+		}
 
-	if (physical_rcp.b_gain != rcp->current_scene.b_gain) {
-		physical_rcp.b_gain = rcp->current_scene.b_gain;
-		send_b_gain_update_notification ();
+		value = (rcp->current_scene.b_gain - 0x738) * 0.75;
+		if (physical_rcp.b_gain != value) {
+			physical_rcp.b_gain = value;
+			send_b_gain_update_notification ();
+		}
+	} else {
+		if (physical_rcp.r_gain != rcp->current_scene.r_gain) {
+			physical_rcp.r_gain = rcp->current_scene.r_gain;
+			send_r_gain_update_notification ();
+		}
+
+		if (physical_rcp.b_gain != rcp->current_scene.b_gain) {
+			physical_rcp.b_gain = rcp->current_scene.b_gain;
+			send_b_gain_update_notification ();
+		}
 	}
 
 	if (physical_rcp.r_pedestal != rcp->current_scene.r_pedestal) {
@@ -658,16 +677,90 @@ gpointer update_physical_rcp_in_background (rcp_t *rcp)
 		send_ND_filter_update_notification ();
 	}
 
-	if (physical_rcp.gain != rcp->current_scene.gain) {
-		physical_rcp.gain = rcp->current_scene.gain;
-		send_gain_update_notification ();
+	if ((rcp->model == AW_UE150) && (settings_parameters_indexes_array_AW_UE150[SUPER_GAIN_INDEX_AW_UE150] == 1)) {
+		value = rcp->current_scene.gain - 6;
+
+		if ((value >= 0) && (physical_rcp.gain != value)) {
+			physical_rcp.gain = value;
+			send_gain_update_notification ();
+		}
+	} else {
+		if (physical_rcp.gain != rcp->current_scene.gain) {
+			physical_rcp.gain = rcp->current_scene.gain;
+			send_gain_update_notification ();
+		}
 	}
 
-	if ((physical_rcp.shutter_type != rcp->current_scene.shutter_type) || \
-		((physical_rcp.shutter_type == 1) && (physical_rcp.shutter_step != rcp->current_scene.shutter_step))) {
-		physical_rcp.shutter_type = rcp->current_scene.shutter_type;
-		physical_rcp.shutter_step = rcp->current_scene.shutter_step;
-		send_shutter_update_notification ();
+	if (rcp->model == AW_UE150) {
+		if (physical_rcp.shutter_type != rcp->current_scene.shutter_type) {
+			physical_rcp.shutter_type = rcp->current_scene.shutter_type;
+			if (rcp->current_scene.shutter_step == 60) physical_rcp.shutter_step = 0;
+			else if (rcp->current_scene.shutter_step == 100) physical_rcp.shutter_step = 0;
+			else if (rcp->current_scene.shutter_step == 120) physical_rcp.shutter_step = 1;
+			else if (rcp->current_scene.shutter_step == 250) physical_rcp.shutter_step = 2;
+			else if (rcp->current_scene.shutter_step == 500) physical_rcp.shutter_step = 3;
+			else if (rcp->current_scene.shutter_step == 1000) physical_rcp.shutter_step = 4;
+			else if (rcp->current_scene.shutter_step == 2000) physical_rcp.shutter_step = 5;
+			else if (rcp->current_scene.shutter_step == 4000) physical_rcp.shutter_step = 6;
+			else if (rcp->current_scene.shutter_step == 8000) physical_rcp.shutter_step = 6;
+			else if (rcp->current_scene.shutter_step == 10000) physical_rcp.shutter_step = 7;
+			else if (rcp->current_scene.shutter_step == 24) physical_rcp.shutter_step = 8;
+			else if (rcp->current_scene.shutter_step == 25) physical_rcp.shutter_step = 8;
+			else if (rcp->current_scene.shutter_step == 30) physical_rcp.shutter_step = 8;
+			else physical_rcp.shutter_step = 0;
+			send_shutter_update_notification ();
+		} else if (physical_rcp.shutter_type == 1) {
+			if ((rcp->current_scene.shutter_step == 60) && (physical_rcp.shutter_step != 0)) {
+				physical_rcp.shutter_step = 0;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 100) && (physical_rcp.shutter_step != 0)) {
+				physical_rcp.shutter_step = 0;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 120) && (physical_rcp.shutter_step != 1)) {
+				physical_rcp.shutter_step = 1;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 250) && (physical_rcp.shutter_step != 2)) {
+				physical_rcp.shutter_step = 2;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 500) && (physical_rcp.shutter_step != 3)) {
+				physical_rcp.shutter_step = 3;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 1000) && (physical_rcp.shutter_step != 4)) {
+				physical_rcp.shutter_step = 4;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 2000) && (physical_rcp.shutter_step != 5)) {
+				physical_rcp.shutter_step = 5;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 4000) && (physical_rcp.shutter_step != 6)) {
+				physical_rcp.shutter_step = 6;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 8000) && (physical_rcp.shutter_step != 6)) {
+				physical_rcp.shutter_step = 6;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 10000) && (physical_rcp.shutter_step != 7)) {
+				physical_rcp.shutter_step = 7;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 24) && (physical_rcp.shutter_step != 8)) {
+				physical_rcp.shutter_step = 8;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 25) && (physical_rcp.shutter_step != 8)) {
+				physical_rcp.shutter_step = 8;
+				send_shutter_update_notification ();
+			} else if ((rcp->current_scene.shutter_step == 30) && (physical_rcp.shutter_step != 8)) {
+				physical_rcp.shutter_step = 8;
+				send_shutter_update_notification ();
+			} else if (physical_rcp.shutter_step != 0) {
+				physical_rcp.shutter_step = 0;
+				send_shutter_update_notification ();
+			}
+		}
+	} else {
+		if ((physical_rcp.shutter_type != rcp->current_scene.shutter_type) || \
+			((physical_rcp.shutter_type == 1) && (physical_rcp.shutter_step != rcp->current_scene.shutter_step))) {
+			physical_rcp.shutter_type = rcp->current_scene.shutter_type;
+			physical_rcp.shutter_step = rcp->current_scene.shutter_step;
+			send_shutter_update_notification ();
+		}
 	}
 
 	if (physical_rcp.iris_auto != rcp->current_scene.iris_auto) {
@@ -814,7 +907,7 @@ gpointer physical_rcp_server (gpointer nothing)
 			} else if (*((int*)(buffer + 24)) == PTZ_SHARP_O_STANBY_CMD) {	//"aw_ptz?cmd=#O0"		//Power Standby control command
 				rcp = rcp_vision;
 				if (rcp != NULL) {
-					if (rcp->error_code != 0x30) {
+					if (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR) {
 						if (rcp->camera_is_on) send_ptz_control_command (rcp, "#O0");
 						else send_ptz_control_command (rcp, "#O1");
 					}
@@ -871,8 +964,8 @@ gpointer physical_rcp_server (gpointer nothing)
 						if (rcp->current_scene.iris_auto != physical_rcp.iris_auto) {
 							rcp->current_scene.iris_auto = physical_rcp.iris_auto;
 
-							if (physical_rcp.iris_auto) send_cam_control_command_now (rcp, "ORS:1");
-							else send_cam_control_command_now (rcp, "ORS:0");
+							if (physical_rcp.iris_auto) send_cam_control_command (rcp, "ORS:1");
+							else send_cam_control_command (rcp, "ORS:0");
 
 							int_widget = g_malloc (sizeof (int_widget_t));
 							int_widget->widget = rcp->iris_auto_toggle_button;
@@ -892,12 +985,12 @@ gpointer physical_rcp_server (gpointer nothing)
 				iris_auto_update_notification[34] = buffer[28];
 
 				SEND_UPDATE_NOTIFICATION(iris_auto)
-			} else if (*((int*)(buffer + 24)) == CAM_QRS_CMD) {			//"aw_cam?cmd=QRS"		//Iris Auto/Manual query command
+			} else if (*((int*)(buffer + 24)) == CAM_QRS_CMD) {				//"aw_cam?cmd=QRS"		//Iris Auto/Manual query command
 				if (physical_rcp.iris_auto) answer_ORS[87] = '1';
 				else answer_ORS[87] = '0';
 
 				send (src_socket, answer_ORS, sizeof (answer_ORS), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OTP_CMD) {			//"aw_cam?cmd=OTP:"		//Pedestal control command
+			} else if (*((int*)(buffer + 24)) == CAM_OTP_CMD) {				//"aw_cam?cmd=OTP:"		//Pedestal control command
 				if (buffer[28] <= '9') data = ((int)(buffer[28] - '0')) << 8;
 				else data = ((int)(buffer[28] - '7')) << 8;
 				if (buffer[29] <= '9') data += ((int)(buffer[29] - '0')) << 4;
@@ -921,7 +1014,7 @@ gpointer physical_rcp_server (gpointer nothing)
 							int_widget->widget = rcp->pedestal_scale;
 							int_widget->handler_id = rcp->pedestal_handler_id;
 							int_widget->value = &rcp->current_scene.pedestal;
-							int_widget->post_action = PEDESTAL_POST_ACTION;
+							int_widget->post_action = PEDESTAL_POST_ACTION_AW_HE130;
 							int_widget->rcp = rcp;
 							g_idle_add ((GSourceFunc)update_scale, int_widget);
 						}
@@ -940,7 +1033,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				pedestal_update_notification[36] = buffer[30];
 
 				SEND_UPDATE_NOTIFICATION(pedestal)
-			} else if (*((int*)(buffer + 24)) == CAM_QTP_CMD) {			//"aw_cam?cmd=QTP"		//Pedestal query command
+			} else if (*((int*)(buffer + 24)) == CAM_QTP_CMD) {				//"aw_cam?cmd=QTP"		//Pedestal query command
 				answer_OTP[87] = '0' + (physical_rcp.pedestal >> 8);
 				if (answer_OTP[87] > '9') answer_OTP[87] += 7;
 				answer_OTP[88] = '0' + ((physical_rcp.pedestal & 0x0FF) >> 4);
@@ -949,7 +1042,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				if (answer_OTP[89] > '9') answer_OTP[89] += 7;
 
 				send (src_socket, answer_OTP, sizeof (answer_OTP), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_ORI_CMD) {			//"aw_cam?cmd=ORI:"		//R gain control command
+			} else if (*((int*)(buffer + 24)) == CAM_ORI_CMD) {				//"aw_cam?cmd=ORI:"		//R gain control command
 				if (buffer[28] <= '9') data = ((int)(buffer[28] - '0')) << 8;
 				else data = ((int)(buffer[28] - '7')) << 8;
 				if (buffer[29] <= '9') data += ((int)(buffer[29] - '0')) << 4;
@@ -960,22 +1053,47 @@ gpointer physical_rcp_server (gpointer nothing)
 				rcp = rcp_vision;
 				if (rcp != NULL) {
 					if (rcp->camera_is_on) {
-						if (rcp->current_scene.r_gain != data) {
-							rcp->current_scene.r_gain = data;
+						if (rcp->model == AW_UE150) {
+							data = 0x738 + (data * 1.33333333333333333333333333333333);
 
-							r_gain_cmd[4] = buffer[28];
-							r_gain_cmd[5] = buffer[29];
-							r_gain_cmd[6] = buffer[30];
+							if (rcp->current_scene.r_gain != data) {
+								rcp->current_scene.r_gain = data;
 
-							send_cam_control_command_now (rcp, r_gain_cmd);
+								r_gain_cmd_UE_150[7] = '0' + (data >> 8);
+								if (r_gain_cmd_UE_150[7] > '9') r_gain_cmd_UE_150[7] += 7;
+								r_gain_cmd_UE_150[8] = '0' + ((data & 0x0FF) >> 4);
+								if (r_gain_cmd_UE_150[8] > '9') r_gain_cmd_UE_150[8] += 7;
+								r_gain_cmd_UE_150[9] = '0' + (data & 0x00F);
+								if (r_gain_cmd_UE_150[9] > '9') r_gain_cmd_UE_150[9] += 7;
 
-							int_widget = g_malloc (sizeof (int_widget_t));
-							int_widget->widget = rcp->r_gain_scale;
-							int_widget->handler_id = rcp->r_gain_handler_id;
-							int_widget->value = &rcp->current_scene.r_gain;
-							int_widget->post_action = NO_POST_ACTION;
-							int_widget->rcp = rcp;
-							g_idle_add ((GSourceFunc)update_scale, int_widget);
+								send_cam_control_command (rcp, r_gain_cmd_UE_150);
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->r_gain_scale;
+								int_widget->handler_id = rcp->r_gain_handler_id;
+								int_widget->value = &rcp->current_scene.r_gain;
+								int_widget->post_action = NO_POST_ACTION;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_scale, int_widget);
+							}
+						} else {
+							if (rcp->current_scene.r_gain != data) {
+								rcp->current_scene.r_gain = data;
+
+								r_gain_cmd_HE_130[4] = buffer[28];
+								r_gain_cmd_HE_130[5] = buffer[29];
+								r_gain_cmd_HE_130[6] = buffer[30];
+
+								send_cam_control_command (rcp, r_gain_cmd_HE_130);
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->r_gain_scale;
+								int_widget->handler_id = rcp->r_gain_handler_id;
+								int_widget->value = &rcp->current_scene.r_gain;
+								int_widget->post_action = NO_POST_ACTION;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_scale, int_widget);
+							}
 						}
 					}
 				}
@@ -992,7 +1110,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				r_gain_update_notification[36] = buffer[30];
 
 				SEND_UPDATE_NOTIFICATION(r_gain)
-			} else if (*((int*)(buffer + 24)) == CAM_QRI_CMD) {			//"aw_cam?cmd=QRI"		//R gain query command
+			} else if (*((int*)(buffer + 24)) == CAM_QRI_CMD) {				//"aw_cam?cmd=QRI"		//R gain query command
 				answer_ORI[87] = '0' + (physical_rcp.r_gain >> 8);
 				if (answer_ORI[87] > '9') answer_ORI[87] += 7;
 				answer_ORI[88] = '0' + ((physical_rcp.r_gain & 0x0FF) >> 4);
@@ -1001,7 +1119,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				if (answer_ORI[89] > '9') answer_ORI[89] += 7;
 
 				send (src_socket, answer_ORI, sizeof (answer_ORI), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OBI_CMD) {			//"aw_cam?cmd=OBI:"		//B gain control command
+			} else if (*((int*)(buffer + 24)) == CAM_OBI_CMD) {				//"aw_cam?cmd=OBI:"		//B gain control command
 				if (buffer[28] <= '9') data = ((int)(buffer[28] - '0')) << 8;
 				else data = ((int)(buffer[28] - '7')) << 8;
 				if (buffer[29] <= '9') data += ((int)(buffer[29] - '0')) << 4;
@@ -1012,22 +1130,47 @@ gpointer physical_rcp_server (gpointer nothing)
 				rcp = rcp_vision;
 				if (rcp != NULL) {
 					if (rcp->camera_is_on) {
-						if (rcp->current_scene.b_gain != data) {
-							rcp->current_scene.b_gain = data;
+						if (rcp->model == AW_UE150) {
+							data = 0x738 + (data * 1.33333333333333333333333333333333);
 
-							b_gain_cmd[4] = buffer[28];
-							b_gain_cmd[5] = buffer[29];
-							b_gain_cmd[6] = buffer[30];
+							if (rcp->current_scene.b_gain != data) {
+								rcp->current_scene.b_gain = data;
 
-							send_cam_control_command_now (rcp, b_gain_cmd);
+								b_gain_cmd_UE_150[7] = '0' + (data >> 8);
+								if (b_gain_cmd_UE_150[7] > '9') b_gain_cmd_UE_150[7] += 7;
+								b_gain_cmd_UE_150[8] = '0' + ((data & 0x0FF) >> 4);
+								if (b_gain_cmd_UE_150[8] > '9') b_gain_cmd_UE_150[8] += 7;
+								b_gain_cmd_UE_150[9] = '0' + (data & 0x00F);
+								if (b_gain_cmd_UE_150[9] > '9') b_gain_cmd_UE_150[9] += 7;
 
-							int_widget = g_malloc (sizeof (int_widget_t));
-							int_widget->widget = rcp->b_gain_scale;
-							int_widget->handler_id = rcp->b_gain_handler_id;
-							int_widget->value = &rcp->current_scene.b_gain;
-							int_widget->post_action = NO_POST_ACTION;
-							int_widget->rcp = rcp;
-							g_idle_add ((GSourceFunc)update_scale, int_widget);
+								send_cam_control_command (rcp, b_gain_cmd_UE_150);
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->r_gain_scale;
+								int_widget->handler_id = rcp->b_gain_handler_id;
+								int_widget->value = &rcp->current_scene.b_gain;
+								int_widget->post_action = NO_POST_ACTION;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_scale, int_widget);
+							}
+						} else {
+							if (rcp->current_scene.b_gain != data) {
+								rcp->current_scene.b_gain = data;
+
+								b_gain_cmd_HE_130[4] = buffer[28];
+								b_gain_cmd_HE_130[5] = buffer[29];
+								b_gain_cmd_HE_130[6] = buffer[30];
+
+								send_cam_control_command (rcp, b_gain_cmd_HE_130);
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->b_gain_scale;
+								int_widget->handler_id = rcp->b_gain_handler_id;
+								int_widget->value = &rcp->current_scene.b_gain;
+								int_widget->post_action = NO_POST_ACTION;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_scale, int_widget);
+							}
 						}
 					}
 				}
@@ -1044,7 +1187,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				b_gain_update_notification[36] = buffer[30];
 
 				SEND_UPDATE_NOTIFICATION(b_gain)
-			} else if (*((int*)(buffer + 24)) == CAM_QBI_CMD) {			//"aw_cam?cmd=QBI"		//B gain query command
+			} else if (*((int*)(buffer + 24)) == CAM_QBI_CMD) {				//"aw_cam?cmd=QBI"		//B gain query command
 				answer_OBI[87] = '0' + (physical_rcp.b_gain >> 8);
 				if (answer_OBI[87] > '9') answer_OBI[87] += 7;
 				answer_OBI[88] = '0' + ((physical_rcp.b_gain & 0x0FF) >> 4);
@@ -1053,7 +1196,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				if (answer_OBI[89] > '9') answer_OBI[89] += 7;
 
 				send (src_socket, answer_OBI, sizeof (answer_OBI), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_ORP_CMD) {			//"aw_cam?cmd=ORP:"		//R pedestal control command
+			} else if (*((int*)(buffer + 24)) == CAM_ORP_CMD) {				//"aw_cam?cmd=ORP:"		//R pedestal control command
 				if (buffer[28] <= '9') data = ((int)(buffer[28] - '0')) << 8;
 				else data = ((int)(buffer[28] - '7')) << 8;
 				if (buffer[29] <= '9') data += ((int)(buffer[29] - '0')) << 4;
@@ -1071,7 +1214,7 @@ gpointer physical_rcp_server (gpointer nothing)
 							r_pedestal_cmd[5] = buffer[29];
 							r_pedestal_cmd[6] = buffer[30];
 
-							send_cam_control_command_now (rcp, r_pedestal_cmd);
+							send_cam_control_command (rcp, r_pedestal_cmd);
 
 							int_widget = g_malloc (sizeof (int_widget_t));
 							int_widget->widget = rcp->r_pedestal_scale;
@@ -1096,7 +1239,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				r_pedestal_update_notification[36] = buffer[30];
 
 				SEND_UPDATE_NOTIFICATION(r_pedestal)
-			} else if (*((int*)(buffer + 24)) == CAM_QRP_CMD) {			//"aw_cam?cmd=QRP"		//R pedestal query command
+			} else if (*((int*)(buffer + 24)) == CAM_QRP_CMD) {				//"aw_cam?cmd=QRP"		//R pedestal query command
 				answer_ORP[87] = '0' + (physical_rcp.r_pedestal >> 8);
 				if (answer_ORP[87] > '9') answer_ORP[87] += 7;
 				answer_ORP[88] = '0' + ((physical_rcp.r_pedestal & 0x0FF) >> 4);
@@ -1105,7 +1248,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				if (answer_ORP[89] > '9') answer_ORP[89] += 7;
 
 				send (src_socket, answer_ORP, sizeof (answer_ORP), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OBP_CMD) {			//"aw_cam?cmd=OBP:"		//B pedestal control command
+			} else if (*((int*)(buffer + 24)) == CAM_OBP_CMD) {				//"aw_cam?cmd=OBP:"		//B pedestal control command
 				if (buffer[28] <= '9') data = ((int)(buffer[28] - '0')) << 8;
 				else data = ((int)(buffer[28] - '7')) << 8;
 				if (buffer[29] <= '9') data += ((int)(buffer[29] - '0')) << 4;
@@ -1123,7 +1266,7 @@ gpointer physical_rcp_server (gpointer nothing)
 							b_pedestal_cmd[5] = buffer[29];
 							b_pedestal_cmd[6] = buffer[30];
 
-							send_cam_control_command_now (rcp, b_pedestal_cmd);
+							send_cam_control_command (rcp, b_pedestal_cmd);
 
 							int_widget = g_malloc (sizeof (int_widget_t));
 							int_widget->widget = rcp->b_pedestal_scale;
@@ -1148,7 +1291,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				b_pedestal_update_notification[36] = buffer[30];
 
 				SEND_UPDATE_NOTIFICATION(b_pedestal)
-			} else if (*((int*)(buffer + 24)) == CAM_QBP_CMD) {			//"aw_cam?cmd=QBP"		//B pedestal query command
+			} else if (*((int*)(buffer + 24)) == CAM_QBP_CMD) {				//"aw_cam?cmd=QBP"		//B pedestal query command
 				answer_OBP[87] = '0' + (physical_rcp.b_pedestal >> 8);
 				if (answer_OBP[87] > '9') answer_OBP[87] += 7;
 				answer_OBP[88] = '0' + ((physical_rcp.b_pedestal & 0x0FF) >> 4);
@@ -1157,7 +1300,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				if (answer_OBP[89] > '9') answer_OBP[89] += 7;
 
 				send (src_socket, answer_OBP, sizeof (answer_OBP), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_ODT_CMD) {			//"aw_cam?cmd=ODT:"		//Detail control command
+			} else if (*((int*)(buffer + 24)) == CAM_ODT_CMD) {				//"aw_cam?cmd=ODT:"		//Detail control command
 				if (buffer[28] == '1') physical_rcp.detail = TRUE;
 				else physical_rcp.detail = FALSE;
 
@@ -1171,8 +1314,8 @@ gpointer physical_rcp_server (gpointer nothing)
 						if (rcp->current_scene.detail != physical_rcp.detail) {
 							rcp->current_scene.detail = physical_rcp.detail;
 
-							if (physical_rcp.detail) send_cam_control_command_now (rcp, "ODT:1");
-							else send_cam_control_command_now (rcp, "ODT:0");
+							if (physical_rcp.detail) send_cam_control_command (rcp, "ODT:1");
+							else send_cam_control_command (rcp, "ODT:0");
 
 							int_widget = g_malloc (sizeof (int_widget_t));
 							int_widget->widget = rcp->detail_toggle_button;
@@ -1188,14 +1331,14 @@ gpointer physical_rcp_server (gpointer nothing)
 				detail_update_notification[34] = buffer[28];
 
 				SEND_UPDATE_NOTIFICATION(detail)
-			} else if (*((int*)(buffer + 24)) == CAM_QDT_CMD) {			//"aw_cam?cmd=QDT"		//Detail query command
+			} else if (*((int*)(buffer + 24)) == CAM_QDT_CMD) {				//"aw_cam?cmd=QDT"		//Detail query command
 				if (physical_rcp.detail) answer_ODT[87] = '1';
 				else answer_ODT[87] = '0';
 
 				send (src_socket, answer_ODT, sizeof (answer_ODT), 0);
 			} else if ((*((int*)(buffer + 24)) == CAM_OSA_CMD) && \
-					(buffer[28] == '3') && (buffer[29] == '0')) {		//"aw_cam?cmd=OSA:30"
-				if (buffer[30] == ':') {														//TOTAL DTL LEVEL control command
+					(buffer[28] == '3') && (buffer[29] == '0')) {			//"aw_cam?cmd=OSA:30"
+				if (buffer[30] == ':') {															//TOTAL DTL LEVEL control command
 					if (buffer[31] <= '9') physical_rcp.master_detail = ((int)(buffer[31] - '0')) << 4;
 					else physical_rcp.master_detail = ((int)(buffer[31] - '7')) << 4;
 					if (buffer[32] <= '9') physical_rcp.master_detail += buffer[32] - '0';
@@ -1210,7 +1353,7 @@ gpointer physical_rcp_server (gpointer nothing)
 								master_detail_cmd[7] = buffer[31];
 								master_detail_cmd[8] = buffer[32];
 
-								send_cam_control_command_now (rcp, master_detail_cmd);
+								send_cam_control_command (rcp, master_detail_cmd);
 
 								int_widget = g_malloc (sizeof (int_widget_t));
 								int_widget->widget = rcp->master_detail_scale;
@@ -1232,7 +1375,7 @@ gpointer physical_rcp_server (gpointer nothing)
 					master_detail_update_notification[38] = buffer[32];
 
 					SEND_UPDATE_NOTIFICATION(master_detail)
-				} else {																		//TOTAL DTL LEVEL query command
+				} else {																			//TOTAL DTL LEVEL query command
 					answer_OSA_30[90] = '0' + (physical_rcp.master_detail >> 4);
 					if (answer_OSA_30[90] > '9') answer_OSA_30[90] += 7;
 					answer_OSA_30[91] = '0' + (physical_rcp.master_detail & 0x0F);
@@ -1240,7 +1383,7 @@ gpointer physical_rcp_server (gpointer nothing)
 
 					send (src_socket, answer_OSA_30, sizeof (answer_OSA_30), 0);
 				}
-			} else if (*((int*)(buffer + 24)) == CAM_OFT_CMD) {			//"aw_cam?cmd=OFT:"		//ND filter control command
+			} else if (*((int*)(buffer + 24)) == CAM_OFT_CMD) {				//"aw_cam?cmd=OFT:"		//ND filter control command
 				if (buffer[28] == '3') physical_rcp.ND_filter = 2;
 				else if (buffer[28] == '4') physical_rcp.ND_filter = 1;
 				else physical_rcp.ND_filter = 0;
@@ -1253,7 +1396,7 @@ gpointer physical_rcp_server (gpointer nothing)
 
 							ND_filter_cmd[4] = buffer[28];
 
-							send_cam_control_command_now (rcp, ND_filter_cmd);
+							send_cam_control_command (rcp, ND_filter_cmd);
 
 							int_widget = g_malloc (sizeof (int_widget_t));
 							int_widget->widget = rcp->ND_filter_combo_box;
@@ -1273,13 +1416,13 @@ gpointer physical_rcp_server (gpointer nothing)
 				ND_filter_update_notification[34] = buffer[28];
 
 				SEND_UPDATE_NOTIFICATION(ND_filter)
-			} else if (*((int*)(buffer + 24)) == CAM_QFT_CMD) {			//"aw_cam?cmd=QFT"		//ND filter query command
+			} else if (*((int*)(buffer + 24)) == CAM_QFT_CMD) {				//"aw_cam?cmd=QFT"		//ND filter query command
 				if (physical_rcp.ND_filter == 2) answer_OFT[87] = '3';
 				else if (physical_rcp.ND_filter == 1) answer_OFT[87] = '4';
 				else answer_OFT[87] = '0';
 
 				send (src_socket, answer_OFT, sizeof (answer_OFT), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OGU_CMD) {			//"aw_cam?cmd=OGU:"		//Gain control command
+			} else if (*((int*)(buffer + 24)) == CAM_OGU_CMD) {				//"aw_cam?cmd=OGU:"		//Gain control command
 				if ((buffer[28] == '8') && (buffer[29] == '0')) physical_rcp.gain = 37;
 				else {
 					data = ((int)(buffer[28] - '0')) << 4;
@@ -1292,21 +1435,40 @@ gpointer physical_rcp_server (gpointer nothing)
 				rcp = rcp_vision;
 				if (rcp != NULL) {
 					if (rcp->camera_is_on) {
-						if (rcp->current_scene.gain != physical_rcp.gain) {
-							rcp->current_scene.gain = physical_rcp.gain;
+						if ((rcp->model == AW_UE150) && (settings_parameters_indexes_array_AW_UE150[SUPER_GAIN_INDEX_AW_UE150] == 1)) {
+							if (rcp->current_scene.gain != physical_rcp.gain + 6) {
+								rcp->current_scene.gain = physical_rcp.gain + 6;
 
-							gain_cmd[4] = buffer[28];
-							gain_cmd[5] = buffer[29];
+								gain_cmd[4] = buffer[28];
+								gain_cmd[5] = buffer[29];
 
-							send_cam_control_command_now (rcp, gain_cmd);
+								send_cam_control_command (rcp, gain_cmd);
 
-							int_widget = g_malloc (sizeof (int_widget_t));
-							int_widget->widget = rcp->gain_combo_box;
-							int_widget->handler_id = rcp->gain_handler_id;
-							int_widget->value = &rcp->current_scene.gain;
-							int_widget->post_action = NO_POST_ACTION;
-							int_widget->rcp = rcp;
-							g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->gain_combo_box;
+								int_widget->handler_id = rcp->gain_handler_id;
+								int_widget->value = &rcp->current_scene.gain;
+								int_widget->post_action = NO_POST_ACTION;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+							}
+						} else {
+							if (rcp->current_scene.gain != physical_rcp.gain) {
+								rcp->current_scene.gain = physical_rcp.gain;
+
+								gain_cmd[4] = buffer[28];
+								gain_cmd[5] = buffer[29];
+
+								send_cam_control_command (rcp, gain_cmd);
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->gain_combo_box;
+								int_widget->handler_id = rcp->gain_handler_id;
+								int_widget->value = &rcp->current_scene.gain;
+								int_widget->post_action = NO_POST_ACTION;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+							}
 						}
 					}
 				}
@@ -1320,7 +1482,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				gain_update_notification[35] = buffer[29];
 
 				SEND_UPDATE_NOTIFICATION(gain)
-			} else if (*((int*)(buffer + 24)) == CAM_QGU_CMD) {			//"aw_cam?cmd=QGU"		//Gain query command
+			} else if (*((int*)(buffer + 24)) == CAM_QGU_CMD) {				//"aw_cam?cmd=QGU"		//Gain query command
 				if (physical_rcp.gain == 37) {
 					answer_OGU[87] = '8';
 					answer_OGU[88] = '0';
@@ -1334,7 +1496,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				}
 
 				send (src_socket, answer_OGU, sizeof (answer_OGU), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OSH_CMD) {			//"aw_cam?cmd=OSH:"		//Shutter control command
+			} else if (*((int*)(buffer + 24)) == CAM_OSH_CMD) {				//"aw_cam?cmd=OSH:"		//Shutter control command
 				if (buffer[28] == '0') {
 					physical_rcp.shutter_type = 0;
 					physical_rcp.shutter_step = -1;
@@ -1349,7 +1511,7 @@ gpointer physical_rcp_server (gpointer nothing)
 
 					if (buffer[28] == '2') physical_rcp.shutter_step = 0;
 					else if (buffer[28] == '3') {
-						if (output_fps == _59_94fps) physical_rcp.shutter_step = 0;
+						if ((output_fps_AW_HE130 == fps_59_94p) || (output_fps_AW_HE130 == fps_59_94i)) physical_rcp.shutter_step = 0;
 						else physical_rcp.shutter_step = 1;
 					} else if (buffer[28] == '4') physical_rcp.shutter_step = 1;
 					else if (buffer[28] == '5') physical_rcp.shutter_step = 2;
@@ -1364,22 +1526,112 @@ gpointer physical_rcp_server (gpointer nothing)
 				rcp = rcp_vision;
 				if (rcp != NULL) {
 					if (rcp->camera_is_on) {
-						if ((rcp->current_scene.shutter_type != physical_rcp.shutter_type) || \
-							(rcp->current_scene.shutter_step != physical_rcp.shutter_step)) {
-							rcp->current_scene.shutter_type = physical_rcp.shutter_type;
-							rcp->current_scene.shutter_step = physical_rcp.shutter_step;
+						if (rcp->model == AW_UE150) {
+							if (rcp->current_scene.shutter_type != physical_rcp.shutter_type) {
+								rcp->current_scene.shutter_type = physical_rcp.shutter_type;
 
-							shutter_cmd[4] = buffer[28];
+								shutter_type_cmd_UE_150[7] = '0' + physical_rcp.shutter_type;
 
-							send_cam_control_command_now (rcp, shutter_cmd);
+								send_cam_control_command (rcp, shutter_type_cmd_UE_150);
 
-							int_widget = g_malloc (sizeof (int_widget_t));
-							int_widget->widget = rcp->shutter_type_combo_box;
-							int_widget->handler_id = rcp->shutter_type_handler_id;
-							int_widget->value = &rcp->current_scene.shutter_type;
-							int_widget->post_action = SHUTTER_TYPE_POST_ACTION;
-							int_widget->rcp = rcp;
-							g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->shutter_type_combo_box;
+								int_widget->handler_id = rcp->shutter_type_handler_id;
+								int_widget->value = &rcp->current_scene.shutter_type;
+								int_widget->post_action = SHUTTER_TYPE_POST_ACTION_AW_UE150;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+							}
+
+							if (physical_rcp.shutter_type == 1) {
+								if (buffer[28] == '2') {
+									if (rcp->current_scene.shutter_step != 60) {
+										rcp->current_scene.shutter_step = 60;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 60, TRUE);
+									}
+								} else if (buffer[28] == '3') {
+									if (rcp->current_scene.shutter_step != 100) {
+										rcp->current_scene.shutter_step = 100;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 100, TRUE);
+									}
+								} else if (buffer[28] == '4') {
+									if (rcp->current_scene.shutter_step != 120) {
+										rcp->current_scene.shutter_step = 120;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 120, TRUE);
+									}
+								} else if (buffer[28] == '5') {
+									if (rcp->current_scene.shutter_step != 250) {
+										rcp->current_scene.shutter_step = 250;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 250, TRUE);
+									}
+								} else if (buffer[28] == '6') {
+									if (rcp->current_scene.shutter_step != 500) {
+										rcp->current_scene.shutter_step = 500;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 500, TRUE);
+									}
+								} else if (buffer[28] == '7') {
+									if (rcp->current_scene.shutter_step != 1000) {
+										rcp->current_scene.shutter_step = 1000;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 1000, TRUE);
+									}
+								} else if (buffer[28] == '8') {
+									if (rcp->current_scene.shutter_step != 2000) {
+										rcp->current_scene.shutter_step = 2000;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 2000, TRUE);
+									}
+								} else if (buffer[28] == '9') {
+									if (rcp->current_scene.shutter_step != 4000) {
+										rcp->current_scene.shutter_step = 4000;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 4000, TRUE);
+									}
+								} else if (buffer[28] == 'A') {
+									if (rcp->current_scene.shutter_step != 10000) {
+										rcp->current_scene.shutter_step = 10000;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 10000, TRUE);
+									}
+								} else if (buffer[28] == 'D') {
+									if (rcp->current_scene.shutter_step != 24) {
+										rcp->current_scene.shutter_step = 24;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 24, TRUE);
+									}
+								} else if (buffer[28] == 'E') {
+									if (rcp->current_scene.shutter_step != 25) {
+										rcp->current_scene.shutter_step = 25;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 25, TRUE);
+									}
+								} else if (buffer[28] == 'F') {
+									if (rcp->current_scene.shutter_step != 30) {
+										rcp->current_scene.shutter_step = 30;
+										send_cam_control_command_4_digits (rcp, "OSJ:06:", 30, TRUE);
+									}
+								}
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->shutter_step_combo_box;
+								int_widget->handler_id = rcp->shutter_step_handler_id;
+								int_widget->value = &rcp->current_scene.shutter_step;
+								int_widget->post_action = SHUTTER_STEP_POST_ACTION_AW_UE150;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+							}
+						} else {
+							if ((rcp->current_scene.shutter_type != physical_rcp.shutter_type) || \
+								(rcp->current_scene.shutter_step != physical_rcp.shutter_step)) {
+								rcp->current_scene.shutter_type = physical_rcp.shutter_type;
+								rcp->current_scene.shutter_step = physical_rcp.shutter_step;
+
+								shutter_cmd_HE_130[4] = buffer[28];
+
+								send_cam_control_command (rcp, shutter_cmd_HE_130);
+
+								int_widget = g_malloc (sizeof (int_widget_t));
+								int_widget->widget = rcp->shutter_type_combo_box;
+								int_widget->handler_id = rcp->shutter_type_handler_id;
+								int_widget->value = &rcp->current_scene.shutter_type;
+								int_widget->post_action = SHUTTER_TYPE_POST_ACTION_AW_HE130;
+								int_widget->rcp = rcp;
+								g_idle_add ((GSourceFunc)update_combo_box, int_widget);
+							}
 						}
 					}
 				}
@@ -1391,16 +1643,16 @@ gpointer physical_rcp_server (gpointer nothing)
 				shutter_update_notification[34] = buffer[28];
 
 				SEND_UPDATE_NOTIFICATION(shutter)
-			} else if (*((int*)(buffer + 24)) == CAM_QSH_CMD) {			//"aw_cam?cmd=QSH"		//Shutter query command
+			} else if (*((int*)(buffer + 24)) == CAM_QSH_CMD) {				//"aw_cam?cmd=QSH"		//Shutter query command
 				if (physical_rcp.shutter_type == 0) answer_OSH[87] = '0';
 				else if (physical_rcp.shutter_type == 2) answer_OSH[87] = 'B';
 				else if (physical_rcp.shutter_type == 3) answer_OSH[87] = 'C';
 				else {
 					if (physical_rcp.shutter_step == 0) {
-						if (output_fps == _59_94fps) answer_OSH[87] = '3';
+						if ((output_fps_AW_HE130 == fps_59_94p) || (output_fps_AW_HE130 == fps_59_94i)) answer_OSH[87] = '3';
 						else answer_OSH[87] = '2';
 					} else if (physical_rcp.shutter_step == 1) {
-						if ((output_fps == _25fps) || (output_fps == _50fps)) answer_OSH[87] = '3';
+						if ((output_fps_AW_HE130 == fps_50p) || (output_fps_AW_HE130 == fps_50i) || (output_fps_AW_HE130 == fps_25p)) answer_OSH[87] = '3';
 						else answer_OSH[87] = '4';
 					} else if (physical_rcp.shutter_step == 2) answer_OSH[87] = '5';
 					else if (physical_rcp.shutter_step == 3) answer_OSH[87] = '6';
@@ -1409,14 +1661,14 @@ gpointer physical_rcp_server (gpointer nothing)
 					else if (physical_rcp.shutter_step == 6) answer_OSH[87] = '9';
 					else if (physical_rcp.shutter_step == 7) answer_OSH[87] = 'A';
 					else if (physical_rcp.shutter_step == 8) {
-						if (output_fps == _23_98fps) answer_OSH[87] = 'D';
-						else if (output_fps == _25fps) answer_OSH[87] = 'E';
-						else if (output_fps == _29_97fps) answer_OSH[87] = 'F';
+						if (output_fps_AW_HE130 == fps_23_98p) answer_OSH[87] = 'D';
+						else if (output_fps_AW_HE130 == fps_25p) answer_OSH[87] = 'E';
+						else if (output_fps_AW_HE130 == fps_29_97p) answer_OSH[87] = 'F';
 					}
 				}
 
 				send (src_socket, answer_OSH, sizeof (answer_OSH), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_DCB_CMD) {			//"aw_cam?cmd=DCB:"		//Color bar/Camera control command
+			} else if (*((int*)(buffer + 24)) == CAM_DCB_CMD) {				//"aw_cam?cmd=DCB:"		//Color bar/Camera control command
 				if (buffer[28] == '0') physical_rcp.mire = FALSE;
 				else physical_rcp.mire = TRUE;
 
@@ -1426,8 +1678,8 @@ gpointer physical_rcp_server (gpointer nothing)
 						if (rcp->mire != physical_rcp.mire) {
 							rcp->mire = physical_rcp.mire;
 
-							if (physical_rcp.mire) send_cam_control_command_now (rcp, "DCB:1");
-							else send_cam_control_command_now (rcp, "DCB:0");
+							if (physical_rcp.mire) send_cam_control_command (rcp, "DCB:1");
+							else send_cam_control_command (rcp, "DCB:0");
 
 							int_widget = g_malloc (sizeof (int_widget_t));
 							int_widget->widget = rcp->mire_toggle_button;
@@ -1447,12 +1699,12 @@ gpointer physical_rcp_server (gpointer nothing)
 				mire_update_notification[34] = buffer[28];
 
 				SEND_UPDATE_NOTIFICATION(mire)
-			} else if (*((int*)(buffer + 24)) == CAM_QBR_CMD) {			//"aw_cam?cmd=QBR"		//Color bar/Camera query command
+			} else if (*((int*)(buffer + 24)) == CAM_QBR_CMD) {				//"aw_cam?cmd=QBR"		//Color bar/Camera query command
 				if (physical_rcp.mire) answer_OBR[87] = '1';
 				else answer_OBR[87] = '0';
 
 				send (src_socket, answer_OBR, sizeof (answer_OBR), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OAF_CMD) {			//"aw_cam?cmd=OAF:"		//Focus Auto/Manual control command
+			} else if (*((int*)(buffer + 24)) == CAM_OAF_CMD) {				//"aw_cam?cmd=OAF:"		//Focus Auto/Manual control command
 				if (buffer[28] == '0') physical_rcp.auto_focus = FALSE;
 				else physical_rcp.auto_focus = TRUE;
 
@@ -1462,8 +1714,8 @@ gpointer physical_rcp_server (gpointer nothing)
 						if (rcp->auto_focus != physical_rcp.auto_focus) {
 							rcp->auto_focus = physical_rcp.auto_focus;
 
-							if (physical_rcp.auto_focus) send_cam_control_command_now (rcp, "OAF:1");
-							else send_cam_control_command_now (rcp, "OAF:0");
+							if (physical_rcp.auto_focus) send_cam_control_command (rcp, "OAF:1");
+							else send_cam_control_command (rcp, "OAF:0");
 						}
 					}
 				}
@@ -1475,21 +1727,21 @@ gpointer physical_rcp_server (gpointer nothing)
 				auto_focus_update_notification[34] = buffer[28];
 
 				SEND_UPDATE_NOTIFICATION(auto_focus)
-			} else if (*((int*)(buffer + 24)) == CAM_QAF_CMD) {			//"aw_cam?cmd=QAF"		//Focus Auto/Manual query command
+			} else if (*((int*)(buffer + 24)) == CAM_QAF_CMD) {				//"aw_cam?cmd=QAF"		//Focus Auto/Manual query command
 				if (physical_rcp.auto_focus) answer_OAF[87] = '1';
 				else answer_OAF[87] = '0';
 
 				send (src_socket, answer_OAF, sizeof (answer_OAF), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_QID_CMD) {			//"aw_cam?cmd=QID"		//Model number query command
+			} else if (*((int*)(buffer + 24)) == CAM_QID_CMD) {				//"aw_cam?cmd=QID"		//Model number query command
 				send (src_socket, answer_OID, sizeof (answer_OID), 0);
 			} else if ((*((int*)(buffer + 24)) == CAM_QSE_CMD) && \
-					(buffer[28] == '7') && (buffer[29] == '7')) {		//"aw_cam?cmd=QSE:77"	//Frequency query command
-				if (format_is_50Hz) answer_OSE_77[90] = '1';
+					(buffer[28] == '7') && (buffer[29] == '7')) {			//"aw_cam?cmd=QSE:77"	//Frequency query command
+				if (settings_parameters_indexes_array_AW_HE130[0] == 1) answer_OSE_77[90] = '1';
 				else answer_OSE_77[90] = '0';
 
 				send (src_socket, answer_OSE_77, sizeof (answer_OSE_77), 0);
 			} else if ((*((int*)(buffer + 24)) == CAM_QSA_CMD) && \
-					(buffer[28] == '8') && (buffer[29] == '7')) {		//"aw_cam?cmd=QSA:87"	//Format query command
+					(buffer[28] == '8') && (buffer[29] == '7')) {			//"aw_cam?cmd=QSA:87"	//Format query command
 				answer_OSA_87[90] = settings_array[1].answers[settings_parameters_indexes_array[1]][0];
 				if (settings_array[1].answers[settings_parameters_indexes_array[1]][1] == '\0') {
 					answer_OSA_87[78] = '8';
@@ -1502,7 +1754,7 @@ gpointer physical_rcp_server (gpointer nothing)
 					send (src_socket, answer_OSA_87, sizeof (answer_OSA_87) - 1, 0);
 				}
 			} else if ((*((int*)(buffer + 24)) == CAM_QSD_CMD) && \
-					(buffer[28] == '4') && (buffer[29] == '8')) {		//"aw_cam?cmd=QSD:48"	//Contrast level Picture level query command
+					(buffer[28] == '4') && (buffer[29] == '8')) {			//"aw_cam?cmd=QSD:48"	//Contrast level Picture level query command
 				value = picture_level + 0x32;
 
 				answer_OSD_48[90] = '0' + (value >> 4);
@@ -1511,7 +1763,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				if (answer_OSD_48[91] > '9') answer_OSD_48[91] += 7;
 
 				send (src_socket, answer_OSD_48, sizeof (answer_OSD_48), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_OAS_CMD) {			//"aw_cam?cmd=OAS"		//ABB (ABC) execution control command
+			} else if (*((int*)(buffer + 24)) == CAM_OAS_CMD) {				//"aw_cam?cmd=OAS"		//ABB (ABC) execution control command
 				send (src_socket, answer_204, sizeof (answer_204), 0);
 
 				rcp = rcp_vision;
@@ -1522,22 +1774,22 @@ gpointer physical_rcp_server (gpointer nothing)
 						ABB_button_clicked (NULL, rcp);
 					} else send_ABB_execution_successful_update_notification ();
 				} else send_ABB_execution_successful_update_notification ();
-			} else if (*((int*)(buffer + 24)) == CAM_OWS_CMD) {			//"aw_cam?cmd=OWS"		//AWB (AWC) execution control command
+			} else if (*((int*)(buffer + 24)) == CAM_OWS_CMD) {				//"aw_cam?cmd=OWS"		//AWB (AWC) execution control command
 				send (src_socket, answer_204, sizeof (answer_204), 0);
 
 				send_AWB_execution_successful_update_notification ();
-			} else if (*((int*)(buffer + 24)) == CAM_DUS_CMD) {			//"aw_cam?cmd=DUS:"		//OSD menu On/Off control command
+			} else if (*((int*)(buffer + 24)) == CAM_DUS_CMD) {				//"aw_cam?cmd=DUS:"		//OSD menu On/Off control command
 				rcp = rcp_vision;
 				if (rcp != NULL) {
 					if (rcp->camera_is_on) {
 						if (buffer[28] == '1') {
-							send_cam_control_command_now (rcp, "DUS:1");
+							send_cam_control_command (rcp, "DUS:1");
 							rcp->OSD_menu = TRUE;
 
 							physical_rcp.OSD_menu = TRUE;
 							answer_DUS[87] = '1';
 						} else {
-							send_cam_control_command_now (rcp, "DUS:0");
+							send_cam_control_command (rcp, "DUS:0");
 							rcp->OSD_menu = FALSE;
 
 							physical_rcp.OSD_menu = FALSE;
@@ -1553,43 +1805,43 @@ gpointer physical_rcp_server (gpointer nothing)
 				}
 
 				send (src_socket, answer_DUS, sizeof (answer_DUS), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_DPG_CMD) {			//"aw_cam?cmd=DPG:1"	//MENU switch On control command
+			} else if (*((int*)(buffer + 24)) == CAM_DPG_CMD) {				//"aw_cam?cmd=DPG:1"	//MENU switch On control command
 				rcp = rcp_vision;
 				if (rcp != NULL) {
-					if (rcp->camera_is_on) send_cam_control_command_now (rcp, "DPG");
+					if (rcp->camera_is_on) send_cam_control_command (rcp, "DPG");
 				}
 
 				send (src_socket, answer_DPG, sizeof (answer_DPG), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_DIT_CMD) {			//"aw_cam?cmd=DIT:1"	//ITEM switch On control command
+			} else if (*((int*)(buffer + 24)) == CAM_DIT_CMD) {				//"aw_cam?cmd=DIT:1"	//ITEM switch On control command
 				rcp = rcp_vision;
 				if (rcp != NULL) {
-					if (rcp->camera_is_on) send_cam_control_command_now (rcp, "DIT:1");
+					if (rcp->camera_is_on) send_cam_control_command (rcp, "DIT:1");
 				}
 
 				send (src_socket, answer_DIT, sizeof (answer_DIT), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_DUP_CMD) {			//"aw_cam?cmd=DUP:1"	//YES switch On control command
+			} else if (*((int*)(buffer + 24)) == CAM_DUP_CMD) {				//"aw_cam?cmd=DUP:1"	//YES switch On control command
 				rcp = rcp_vision;
 				if (rcp != NULL) {
-					if (rcp->camera_is_on) send_cam_control_command_now (rcp, "DUP:1");
+					if (rcp->camera_is_on) send_cam_control_command (rcp, "DUP:1");
 				}
 
 				send (src_socket, answer_DUP, sizeof (answer_DUP), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_DDW_CMD) {			//"aw_cam?cmd=DDW:1"	//NO switch On control command
+			} else if (*((int*)(buffer + 24)) == CAM_DDW_CMD) {				//"aw_cam?cmd=DDW:1"	//NO switch On control command
 				rcp = rcp_vision;
 				if (rcp != NULL) {
-					if (rcp->camera_is_on) send_cam_control_command_now (rcp, "DDW:1");
+					if (rcp->camera_is_on) send_cam_control_command (rcp, "DDW:1");
 				}
 
 				send (src_socket, answer_DDW, sizeof (answer_DDW), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_XSF_CMD) {			//"aw_cam?cmd=XSF:"		//Scene file control command
+			} else if (*((int*)(buffer + 24)) == CAM_XSF_CMD) {				//"aw_cam?cmd=XSF:"		//Scene file control command
 				answer_XSF[87] = buffer[28];
 
 				send (src_socket, answer_XSF, sizeof (answer_XSF), 0);
-			} else if (*((int*)(buffer + 24)) == CAM_NOTHING_CMD) {		//"aw_cam?cmd=&res=1"	//Internal Server Error
+			} else if (*((int*)(buffer + 24)) == CAM_NOTHING_CMD) {			//"aw_cam?cmd=&res=1"	//Internal Server Error
 				send (src_socket, answer_error, sizeof (answer_error), 0);
 			}
-		} else if (*((int*)(buffer + 16)) == EVENT_CONNECT_CMD) {		//"event?connect="
-			if (buffer[29] == 'a') {															//Update notification Start
+		} else if (*((int*)(buffer + 16)) == EVENT_CONNECT_CMD) {			//"event?connect="
+			if (buffer[29] == 'a') {																//Update notification Start
 				sscanf (buffer + 41, "%hu&", &h_port);
 
 				physical_rcp.address_for_update_notification.sin_port = htons (h_port);
@@ -1617,7 +1869,7 @@ gpointer physical_rcp_server (gpointer nothing)
 				answer_session[98] = '1';
 
 				if (physical_rcp.version_timeout_id == 0) physical_rcp.version_timeout_id = g_timeout_add (60000, send_version_update_notification, NULL);
-			} else {																			//Update notification Stop
+			} else {																				//Update notification Stop
 				if (physical_rcp.version_timeout_id != 0) {
 					g_source_remove (physical_rcp.version_timeout_id);
 					physical_rcp.version_timeout_id = 0;
@@ -1631,9 +1883,9 @@ gpointer physical_rcp_server (gpointer nothing)
 			}
 
 			send (src_socket, answer_204, sizeof (answer_204), 0);
-		} else if (*((int*)(buffer + 16)) == MAN_SESSION_CMD) {			//"man_session?command=get"	//Registered number of update notifications
+		} else if (*((int*)(buffer + 16)) == MAN_SESSION_CMD) {				//"man_session?command=get"	//Registered number of update notifications
 			send (src_socket, answer_session, sizeof (answer_session), 0);
-		} else if (*((int*)(buffer + 8)) == CAMDATA_CMD) {				//"/live/camdata.html"	//Camera information batch acquisition
+		} else if (*((int*)(buffer + 8)) == CAMDATA_CMD) {					//"/live/camdata.html"		//Camera information batch acquisition
 			if (settings_array[1].answers[settings_parameters_indexes_array[1]][1] == '\0') {
 				answer_camdata[222] = '0';
 				answer_camdata[223] = settings_array[1].answers[settings_parameters_indexes_array[1]][0];
@@ -1659,10 +1911,10 @@ gpointer physical_rcp_server (gpointer nothing)
 			else if (physical_rcp.shutter_type == 3) answer_camdata[269] = 'C';
 			else {
 				if (physical_rcp.shutter_step == 0) {
-					if (output_fps == _59_94fps) answer_camdata[269] = '3';
+					if ((output_fps_AW_HE130 == fps_59_94p) || (output_fps_AW_HE130 == fps_59_94i)) answer_camdata[269] = '3';
 					else answer_camdata[269] = '2';
 				} else if (physical_rcp.shutter_step == 1) {
-					if ((output_fps == _25fps) || (output_fps == _50fps)) answer_camdata[269] = '3';
+					if ((output_fps_AW_HE130 == fps_50p) || (output_fps_AW_HE130 == fps_50i) || (output_fps_AW_HE130 == fps_25p)) answer_camdata[269] = '3';
 					else answer_camdata[269] = '4';
 				} else if (physical_rcp.shutter_step == 2) answer_camdata[269] = '5';
 				else if (physical_rcp.shutter_step == 3) answer_camdata[269] = '6';
@@ -1671,9 +1923,9 @@ gpointer physical_rcp_server (gpointer nothing)
 				else if (physical_rcp.shutter_step == 6) answer_camdata[269] = '9';
 				else if (physical_rcp.shutter_step == 7) answer_camdata[269] = 'A';
 				else {
-					if (output_fps == _23_98fps) answer_camdata[269] = 'D';
-					else if (output_fps == _25fps) answer_camdata[269] = 'E';
-					else if (output_fps == _29_97fps) answer_camdata[269] = 'F';
+					if (output_fps_AW_HE130 == fps_23_98p) answer_camdata[269] = 'D';
+					else if (output_fps_AW_HE130 == fps_25p) answer_camdata[269] = 'E';
+					else if (output_fps_AW_HE130 == fps_29_97p) answer_camdata[269] = 'F';
 				}
 			}
 

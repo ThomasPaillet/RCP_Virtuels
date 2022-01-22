@@ -1,5 +1,5 @@
 ﻿/*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -33,10 +33,10 @@ GMutex sw_p_08_mutex;
 
 GThread *sw_p_08_thread = NULL;
 
-char OK[2] = {DLE, ACK};
-char NOK[2] = {DLE, NAK};
+char OK[2] = { DLE, ACK };
+char NOK[2] = { DLE, NAK };
 
-char full_sw_p_08_buffer[14] = {DLE, ACK, DLE, STX, 0x04, 0x00, 0x00, 0x00, 0x00, 0x05, -0x09, DLE, ETX, ETX};
+char full_sw_p_08_buffer[14] = { DLE, ACK, DLE, STX, 0x04, 0x00, 0x00, 0x00, 0x00, 0x05, -0x09, DLE, ETX, ETX };
 char *sw_p_08_buffer = &full_sw_p_08_buffer[2];
 int sw_p_08_buffer_len = 11;
 int rs_try = 0;
@@ -50,7 +50,7 @@ gboolean sw_p_08_tcp_server_started = FALSE;
 
 remote_device_t remote_devices[2];
 
-char rs_port_name[16] = { ' ', '\0'};
+char rs_port_name[16] = { ' ', '\0' };
 
 rcp_t *rcp_vision = NULL;
 rcp_t *rcp_pgm = NULL;
@@ -63,10 +63,8 @@ char tally_memory = MAX_CAMERAS + 1;
 char tally_pgm = MAX_CAMERAS + 1;
 char tally_pvw = MAX_CAMERAS + 1;
 
-gboolean knee_matrix_detail_popup = FALSE;
 
-
-gboolean g_source_select_camera_set_page (gpointer page_num)
+gboolean g_source_select_cameras_set_page (gpointer page_num)
 {
 	cameras_set_t *cameras_set_itr;
 
@@ -90,6 +88,12 @@ gboolean g_source_rcp_event_box_set_above_child (rcp_t *rcp)
 		gtk_widget_unset_state_flags (rcp->iris_minus_1_button, GTK_STATE_FLAG_ACTIVE);
 		gtk_widget_unset_state_flags (rcp->iris_minus_10_button, GTK_STATE_FLAG_ACTIVE);
 	}
+
+	if (popup_window != NULL) {
+		gtk_widget_hide (popup_window);
+		popup_window = NULL;
+	}
+
 	gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp->event_box), TRUE);
 
 	return G_SOURCE_REMOVE;
@@ -118,16 +122,10 @@ gboolean g_source_recall_memories (gpointer index)
 
 			rcp->scene_to_load = GPOINTER_TO_INT (index);
 
-			rcp->camera_is_working = TRUE;
-			gtk_widget_show (rcp->spinner);
-			gtk_spinner_start (GTK_SPINNER (rcp->spinner));
-			gtk_widget_set_sensitive (rcp->on_standby_switch, FALSE);
-			gtk_widget_set_sensitive (rcp->standard_button, FALSE);
-			gtk_widget_set_sensitive (rcp->mire_toggle_button, FALSE);
-			gtk_widget_set_sensitive (rcp->day_night_toggle_button, FALSE);
-			gtk_widget_set_sensitive (rcp->sensitive_widgets, FALSE);
+			rcp_start_working (rcp);
 
-			rcp->thread = g_thread_new (NULL, (GThreadFunc)load_scene, rcp);
+			if (rcp->model == AW_UE150) rcp->thread = g_thread_new (NULL, (GThreadFunc)load_scene_AW_UE150, rcp);
+			else rcp->thread = g_thread_new (NULL, (GThreadFunc)load_scene_AW_HE130, rcp);
 		}
 	}
 
@@ -138,10 +136,10 @@ void tell_camera_set_is_selected (gint page_num)
 {
 	tally_camera_set = page_num;
 
-	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
+	sw_p_08_buffer[2] = 0x04;		//CROSSPOINT CONNECTED Message
 	sw_p_08_buffer[3] = 0;
 	sw_p_08_buffer[4] = 0;
-	sw_p_08_buffer[5] = 0;	//Destination: ensemble de caméras
+	sw_p_08_buffer[5] = 0;			//Destination: "Ensemble de caméras"
 
 	if (tally_camera_set == DLE) {
 		sw_p_08_buffer[6] = DLE;	//Source: camera_set->page_num
@@ -183,12 +181,12 @@ void ask_to_connect_pgm_to_ctrl_vision (void)
 
 	tally_rcp = MAX_CAMERAS;
 
-	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
+	sw_p_08_buffer[2] = 0x04;	//CROSSPOINT CONNECTED Message
 	sw_p_08_buffer[3] = 0;
 	sw_p_08_buffer[4] = 0;
-	sw_p_08_buffer[5] = 1;	//RCP (CTRL VISION)
+	sw_p_08_buffer[5] = 1;		//Destination: "RCP" (CTRL VISION)
 #if MAX_CAMERAS == DLE
-	sw_p_08_buffer[6] = DLE;
+	sw_p_08_buffer[6] = DLE;	//Source: "PGM"
 	sw_p_08_buffer[7] = DLE;
 	sw_p_08_buffer[8] = 5;
 	sw_p_08_buffer[9] = -26;
@@ -204,7 +202,7 @@ void ask_to_connect_pgm_to_ctrl_vision (void)
 		rs_try = 5;
 	}
 #else
-	sw_p_08_buffer[6] = MAX_CAMERAS;	//Source PGM
+	sw_p_08_buffer[6] = MAX_CAMERAS;	//Source: "PGM"
 	sw_p_08_buffer[7] = 5;
 	sw_p_08_buffer[8] = -10 - MAX_CAMERAS;
 	sw_p_08_buffer[9] = DLE;
@@ -234,13 +232,13 @@ void ask_to_connect_camera_to_ctrl_vision (rcp_t *rcp)
 
 	tally_rcp = rcp->index;
 
-	sw_p_08_buffer[2] = 0x04;	//8.2.2. CROSSPOINT CONNECTED Message page 24
+	sw_p_08_buffer[2] = 0x04;		//CROSSPOINT CONNECTED Message
 	sw_p_08_buffer[3] = 0;
 	sw_p_08_buffer[4] = 0;
-	sw_p_08_buffer[5] = 1;	//RCP (CTRL VISION)
+	sw_p_08_buffer[5] = 1;			//Destination: RCP (CTRL VISION)
 
 	if (tally_rcp == DLE) {
-		sw_p_08_buffer[6] = DLE;
+		sw_p_08_buffer[6] = DLE;	//Source: rcp->index
 		sw_p_08_buffer[7] = DLE;
 		sw_p_08_buffer[8] = 5;
 		sw_p_08_buffer[9] = -26;
@@ -256,7 +254,7 @@ void ask_to_connect_camera_to_ctrl_vision (rcp_t *rcp)
 			rs_try = 5;
 		}
 	} else {
-		sw_p_08_buffer[6] = tally_rcp;
+		sw_p_08_buffer[6] = tally_rcp;	//Source: rcp->index
 		sw_p_08_buffer[7] = 5;
 		sw_p_08_buffer[8] = -10 - tally_rcp;
 		sw_p_08_buffer[9] = DLE;
@@ -372,13 +370,13 @@ gpointer listen_to_rs_port (void)
 			} else if (buffer[1] == STX) {
 				if (!receive_from_rs_port (buffer, 1)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 
-				if (buffer[0] == 0x01) {	//8.1.1. Crosspoint Interrogate Message page 20
+				if (buffer[0] == 0x01) {	//Crosspoint Interrogate Message
 					if (!receive_from_rs_port (buffer, 7)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 
 					if ((0x01 + buffer[0] + buffer[1] + buffer[2] + buffer[3] + buffer[4]) == 0) {
 						send_ok_plus_crosspoint_tally_message_to_rs (buffer[2]);
 					} else send_to_rs_port (NOK, 2);
-				} else if (buffer[0] == 0x02) {	//8.1.2. Crosspoint Connect Message page 21
+				} else if (buffer[0] == 0x02) {	//Crosspoint Connect Message
 					if (!receive_from_rs_port (buffer, 4)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 					if (buffer[3] == DLE) {
 						if (!receive_from_rs_port (buffer + 3, 5)) { g_mutex_unlock (&sw_p_08_mutex); break; }
@@ -389,7 +387,7 @@ gpointer listen_to_rs_port (void)
 
 						if (buffer[2] == 0) {
 							if (buffer[3] < number_of_cameras_sets) {
-								g_idle_add ((GSourceFunc)g_source_select_camera_set_page, GINT_TO_POINTER (buffer[3]));
+								g_idle_add ((GSourceFunc)g_source_select_cameras_set_page, GINT_TO_POINTER (buffer[3]));
 
 								tally_camera_set = buffer[3];
 							} else tally_camera_set = MAX_CAMERAS + 1;
@@ -599,6 +597,7 @@ gboolean recv_from_remote_device_socket (remote_device_t *remote_device, char* b
 			remote_device->index = 1;
 		}
 	}
+
 	return TRUE;
 }
 
@@ -614,12 +613,12 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 			if (buffer[1] == STX) {
 				if (!recv_from_remote_device_socket (remote_device, buffer, 1)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 
-				if (buffer[0] == 0x01) {	//8.1.1. Crosspoint Interrogate Message page 20
+				if (buffer[0] == 0x01) {	//Crosspoint Interrogate Message
 					if (!recv_from_remote_device_socket (remote_device, buffer, 7)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 					if ((0x01 + buffer[0] + buffer[1] + buffer[2] + buffer[3] + buffer[4]) == 0) {
 						send_ok_plus_crosspoint_tally_message_to_socket (remote_device->src_socket, buffer[2]);
 					} else send (remote_device->src_socket, NOK, 2, 0);
-				} else if (buffer[0] == 0x02) {	//8.1.2. Crosspoint Connect Message page 21
+				} else if (buffer[0] == 0x02) {	//Crosspoint Connect Message
 					if (!recv_from_remote_device_socket (remote_device, buffer, 4)) { g_mutex_unlock (&sw_p_08_mutex); break; }
 					if (buffer[3] == DLE) {
 						if (!recv_from_remote_device_socket (remote_device, buffer + 3, 5)) { g_mutex_unlock (&sw_p_08_mutex); break; }
@@ -630,7 +629,7 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 
 						if (buffer[2] == 0) {
 							if (buffer[3] < number_of_cameras_sets) {
-								g_idle_add ((GSourceFunc)g_source_select_camera_set_page, GINT_TO_POINTER ((int)buffer[3]));
+								g_idle_add ((GSourceFunc)g_source_select_cameras_set_page, GINT_TO_POINTER ((int)buffer[3]));
 
 								tally_camera_set = buffer[3];
 							} else tally_camera_set = MAX_CAMERAS + 1;
@@ -832,6 +831,7 @@ gboolean start_sw_p_08_tcp_server (void)
 	if (bind (sw_p_08_socket, (struct sockaddr *)&sw_p_08_address, sizeof (struct sockaddr_in)) == 0) {
 		if (listen (sw_p_08_socket, 2) == 0) {
 			sw_p_08_thread = g_thread_new (NULL, (GThreadFunc)sw_p_08_tcp_server, NULL);
+
 			return TRUE;
 		}
 	}
@@ -843,6 +843,7 @@ gboolean start_rs_communication (void)
 {
 	if (open_rs_port (rs_port_name) != -1) {
 		sw_p_08_thread = g_thread_new (NULL, (GThreadFunc)listen_to_rs_port, NULL);
+
 		return TRUE;
 	} else return FALSE;
 }

@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -21,10 +21,6 @@
 
 #include <math.h>
 
-
-extern GtkCssProvider *css_provider_raz;
-
-const char *matrix_txt = "Matriçage";
 
 char *linear_matrix_R_G_label = "R_G: ";
 char *linear_matrix_R_B_label = "R_B: ";
@@ -128,6 +124,12 @@ void set_linear_matrix_##l (rcp_t *rcp) \
  \
 gboolean set_linear_matrix_##l##_delayed (rcp_t *rcp) \
 { \
+	rcp->last_time.tv_usec += 130000; \
+	if (rcp->last_time.tv_usec >= 1000000) { \
+		rcp->last_time.tv_sec++; \
+		rcp->last_time.tv_usec -= 1000000; \
+	} \
+ \
 	send_cam_control_command_2_digits (rcp, c, rcp->current_scene.linear_matrix.l, FALSE); \
  \
 	rcp->timeout_id = 0; \
@@ -155,8 +157,11 @@ void linear_matrix_##l##_value_changed (GtkRange *linear_matrix_##l##_scale, rcp
 				g_source_remove (rcp->timeout_id); \
 				rcp->timeout_id = 0; \
 			} \
+ \
+			rcp->last_time = current_time; \
 			send_cam_control_command_2_digits (rcp, c, rcp->current_scene.linear_matrix.l, FALSE); \
 		} \
+ \
 		set_linear_matrix_##l##_label (rcp); \
 	} \
 } \
@@ -171,10 +176,17 @@ gboolean linear_matrix_##l##_button_held (rcp_t *rcp) \
  \
 	if (rcp->current_scene.linear_matrix.l != value) { \
 		rcp->current_scene.linear_matrix.l = value; \
+ \
 		g_signal_handler_block (rcp->linear_matrix_##l##_scale, rcp->linear_matrix_##l##_handler_id); \
 		gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_##l##_scale), value); \
 		g_signal_handler_unblock (rcp->linear_matrix_##l##_scale, rcp->linear_matrix_##l##_handler_id); \
  \
+		rcp->last_time.tv_usec += 130000; \
+		if (rcp->last_time.tv_usec >= 1000000) { \
+			rcp->last_time.tv_sec++; \
+			rcp->last_time.tv_usec -= 1000000; \
+		} \
+	 \
 		send_cam_control_command_2_digits (rcp, c, value, FALSE); \
  \
 		set_linear_matrix_##l##_label (rcp); \
@@ -204,14 +216,26 @@ LINEAR_MATRIX_FUNCS(G_B,"OSD:A7:")
 LINEAR_MATRIX_FUNCS(B_R,"OSD:A8:")
 LINEAR_MATRIX_FUNCS(B_G,"OSD:A9:")
 
+#define RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(l,v) \
+	if (rcp->current_scene.linear_matrix.l != v) { \
+		rcp->current_scene.linear_matrix.l = v; \
+		g_signal_handler_block (rcp->linear_matrix_##l##_scale, rcp->linear_matrix_##l##_handler_id); \
+		gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_##l##_scale), v); \
+		g_signal_handler_unblock (rcp->linear_matrix_##l##_scale, rcp->linear_matrix_##l##_handler_id); \
+ \
+		set_linear_matrix_##l (rcp); \
+		set_linear_matrix_##l##_label (rcp); \
+	}
+
+
 void linear_matrix_raz_button_clicked (GtkButton *button, rcp_t *rcp)
 {
-	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_R_G_scale), LINEAR_MATRIX_DEFAULT);
-	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_R_B_scale), LINEAR_MATRIX_DEFAULT);
-	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_G_R_scale), LINEAR_MATRIX_DEFAULT);
-	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_G_B_scale), LINEAR_MATRIX_DEFAULT);
-	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_B_R_scale), LINEAR_MATRIX_DEFAULT);
-	gtk_range_set_value (GTK_RANGE (rcp->linear_matrix_B_G_scale), LINEAR_MATRIX_DEFAULT);
+	RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(R_G,LINEAR_MATRIX_DEFAULT);
+	RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(R_B,LINEAR_MATRIX_DEFAULT);
+	RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(G_R,LINEAR_MATRIX_DEFAULT);
+	RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(G_B,LINEAR_MATRIX_DEFAULT);
+	RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(B_R,LINEAR_MATRIX_DEFAULT);
+	RAZ_IHM_UPDATE_LINEAR_MATRIX_SCALE(B_G,LINEAR_MATRIX_DEFAULT);
 
 	if (rcp->selected_color != nothing) {
 		rcp->selected_color = nothing;
@@ -611,11 +635,18 @@ gboolean color_correction_drawing_area_button_release (GtkWidget *widget, GdkEve
 	return GDK_EVENT_STOP;
 }
 
-gboolean color_correction_drawing_area_key_press (GtkWidget *widget, GdkEventKey *event, rcp_t *rcp)
+gboolean color_correction_drawing_area_key_press (GtkWidget *window, GdkEventKey *event, rcp_t *rcp)
 {
 	if ((event->keyval == GDK_KEY_s) || (event->keyval == GDK_KEY_S)) cc_phase_is_updatable = FALSE;
 	else if ((event->keyval == GDK_KEY_p) || (event->keyval == GDK_KEY_P)) cc_saturation_is_updatable = FALSE;
 	else if ((event->keyval == GDK_KEY_i) || (event->keyval == GDK_KEY_I)) send_jpeg_image_request_cmd (rcp);
+	else if (event->keyval == GDK_KEY_Escape) {
+		gtk_widget_hide (window);
+		popup_window = NULL;
+
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp_vision->event_box), FALSE);
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp_vision->cameras_set))->master_rcp.root_widget), FALSE);
+	}
 
 	return GDK_EVENT_STOP;
 }
@@ -688,10 +719,97 @@ gboolean color_correction_drawing_area_key_release (GtkWidget *widget, GdkEventK
 
 gboolean hide_matrix_window (GtkWidget *window, GdkEvent *event, rcp_t *rcp)
 {
-	gtk_widget_hide (window);
+	hide_popup_window (window);
+
 	rcp->selected_color = nothing;
 
 	return GDK_EVENT_STOP;
+}
+
+void set_adaptive_matrix (rcp_t *rcp)
+{
+	if (rcp->current_scene.adaptive_matrix) send_cam_control_command (rcp, "OSJ:4F:1");
+	else send_cam_control_command (rcp, "OSJ:4F:0");
+}
+
+void adaptive_matrix_toggle_button_clicked_1 (GtkToggleButton *adaptive_matrix_toggle_button_1, rcp_t *rcp)
+{
+	if (gtk_toggle_button_get_active (adaptive_matrix_toggle_button_1)) {
+		g_signal_handler_block (rcp->adaptive_matrix_toggle_button_2, rcp->adaptive_matrix_handler_id_2);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->adaptive_matrix_toggle_button_2), TRUE);
+		g_signal_handler_unblock (rcp->adaptive_matrix_toggle_button_2, rcp->adaptive_matrix_handler_id_2);
+
+		gtk_button_set_label (GTK_BUTTON (adaptive_matrix_toggle_button_1), "On");
+		gtk_button_set_label (GTK_BUTTON (rcp->adaptive_matrix_toggle_button_2), "On");
+		rcp->current_scene.adaptive_matrix = TRUE;
+	} else {
+		g_signal_handler_block (rcp->adaptive_matrix_toggle_button_2, rcp->adaptive_matrix_handler_id_2);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->adaptive_matrix_toggle_button_2), FALSE);
+		g_signal_handler_unblock (rcp->adaptive_matrix_toggle_button_2, rcp->adaptive_matrix_handler_id_2);
+
+		rcp->current_scene.adaptive_matrix = FALSE;
+		gtk_button_set_label (GTK_BUTTON (adaptive_matrix_toggle_button_1), "Off");
+		gtk_button_set_label (GTK_BUTTON (rcp->adaptive_matrix_toggle_button_2), "Off");
+	}
+
+	set_adaptive_matrix (rcp);
+}
+
+void adaptive_matrix_toggle_button_clicked_2 (GtkToggleButton *adaptive_matrix_toggle_button_2, rcp_t *rcp)
+{
+	if (gtk_toggle_button_get_active (adaptive_matrix_toggle_button_2)) {
+		g_signal_handler_block (rcp->adaptive_matrix_toggle_button_1, rcp->adaptive_matrix_handler_id_1);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->adaptive_matrix_toggle_button_1), TRUE);
+		g_signal_handler_unblock (rcp->adaptive_matrix_toggle_button_1, rcp->adaptive_matrix_handler_id_1);
+
+		gtk_button_set_label (GTK_BUTTON (rcp->adaptive_matrix_toggle_button_1), "On");
+		gtk_button_set_label (GTK_BUTTON (adaptive_matrix_toggle_button_2), "On");
+		rcp->current_scene.adaptive_matrix = TRUE;
+	} else {
+		g_signal_handler_block (rcp->adaptive_matrix_toggle_button_1, rcp->adaptive_matrix_handler_id_1);
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->adaptive_matrix_toggle_button_1), FALSE);
+		g_signal_handler_unblock (rcp->adaptive_matrix_toggle_button_1, rcp->adaptive_matrix_handler_id_1);
+
+		rcp->current_scene.adaptive_matrix = FALSE;
+		gtk_button_set_label (GTK_BUTTON (rcp->adaptive_matrix_toggle_button_1), "Off");
+		gtk_button_set_label (GTK_BUTTON (adaptive_matrix_toggle_button_2), "Off");
+	}
+
+	set_adaptive_matrix (rcp);
+}
+
+void create_adaptive_matrix_window (rcp_t *rcp)
+{
+	GtkWidget *window, *frame, *box, *widget;
+
+	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	gtk_window_set_default_size (GTK_WINDOW (window), 100, 20);
+	gtk_window_set_transient_for (GTK_WINDOW (window), GTK_WINDOW (main_window));
+	gtk_window_set_decorated (GTK_WINDOW (window), FALSE);
+	gtk_window_set_skip_taskbar_hint (GTK_WINDOW (window), FALSE);
+	gtk_window_set_skip_pager_hint (GTK_WINDOW (window), FALSE);
+	gtk_window_set_position (GTK_WINDOW (window), GTK_WIN_POS_MOUSE);
+	gtk_widget_set_events (window, gtk_widget_get_events (window) | GDK_FOCUS_CHANGE_MASK);
+	g_signal_connect (G_OBJECT (window), "key-press-event", G_CALLBACK (popup_window_key_press), NULL);
+	g_signal_connect (G_OBJECT (window), "focus-out-event", G_CALLBACK (hide_popup_window), NULL);
+	g_signal_connect (G_OBJECT (window), "delete-event", G_CALLBACK (hide_popup_window), NULL);
+
+	frame = gtk_frame_new (NULL);
+	gtk_container_set_border_width (GTK_CONTAINER (frame), WINDOW_MARGIN_VALUE);
+	box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_container_set_border_width (GTK_CONTAINER (box), WINDOW_MARGIN_VALUE);
+		widget = gtk_label_new ("Adaptive Matrix");
+		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
+
+		widget = gtk_toggle_button_new_with_label ("Off");
+		gtk_widget_set_margin_start (widget, WINDOW_MARGIN_VALUE);
+		rcp->adaptive_matrix_handler_id_1 = g_signal_connect (widget, "toggled", G_CALLBACK (adaptive_matrix_toggle_button_clicked_1), rcp);
+		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
+		rcp->adaptive_matrix_toggle_button_1 = widget;
+	gtk_container_add (GTK_CONTAINER (frame), box);
+	gtk_container_add (GTK_CONTAINER (window), frame);
+
+	rcp->adaptive_matrix_window = window;
 }
 
 void create_matrix_window (rcp_t *rcp)
@@ -701,7 +819,6 @@ void create_matrix_window (rcp_t *rcp)
 	int i;
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_title (GTK_WINDOW (window), matrix_txt);
 	gtk_window_set_transient_for (GTK_WINDOW (window), GTK_WINDOW (main_window));
 	gtk_window_set_decorated (GTK_WINDOW (window), FALSE);
 	gtk_window_set_skip_taskbar_hint (GTK_WINDOW (window), FALSE);
@@ -712,7 +829,7 @@ void create_matrix_window (rcp_t *rcp)
 	g_signal_connect (G_OBJECT (window), "focus-out-event", G_CALLBACK (hide_matrix_window), rcp);
 	g_signal_connect (G_OBJECT (window), "delete-event", G_CALLBACK (hide_matrix_window), rcp);
 
-	frame1 = gtk_frame_new (matrix_txt);
+	frame1 = gtk_frame_new ("Matriçage");
 	gtk_frame_set_label_align (GTK_FRAME (frame1), 0.5, 0.5);
 	gtk_widget_set_margin_start (frame1, WINDOW_MARGIN_VALUE);
 	gtk_widget_set_margin_end (frame1, WINDOW_MARGIN_VALUE);
@@ -729,6 +846,21 @@ void create_matrix_window (rcp_t *rcp)
 
 		box5 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 			box2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+				if (rcp->model == AW_UE150) {
+					box3 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+					gtk_widget_set_margin_top (box3, WINDOW_MARGIN_VALUE);
+					gtk_widget_set_halign (box3, GTK_ALIGN_CENTER);
+						widget = gtk_label_new ("Adaptive Matrix");
+						gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+
+						widget = gtk_toggle_button_new_with_label ("Off");
+						gtk_widget_set_margin_start (widget, WINDOW_MARGIN_VALUE);
+						rcp->adaptive_matrix_handler_id_2 = g_signal_connect (widget, "toggled", G_CALLBACK (adaptive_matrix_toggle_button_clicked_2), rcp);
+						gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
+						rcp->adaptive_matrix_toggle_button_2 = widget;
+
+					gtk_box_pack_start (GTK_BOX (box2), box3, FALSE, FALSE, 0);
+				}
 				LINEAR_MATRIX_WIDGETS(R_G)
 				LINEAR_MATRIX_WIDGETS(R_B)
 				LINEAR_MATRIX_WIDGETS(G_R)
@@ -742,7 +874,7 @@ void create_matrix_window (rcp_t *rcp)
 				gtk_widget_set_margin_end (widget, WINDOW_MARGIN_VALUE);
 				gtk_widget_set_margin_bottom (widget, WINDOW_MARGIN_VALUE);
 				g_signal_connect (G_OBJECT (widget), "clicked", G_CALLBACK (linear_matrix_raz_button_clicked), rcp);
-				gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_raz), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+				gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_raz), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 				gtk_box_pack_start (GTK_BOX (box2), widget, FALSE, FALSE, 0);
 			gtk_box_pack_end (GTK_BOX (box5), box2, FALSE, FALSE, 0);
 		gtk_container_add (GTK_CONTAINER (frame2), box5);
@@ -799,7 +931,7 @@ void create_matrix_window (rcp_t *rcp)
 				gtk_widget_set_margin_start (widget, WINDOW_MARGIN_VALUE);
 				gtk_widget_set_margin_end (widget, WINDOW_MARGIN_VALUE);
 				g_signal_connect (G_OBJECT (widget), "clicked", G_CALLBACK (color_correction_raz_button_clicked), rcp);
-				gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_raz), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+				gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_raz), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 				gtk_box_pack_start (GTK_BOX (box3), widget, FALSE, FALSE, 0);
 			gtk_box_pack_start (GTK_BOX (box5), box3, FALSE, FALSE, 0);
 			gtk_box_pack_start (GTK_BOX (box4), box5, FALSE, FALSE, 0);
@@ -814,22 +946,31 @@ void create_matrix_window (rcp_t *rcp)
 
 void show_rcp_matrix_window (rcp_t *rcp)
 {
-	cc_move = FALSE;
-	s_p = TRUE;
-	cc_saturation_need_update = FALSE;
-	cc_phase_need_update = FALSE;
-	cc_saturation_is_updatable = TRUE;
-	cc_phase_is_updatable = TRUE;
+	if (rcp->current_scene.matrix_type != 3) {
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp->event_box), TRUE);
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp->cameras_set))->master_rcp.root_widget), TRUE);
 
-	knee_matrix_detail_popup = TRUE;
-	gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp->event_box), TRUE);
-	gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp->camera_set))->master_rcp.root_widget), TRUE);
-	gtk_widget_show_all (rcp->matrix_window);
+		popup_window = rcp->adaptive_matrix_window;
+		gtk_widget_show_all (rcp->adaptive_matrix_window);
+	} else {
+		cc_move = FALSE;
+		s_p = TRUE;
+		cc_saturation_need_update = FALSE;
+		cc_phase_need_update = FALSE;
+		cc_saturation_is_updatable = TRUE;
+		cc_phase_is_updatable = TRUE;
+
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (rcp->event_box), TRUE);
+		gtk_event_box_set_above_child (GTK_EVENT_BOX (((cameras_set_t*)(rcp->cameras_set))->master_rcp.root_widget), TRUE);
+
+		popup_window = rcp->matrix_window;
+		gtk_widget_show_all (rcp->matrix_window);
+	}
 }
 
 void set_matrix_type (rcp_t *rcp)
 {
-	send_cam_control_command_1_digit (rcp, "OSE:31:", rcp->current_scene.matrix_type);
+	send_cam_control_command_1_digit (rcp, "OSE:31:", rcp->current_scene.matrix_type, TRUE);
 }
 
 void matrix_type_changed (GtkComboBox *matrix_type_combo_box, rcp_t *rcp)
@@ -838,15 +979,17 @@ void matrix_type_changed (GtkComboBox *matrix_type_combo_box, rcp_t *rcp)
 
 	set_matrix_type (rcp);
 
-	if (rcp->current_scene.matrix_type == 3) gtk_widget_set_sensitive (rcp->matrix_color_button, TRUE);
-	else gtk_widget_set_sensitive (rcp->matrix_color_button, FALSE);
+	if (rcp->model == AW_HE130) {
+		if (rcp->current_scene.matrix_type == 3) gtk_widget_set_sensitive (rcp->matrix_settings_button, TRUE);
+		else gtk_widget_set_sensitive (rcp->matrix_settings_button, FALSE);
+	}
 }
 
 GtkWidget *create_matrix_frame (rcp_t *rcp)
 {
 	GtkWidget *frame, *box, *widget;
 
-	frame = gtk_frame_new (matrix_txt);
+	frame = gtk_frame_new ("Matriçage");
 	gtk_frame_set_label_align (GTK_FRAME (frame), 0.1, 0.5);
 	box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 	gtk_widget_set_margin_start (box, MARGIN_VALUE);
@@ -861,12 +1004,14 @@ GtkWidget *create_matrix_frame (rcp_t *rcp)
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 		rcp->matrix_type_combo_box = widget;
 
+		if (rcp->model == AW_UE150) create_adaptive_matrix_window (rcp);
+
 		create_matrix_window (rcp);
 
 		widget = gtk_button_new_with_label ("Réglages");
 		g_signal_connect_swapped (G_OBJECT (widget), "clicked", G_CALLBACK (show_rcp_matrix_window), rcp);
-		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
-		rcp->matrix_color_button = widget;
+		gtk_box_pack_end (GTK_BOX (box), widget, FALSE, FALSE, 0);
+		rcp->matrix_settings_button = widget;
 	gtk_container_add (GTK_CONTAINER (frame), box);
 
 	return frame;

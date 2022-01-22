@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2021 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -56,12 +56,25 @@ char user_id[16];
 int user_id_len = 0;
 
 
-#define COMMAND_FUNC_END \
-		gettimeofday (&rcp->last_time, NULL); \
+#define WAIT_IF_NEEDED \
+	gettimeofday (&current_time, NULL); \
+	timersub (&current_time, &rcp->last_time, &elapsed_time); \
+	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) { \
+		usleep (130000 - elapsed_time.tv_usec); \
  \
+		rcp->last_time.tv_usec += 130000; \
+		if (rcp->last_time.tv_usec >= 1000000) { \
+			rcp->last_time.tv_sec++; \
+			rcp->last_time.tv_usec -= 1000000; \
+		} \
+	} else rcp->last_time = current_time;
+
+#define COMMAND_FUNC_END \
 	} else { \
-		if (rcp->error_code != 0x30) g_idle_add ((GSourceFunc)camera_is_unreachable, rcp); \
-		rcp->error_code = 0x30; \
+		if (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR) { \
+			rcp->error_code = CAMERA_IS_UNREACHABLE_ERROR; \
+			g_idle_add ((GSourceFunc)camera_is_unreachable, rcp); \
+		} \
 	} \
  \
 	closesocket (sock); \
@@ -140,9 +153,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
@@ -161,6 +172,54 @@ g_mutex_lock (&rcp->cmd_mutex);
 		index++;
 
 		sscanf (buffer + index, "%x", response);
+
+COMMAND_FUNC_END
+
+void send_cam_request_command_2 (rcp_t *rcp, char* cmd, int *response)
+{
+	int size, index;
+	char *http_cmd;
+	SOCKET sock;
+	struct timeval current_time, elapsed_time;
+	char buffer[264];
+
+g_mutex_lock (&rcp->cmd_mutex);
+
+	size = 3;
+	while (cmd[size] != '\0') size++;
+
+	memcpy (rcp->cmd_buffer + 39 - size, cmd, size);
+	http_cmd = rcp->cmd_buffer + 15 - size;
+	if ((http_cmd != rcp->last_cmd) || (rcp->cam_ptz == FALSE)) {
+		memcpy (http_cmd, http_cam_cmd, 24);
+		rcp->last_cmd = http_cmd;
+		rcp->cam_ptz = TRUE;
+	}
+
+	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+WAIT_IF_NEEDED
+
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		index = 0;
+
+		size = recv (sock, buffer, sizeof (buffer), 0);
+
+		while (size > 0) {
+			index += size;
+			size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+		}
+		buffer[index] = '\0';
+
+		index--;
+		while ((buffer[index] != ':') && (buffer[index] != '\n')) index--;
+		index--;
+		while ((buffer[index] != ':') && (buffer[index] != '\n')) index--;
+		index++;
+
+		sscanf (buffer + index, "%x:", response);
 
 COMMAND_FUNC_END
 
@@ -187,9 +246,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
@@ -237,9 +294,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
@@ -309,16 +364,14 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
 
 COMMAND_FUNC_END
 
-void send_cam_control_command_1_digit (rcp_t *rcp, char* cmd, int value)
+void send_cam_control_command_1_digit (rcp_t *rcp, char* cmd, int value, gboolean wait)
 {
 	int size;
 	char *http_cmd;
@@ -347,9 +400,9 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+	if (wait) {
+WAIT_IF_NEEDED
+	}
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 1 + full_http_header_size, 0);
@@ -390,9 +443,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (wait) {
-		gettimeofday (&current_time, NULL);
-		timersub (&current_time, &rcp->last_time, &elapsed_time);
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 	}
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
@@ -437,13 +488,110 @@ g_mutex_lock (&rcp->cmd_mutex);
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (wait) {
-		gettimeofday (&current_time, NULL);
-		timersub (&current_time, &rcp->last_time, &elapsed_time);
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 	}
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 3 + full_http_header_size, 0);
+
+COMMAND_FUNC_END
+
+void send_cam_control_command_4_digits (rcp_t *rcp, char* cmd, int value, gboolean wait)
+{
+	int size;
+	char *http_cmd;
+	SOCKET sock;
+	struct timeval current_time, elapsed_time;
+
+g_mutex_lock (&rcp->cmd_mutex);
+
+	rcp->cmd_buffer[35] = '0' + (value >> 12);
+	if (rcp->cmd_buffer[35] > '9') rcp->cmd_buffer[35] += 7;
+	rcp->cmd_buffer[36] = '0' + ((value & 0x0FFF) >> 8);
+	if (rcp->cmd_buffer[36] > '9') rcp->cmd_buffer[36] += 7;
+	rcp->cmd_buffer[37] = '0' + ((value & 0x00FF) >> 4);
+	if (rcp->cmd_buffer[37] > '9') rcp->cmd_buffer[37] += 7;
+	rcp->cmd_buffer[38] = '0' + (value & 0x000F);
+	if (rcp->cmd_buffer[38] > '9') rcp->cmd_buffer[38] += 7;
+
+	size = 4;
+	while (cmd[size] != '\0') size++;
+
+	memcpy (rcp->last_ctrl_cmd, cmd, size);
+	rcp->last_ctrl_cmd[size] = rcp->cmd_buffer[35];
+	rcp->last_ctrl_cmd[size + 1] = rcp->cmd_buffer[36];
+	rcp->last_ctrl_cmd[size + 2] = rcp->cmd_buffer[37];
+	rcp->last_ctrl_cmd[size + 3] = rcp->cmd_buffer[38];
+	rcp->last_ctrl_cmd[size + 4] = '\0';
+	rcp->last_ctrl_cmd_len = size + 3;
+
+	memcpy (rcp->cmd_buffer + 35 - size, cmd, size);
+	http_cmd = rcp->cmd_buffer + 11 - size;
+	if ((http_cmd != rcp->last_cmd) || (rcp->cam_ptz == FALSE)) {
+		memcpy (http_cmd, http_cam_cmd, 24);
+		rcp->last_cmd = http_cmd;
+		rcp->cam_ptz = TRUE;
+	}
+
+	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (wait) {
+WAIT_IF_NEEDED
+	}
+
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+		send (sock, http_cmd, size + 4 + full_http_header_size, 0);
+
+COMMAND_FUNC_END
+
+void send_cam_control_command_5_digits (rcp_t *rcp, char* cmd, int value, gboolean wait)
+{
+	int size;
+	char *http_cmd;
+	SOCKET sock;
+	struct timeval current_time, elapsed_time;
+
+g_mutex_lock (&rcp->cmd_mutex);
+
+	rcp->cmd_buffer[34] = '0' + (value >> 16);
+	if (rcp->cmd_buffer[34] > '9') rcp->cmd_buffer[34] += 7;
+	rcp->cmd_buffer[35] = '0' + ((value & 0x0FFFF) >> 12);
+	if (rcp->cmd_buffer[35] > '9') rcp->cmd_buffer[35] += 7;
+	rcp->cmd_buffer[36] = '0' + ((value & 0x00FFF) >> 8);
+	if (rcp->cmd_buffer[36] > '9') rcp->cmd_buffer[36] += 7;
+	rcp->cmd_buffer[37] = '0' + ((value & 0x000FF) >> 4);
+	if (rcp->cmd_buffer[37] > '9') rcp->cmd_buffer[37] += 7;
+	rcp->cmd_buffer[38] = '0' + (value & 0x0000F);
+	if (rcp->cmd_buffer[38] > '9') rcp->cmd_buffer[38] += 7;
+
+	size = 4;
+	while (cmd[size] != '\0') size++;
+
+	memcpy (rcp->last_ctrl_cmd, cmd, size);
+	rcp->last_ctrl_cmd[size] = rcp->cmd_buffer[34];
+	rcp->last_ctrl_cmd[size + 1] = rcp->cmd_buffer[35];
+	rcp->last_ctrl_cmd[size + 2] = rcp->cmd_buffer[36];
+	rcp->last_ctrl_cmd[size + 3] = rcp->cmd_buffer[37];
+	rcp->last_ctrl_cmd[size + 4] = rcp->cmd_buffer[38];
+	rcp->last_ctrl_cmd[size + 5] = '\0';
+	rcp->last_ctrl_cmd_len = size + 3;
+
+	memcpy (rcp->cmd_buffer + 34 - size, cmd, size);
+	http_cmd = rcp->cmd_buffer + 10 - size;
+	if ((http_cmd != rcp->last_cmd) || (rcp->cam_ptz == FALSE)) {
+		memcpy (http_cmd, http_cam_cmd, 24);
+		rcp->last_cmd = http_cmd;
+		rcp->cam_ptz = TRUE;
+	}
+
+	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (wait) {
+WAIT_IF_NEEDED
+	}
+
+	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+		send (sock, http_cmd, size + 5 + full_http_header_size, 0);
 
 COMMAND_FUNC_END
 
@@ -470,9 +618,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
@@ -487,13 +633,13 @@ g_mutex_lock (&rcp->cmd_mutex);
 		buffer[index] = '\0';
 
 		*response = buffer[--index] - 48;
-
-		gettimeofday (&rcp->last_time, NULL);
 	} else {
 		*response = 0;
 
-		if (rcp->error_code != 0x30) g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
-		rcp->error_code = 0x30;
+		if (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR) {
+			rcp->error_code = CAMERA_IS_UNREACHABLE_ERROR;
+			g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
+		}
 	}
 
 	closesocket (sock);
@@ -524,9 +670,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
@@ -574,9 +718,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
@@ -620,9 +762,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (wait) {
-		gettimeofday (&current_time, NULL);
-		timersub (&current_time, &rcp->last_time, &elapsed_time);
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 	}
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
@@ -664,9 +804,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, 4 + full_http_header_size, 0);
@@ -707,9 +845,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, 4 + full_http_header_size, 0);
@@ -731,14 +867,11 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, 104 + http_header_size, 0);
 
-		gettimeofday (&rcp->last_time, NULL);
 		closesocket (sock);
 g_mutex_unlock (&rcp->cmd_mutex);
 
@@ -772,16 +905,14 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
 
-		rcp->last_version_information_notification_time = current_time.tv_sec;
+//		rcp->last_version_information_notification_time = current_time.tv_sec;
 
-		if (rcp->error_code == 0x30) {
+		if (rcp->error_code == CAMERA_IS_UNREACHABLE_ERROR) {
 			rcp->error_code = 0x00;
 			g_idle_add ((GSourceFunc)clear_rcp_error, rcp);
 		}
@@ -809,9 +940,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
@@ -839,9 +968,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) usleep (130000 - elapsed_time.tv_usec);
+WAIT_IF_NEEDED
 
 	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, 122 + size + http_header_size, 0);
@@ -850,7 +977,7 @@ g_mutex_lock (&rcp->cmd_mutex);
 		sprintf (jpeg_file_name, "20%02d-%02d-%02d %02d_%02d_%02d Camera %s.jpg", time->tm_year - 100, time->tm_mon + 1, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec, rcp->name);
 		jpeg_file = fopen (jpeg_file_name, "wb");
 
-		recv (sock, buffer, sizeof (buffer), 0);
+		if (rcp->model == AW_HE130) recv (sock, buffer, sizeof (buffer), 0);
 		size = recv (sock, buffer, sizeof (buffer), 0);
 		size += recv (sock, buffer + size, sizeof (buffer) - size, 0);
 
@@ -869,12 +996,11 @@ g_mutex_lock (&rcp->cmd_mutex);
 			size = recv (sock, buffer, sizeof (buffer), 0);
 		}
 		fclose (jpeg_file);
-
-		gettimeofday (&rcp->last_time, NULL);
-
 	} else {
-		if (rcp->error_code != 0x30) g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
-		rcp->error_code = 0x30;
+		if (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR) {
+			rcp->error_code = CAMERA_IS_UNREACHABLE_ERROR;
+			g_idle_add ((GSourceFunc)camera_is_unreachable, rcp);
+		}
 	}
 
 	closesocket (sock);
