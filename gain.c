@@ -18,6 +18,13 @@
 */
 
 #include "rcp.h"
+#include "gain.h"
+
+#include "protocol.h"
+
+#include "settings.h"
+#include "sw_p_08.h"
+#include "physical_rcp.h"
 
 
 void set_gain_AW_HE130 (rcp_t *rcp)

@@ -18,12 +18,31 @@
 */
 
 #include "rcp.h"
-
+#include "master_rcp.h"
 #include "master_cmd_define.h"
+
+#include "misc.h"
+
+#include "gamma.h"
+#include "saturation.h"
+#include "white.h"
+#include "black.h"
+#include "pedestal.h"
+#include "iris.h"
+
+#include "cameras_set.h"
+#include "scenes.h"
+#include "settings.h"
+#include "sw_p_08.h"
+
+#include "main_window.h"
 
 
 extern int color_temperature_array_AW_HE130[];
 extern int color_temperature_array_AW_UE150[];
+
+
+gboolean triggered_by_master_rcp = FALSE;
 
 
 void on_standby_master_switch_activated (GtkSwitch *on_standby_switch, GParamSpec *pspec, cameras_set_t *cameras_set)

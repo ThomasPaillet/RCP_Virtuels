@@ -18,79 +18,79 @@ $(PROG): Linux/gresources.o Linux/Linux.o $(OBJS)
 Linux/gresources.o: Linux/gresources.xml $(shell glib-compile-resources --generate-dependencies Linux/gresources.xml)
 	@(cd Linux && $(MAKE) gresources.o)
 
-Linux/Linux.o: Linux/Linux.c rcp.h
+Linux/Linux.o: Linux/Linux.c operating_system.h main_window.h
 	@(cd Linux && $(MAKE) Linux.o)
 
-rcp.o: rcp.h
+rcp.o: rcp_AW_HE130.h rcp_AW_UE150.h protocol.h misc.h error.h master_rcp.h scenes.h settings.h sw_p_08.h tally.h physical_rcp.h main_window.h
 
-rcp_AW_HE130.o: rcp.h
+rcp_AW_HE130.o: protocol.h misc.h ND_filter.h gain.h gamma.h color_temperature.h knee.h matrix.h detail.h saturation.h white.h black.h shutter.h pedestal.h iris.h scenes.h sw_p_08.h physical_rcp.h
 
-rcp_AW_UE150.o: rcp.h
+rcp_AW_UE150.o: protocol.h misc.h ND_filter.h gain.h gamma.h chroma_phase.h color_temperature.h knee.h matrix.h detail.h saturation.h white.h black.h shutter.h pedestal.h iris.h scenes.h settings.h sw_p_08.h physical_rcp.h
 
-ND_filter.o: rcp.h
+protocol.o: error.h update_notification.h
 
-gain.o: rcp.h
+misc.o: rcp_AW_HE130.h rcp_AW_UE150.h protocol.h error.h ND_filter.h gamma.h chroma_phase.h color_temperature.h knee.h matrix.h detail.h saturation.h shutter.h pedestal.h cameras_set.h settings.h sw_p_08.h physical_rcp.h
 
-gamma.o: rcp.h cam_cmd_define.h
+update_ihm.o: gamma.h chroma_phase.h knee.h matrix.h detail.h saturation.h shutter.h pedestal.h settings.h
 
-chroma_phase.o: rcp.h cam_cmd_define.h
+error.o: misc.h
 
-color_temperature.o: rcp.h
+update_notification.o: version.h protocol.h misc.h update_ihm.h error.h ND_filter.h gain.h gamma.h color_temperature.h cameras_set.h settings.h sw_p_08.h physical_rcp.h
 
-knee.o: rcp.h cam_cmd_define.h
+ND_filter.o: protocol.h sw_p_08.h physical_rcp.h
 
-matrix.o: rcp.h
+gain.o: protocol.h settings.h sw_p_08.h physical_rcp.h
 
-detail.o: rcp.h cam_cmd_define.h
+gamma.o: cam_cmd_define.h protocol.h misc.h cameras_set.h main_window.h
 
-saturation.o: rcp.h cam_cmd_define.h
+chroma_phase.o: cam_cmd_define.h protocol.h misc.h cameras_set.h main_window.h
 
-white.o: rcp.h cam_cmd_define.h
+color_temperature.o: protocol.h misc.h
 
-black.o: rcp.h cam_cmd_define.h
+knee.o: cam_cmd_define.h protocol.h misc.h cameras_set.h main_window.h
 
-shutter.o: rcp.h cam_cmd_define.h
+matrix.o: protocol.h misc.h cameras_set.h sw_p_08.h main_window.h
 
-iris.o: rcp.h ptz_cmd_define.h
+detail.o: cam_cmd_define.h protocol.h misc.h cameras_set.h sw_p_08.h physical_rcp.h main_window.h
 
-pedestal.o: rcp.h cam_cmd_define.h
+saturation.o: protocol.h misc.h main_window.h
 
-master_rcp.o: rcp.h master_cmd_define.h
+white.o: cam_cmd_define.h protocol.h misc.h sw_p_08.h physical_rcp.h main_window.h
 
-cameras_set.o: rcp.h
+black.o: cam_cmd_define.h protocol.h misc.h sw_p_08.h physical_rcp.h main_window.h
 
-settings.o: rcp.h
+shutter.o: cam_cmd_define.h protocol.h misc.h cameras_set.h settings.h sw_p_08.h physical_rcp.h main_window.h
 
-scenes.o: rcp.h
+pedestal.o: cam_cmd_define.h protocol.h misc.h main_window.h
 
-protocol.o: rcp.h
+iris.o: ptz_cmd_define.h protocol.h misc.h sw_p_08.h physical_rcp.h main_window.h
 
-update_ihm.o: rcp.h
+master_rcp.o: master_cmd_define.h misc.h gamma.h saturation.h white.h black.h pedestal.h iris.h cameras_set.h scenes.h settings.h sw_p_08.h main_window.h
 
-update_notification.o: rcp.h
+cameras_set.o: master_rcp.h rcp_AW_HE130.h rcp_AW_UE150.h protocol.h misc.h error.h scenes.h settings.h sw_p_08.h main_window.h
 
-misc.o: rcp.h
+scenes.o: cameras_set.h gamma.h knee.h detail.h settings.h main_window.h
 
-tally.o: rcp.h
+settings.o: version.h protocol.h misc.h error.h update_notification.h operating_system.h gain.h shutter.h cameras_set.h scenes.h sw_p_08.h tally.h physical_rcp.h main_window.h
 
-sw_p_08.o: rcp.h
+sw_p_08.o: rcp_AW_HE130.h rcp_AW_UE150.h protocol.h misc.h operating_system.h cameras_set.h settings.h tally.h physical_rcp.h main_window.h
 
-physical_rcp.o: rcp.h
+tally.o: protocol.h cameras_set.h settings.h sw_p_08.h main_window.h
 
-main_window.o: rcp.h
+physical_rcp.o: protocol.h update_ihm.h error.h settings.h sw_p_08.h
 
-error.o: rcp.h
+main_window.o: protocol.h misc.h error.h update_notification.h iris.h cameras_set.h scenes.h settings.h sw_p_08.h tally.h physical_rcp.h
 
-.c.o:
+%.o: %.c rcp.h %.h
 	$(CC) $(CFLAGS) $<
-
-Pixbufs/pixbufs.o: Pixbufs/pixbufs.c $(PNG) $(PIXBUF)
-	@(cd Pixbufs && $(MAKE))
 
 $(PROG).exe: $(OBJS) Pixbufs/pixbufs.o Win32.o
 	$(CC) -o $@ $^ $(LDFLAGS) -lwsock32
 
-Win32.o: Win32/Win32.c rcp.h
+Pixbufs/pixbufs.o: Pixbufs/pixbufs.c $(PNG) $(PIXBUF)
+	@(cd Pixbufs && $(MAKE))
+
+Win32.o: Win32/Win32.c operating_system.h main_window.h
 	$(CC) $(CFLAGS) $<
 
 install-win32: $(PROG).exe
@@ -106,6 +106,7 @@ clean:
 clean-all:
 	@(cd Linux && $(MAKE) clean)
 	@(cd Pixbufs && $(MAKE) clean)
+	rm -f Win32/Win32.o
 	rm -f *.o
 	rm -f $(PROG)
 

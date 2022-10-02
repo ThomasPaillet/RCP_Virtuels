@@ -18,6 +18,11 @@
 */
 
 #include "rcp.h"
+#include "protocol.h"
+
+#include "error.h"
+
+#include "update_notification.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -29,6 +34,10 @@
 #include <net/if.h>
 #endif
 
+
+char my_ip_address[16];
+char network_address[3][4] = { { '\0' }, { '\0' }, { '\0' } };
+int network_address_len[3] = { 0, 0, 0 };
 
 char *http_ptz_cmd = "GET /cgi-bin/aw_ptz?cmd=";	//strlen = 24
 char *http_cam_cmd = "GET /cgi-bin/aw_cam?cmd=";	//strlen = 24
@@ -50,11 +59,6 @@ char *http_header;
 int http_header_size;
 int full_http_header_size;
 
-char my_ip_address[16];
-
-char user_id[16];
-int user_id_len = 0;
-
 
 #define WAIT_IF_NEEDED \
 	gettimeofday (&current_time, NULL); \
@@ -70,12 +74,12 @@ int user_id_len = 0;
 	} else rcp->last_time = current_time;
 
 #define COMMAND_FUNC_END \
-	} else { \
+/*	} else { \
 		if (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR) { \
 			rcp->error_code = CAMERA_IS_UNREACHABLE_ERROR; \
 			g_idle_add ((GSourceFunc)camera_is_unreachable, rcp); \
 		} \
-	} \
+*/	} \
  \
 	closesocket (sock); \
  \
@@ -85,6 +89,8 @@ g_mutex_unlock (&rcp->cmd_mutex); \
 
 void init_protocol (void)
 {
+	int i, j;
+
 #ifdef _WIN32
 	char host_name[256];
 	char **pp;
@@ -99,7 +105,6 @@ void init_protocol (void)
 #elif defined (__linux)
 	SOCKET sock;
 	struct ifconf ip_interfaces;
-	int i;
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	ip_interfaces.ifc_len = 0;
@@ -112,6 +117,30 @@ void init_protocol (void)
 		strcpy (my_ip_address, inet_ntoa (((struct sockaddr_in *)&ip_interfaces.ifc_req[i].ifr_addr)->sin_addr));
 	}
 #endif
+
+	i = 0;
+	do {
+		network_address[0][i] = my_ip_address[i];
+		i++;
+	} while (my_ip_address[i] != '.');
+	network_address[0][i] = '\0';
+	network_address_len[0] = i;
+	i++;
+
+	j = 0;
+	do {
+		network_address[1][j++] = my_ip_address[i++];
+	} while (my_ip_address[i] != '.');
+	network_address[1][j] = '\0';
+	network_address_len[1] = j;
+	i++;
+
+	j = 0;
+	do {
+		network_address[2][j++] = my_ip_address[i++];
+	} while (my_ip_address[i] != '.');
+	network_address[2][j] = '\0';
+	network_address_len[2] = j;
 
 	http_header = g_malloc (152);
 	http_header_size = sprintf (http_header, "%s%s%s%s", my_ip_address, http_header_2, my_ip_address, http_header_3);

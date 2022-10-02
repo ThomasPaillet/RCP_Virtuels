@@ -1,0 +1,7 @@
+button {
+	border: 1px solid shade(rgb(191,130,0), 0.95);
+	border-top-color: rgb(191,130,0);
+	border-bottom-color: shade(rgb(191,130,0), 0.9);
+	background-image: image(rgb(127,87,0));
+}
+

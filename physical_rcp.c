@@ -18,6 +18,14 @@
 */
 
 #include "rcp.h"
+#include "physical_rcp.h"
+
+#include "protocol.h"
+#include "update_ihm.h"
+#include "error.h"
+
+#include "settings.h"
+#include "sw_p_08.h"
 
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN

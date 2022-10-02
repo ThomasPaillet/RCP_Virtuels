@@ -18,6 +18,15 @@
 */
 
 #include "rcp.h"
+#include "tally.h"
+
+#include "protocol.h"
+
+#include "cameras_set.h"
+#include "settings.h"
+#include "sw_p_08.h"
+
+#include "main_window.h"
 
 
 typedef struct {

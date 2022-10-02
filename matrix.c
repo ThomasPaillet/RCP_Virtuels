@@ -18,6 +18,15 @@
 */
 
 #include "rcp.h"
+#include "matrix.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "cameras_set.h"
+#include "sw_p_08.h"
+
+#include "main_window.h"
 
 #include <math.h>
 

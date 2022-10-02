@@ -18,6 +18,9 @@
 */
 
 #include "rcp.h"
+#include "error.h"
+
+#include "misc.h"
 
 #include <stdio.h>
 

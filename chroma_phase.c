@@ -18,8 +18,15 @@
 */
 
 #include "rcp.h"
-
+#include "chroma_phase.h"
 #include "cam_cmd_define.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "cameras_set.h"
+
+#include "main_window.h"
 
 
 #define MIN_VALUE 0x61

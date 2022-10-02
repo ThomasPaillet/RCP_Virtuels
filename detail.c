@@ -18,8 +18,17 @@
 */
 
 #include "rcp.h"
-
+#include "detail.h"
 #include "cam_cmd_define.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "cameras_set.h"
+#include "sw_p_08.h"
+#include "physical_rcp.h"
+
+#include "main_window.h"
 
 
 char *master_detail_label = "Master Detail: ";

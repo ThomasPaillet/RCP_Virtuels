@@ -18,6 +18,21 @@
 */
 
 #include "rcp.h"
+#include "sw_p_08.h"
+
+#include "rcp_AW_HE130.h"
+#include "rcp_AW_UE150.h"
+
+#include "protocol.h"
+#include "misc.h"
+#include "operating_system.h"
+
+#include "cameras_set.h"
+#include "settings.h"
+#include "tally.h"
+#include "physical_rcp.h"
+
+#include "main_window.h"
 
 #include <string.h>
 
@@ -110,6 +125,7 @@ gboolean g_source_recall_memories (gpointer index)
 {
 	int i;
 	rcp_t *rcp;
+	int scene_selected = GPOINTER_TO_INT (index);
 
 	if (current_cameras_set != NULL) {
 		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
@@ -120,7 +136,13 @@ gboolean g_source_recall_memories (gpointer index)
 
 			gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->store_toggle_button), FALSE);
 
-			rcp->scene_to_load = GPOINTER_TO_INT (index);
+			if ((rcp->scene_selected != -1) && (rcp->scene_selected != scene_selected)) gtk_style_context_remove_provider (gtk_widget_get_style_context (rcp->scenes_button[rcp->scene_selected]), GTK_STYLE_PROVIDER (css_provider_scene_selected));
+
+			if (rcp->scene_selected != scene_selected) {
+				rcp->scene_selected = scene_selected;
+
+				gtk_style_context_add_provider (gtk_widget_get_style_context (rcp->scenes_button[scene_selected]), GTK_STYLE_PROVIDER (css_provider_scene_selected), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+			}
 
 			rcp_start_working (rcp);
 

@@ -18,6 +18,15 @@
 */
 
 #include "rcp.h"
+#include "scenes.h"
+
+#include "gamma.h"
+#include "knee.h"
+#include "detail.h"
+
+#include "settings.h"
+
+#include "main_window.h"
 
 #include <string.h>
 

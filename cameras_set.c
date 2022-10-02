@@ -18,6 +18,20 @@
 */
 
 #include "rcp.h"
+#include "cameras_set.h"
+
+#include "rcp_AW_HE130.h"
+#include "rcp_AW_UE150.h"
+
+#include "protocol.h"
+#include "misc.h"
+#include "error.h"
+
+#include "scenes.h"
+#include "settings.h"
+#include "sw_p_08.h"
+
+#include "main_window.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -817,7 +831,7 @@ void show_cameras_set_configuration_window (void)
 				while (rcp->ip_address[l] != '.') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (rcp->ip_address, l);
 				k = l + 1;
-			} else cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (NULL, -1);
+			} else cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (network_address[0], network_address_len[0]);
 
 			cameras_configuration_widgets[i].ip_entry[0] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[0]);
 			g_signal_connect (G_OBJECT (cameras_configuration_widgets[i].ip_entry[0]), "key-press-event", G_CALLBACK (digit_key_press), NULL);
@@ -838,7 +852,7 @@ void show_cameras_set_configuration_window (void)
 				while (rcp->ip_address[k + l] != '.') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (rcp->ip_address + k, l);
 				k += l + 1;
-			} else cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (NULL, -1);
+			} else cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (network_address[1], network_address_len[1]);
 
 			cameras_configuration_widgets[i].ip_entry[1] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[1]);
 			g_signal_connect (G_OBJECT (cameras_configuration_widgets[i].ip_entry[1]), "key-press-event", G_CALLBACK (digit_key_press), NULL);
@@ -859,7 +873,7 @@ void show_cameras_set_configuration_window (void)
 				while (rcp->ip_address[k + l] != '.') l++;
 				cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (rcp->ip_address + k, l);
 				k += l + 1;
-			} else cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (NULL, -1);
+			} else cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (network_address[2], network_address_len[2]);
 
 			cameras_configuration_widgets[i].ip_entry[2] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[2]);
 			g_signal_connect (G_OBJECT (cameras_configuration_widgets[i].ip_entry[2]), "key-press-event", G_CALLBACK (digit_key_press), NULL);
@@ -927,7 +941,7 @@ void show_cameras_set_configuration_window (void)
 		gtk_widget_set_margin_bottom (cameras_configuration_widgets[i].name_entry, WINDOW_MARGIN_VALUE);
 		gtk_grid_attach (GTK_GRID (cameras_set_configuration_window_grid), cameras_configuration_widgets[i].name_entry, 1, j, 1, 1);
 
-		cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (NULL, -1);
+		cameras_configuration_widgets[i].ip_entry_buffer[0] = gtk_entry_buffer_new (network_address[0], network_address_len[0]);
 		cameras_configuration_widgets[i].ip_entry[0] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[0]);
 		gtk_entry_set_max_length (GTK_ENTRY (cameras_configuration_widgets[i].ip_entry[0]), 3);
 		gtk_entry_set_width_chars (GTK_ENTRY (cameras_configuration_widgets[i].ip_entry[0]), 3);
@@ -939,7 +953,7 @@ void show_cameras_set_configuration_window (void)
 		gtk_widget_set_margin_bottom (cameras_configuration_widgets[i].dot[0], WINDOW_MARGIN_VALUE);
 		gtk_grid_attach (GTK_GRID (cameras_set_configuration_window_grid), cameras_configuration_widgets[i].dot[0], 3, j, 1, 1);
 
-		cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (NULL, -1);
+		cameras_configuration_widgets[i].ip_entry_buffer[1] = gtk_entry_buffer_new (network_address[1], network_address_len[1]);
 		cameras_configuration_widgets[i].ip_entry[1] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[1]);
 		gtk_entry_set_max_length (GTK_ENTRY (cameras_configuration_widgets[i].ip_entry[1]), 3);
 		gtk_entry_set_width_chars (GTK_ENTRY (cameras_configuration_widgets[i].ip_entry[1]), 3);
@@ -951,7 +965,7 @@ void show_cameras_set_configuration_window (void)
 		gtk_widget_set_margin_bottom (cameras_configuration_widgets[i].dot[1], WINDOW_MARGIN_VALUE);
 		gtk_grid_attach (GTK_GRID (cameras_set_configuration_window_grid), cameras_configuration_widgets[i].dot[1], 5, j, 1, 1);
 
-		cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (NULL, -1);
+		cameras_configuration_widgets[i].ip_entry_buffer[2] = gtk_entry_buffer_new (network_address[2], network_address_len[2]);
 		cameras_configuration_widgets[i].ip_entry[2] = gtk_entry_new_with_buffer (cameras_configuration_widgets[i].ip_entry_buffer[2]);
 		gtk_entry_set_max_length (GTK_ENTRY (cameras_configuration_widgets[i].ip_entry[2]), 3);
 		gtk_entry_set_width_chars (GTK_ENTRY (cameras_configuration_widgets[i].ip_entry[2]), 3);

@@ -18,8 +18,15 @@
 */
 
 #include "rcp.h"
-
+#include "knee.h"
 #include "cam_cmd_define.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "cameras_set.h"
+
+#include "main_window.h"
 
 
 char auto_knee_response_tooltip[] = "Permet de régler la vitesse de la réponse du coude auto (auto knee).\nPlus la vitesse de réponse augmente, plus la valeur de réglage est basse.";

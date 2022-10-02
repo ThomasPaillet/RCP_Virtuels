@@ -18,8 +18,16 @@
 */
 
 #include "rcp.h"
-
+#include "iris.h"
 #include "ptz_cmd_define.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "sw_p_08.h"
+#include "physical_rcp.h"
+
+#include "main_window.h"
 
 
 #define MIN_VALUE 0x555

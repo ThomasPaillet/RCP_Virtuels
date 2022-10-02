@@ -18,8 +18,13 @@
 */
 
 #include "rcp.h"
-
+#include "pedestal.h"
 #include "cam_cmd_define.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "main_window.h"
 
 
 #define MIN_VALUE 0x000

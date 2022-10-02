@@ -10,7 +10,7 @@ gresources.c: gresources.xml $(shell glib-compile-resources --generate-dependenc
 gresources.h: gresources.xml $(shell glib-compile-resources --generate-dependencies --sourcedir=../ gresources.xml)
 	glib-compile-resources --generate-header --sourcedir=../ gresources.xml
 
-Linux.o: Linux.c ../rcp.h
+Linux.o: Linux.c ../operating_system.h ../main_window.h
 	$(CC) $(CFLAGS) $<
 
 clean:

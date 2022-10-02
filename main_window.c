@@ -18,6 +18,21 @@
 */
 
 #include "rcp.h"
+#include "main_window.h"
+
+#include "protocol.h"
+#include "misc.h"
+#include "error.h"
+#include "update_notification.h"
+
+#include "iris.h"
+
+#include "cameras_set.h"
+#include "scenes.h"
+#include "settings.h"
+#include "sw_p_08.h"
+#include "tally.h"
+#include "physical_rcp.h"
 
 #ifdef _WIN32
 extern GdkPixbuf *pixbuf_icon;
@@ -35,7 +50,7 @@ GtkCssProvider *dark_css_provider;
 
 GtkCssProvider *css_provider_gain_red, *css_provider_gain_green, *css_provider_gain_blue;
 GtkCssProvider *css_provider_pedestal_red, *css_provider_pedestal_green, *css_provider_pedestal_blue;
-GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz, *css_provider_store;
+GtkCssProvider *css_provider_white, *css_provider_black, *css_provider_raz, *css_provider_store, *css_provider_scene_selected;
 
 GtkWidget *main_window;
 GtkWidget *main_window_notebook;
@@ -44,10 +59,8 @@ GtkWidget *popup_window = NULL;
 gboolean fullscreen = TRUE;
 gboolean simple_ihm = FALSE;
 
-gboolean triggered_by_master_rcp = FALSE;
-
 const char *application_name_txt = "RCP virtuels pour caméras Panasonic AW-HE130 et AW-UE150";
-const char *key_info_1_txt = "PGM -> CTRL VISION (Echap) | CAM 1 ... x -> CTRL VISION (F1 ... Fx) | Plein écran (F) | Affichage simplifié (S, Espace) | Instantané(s) (I) | Quitter (Q, ALT + F4)";
+const char *key_info_1_txt = "PGM -> CTRL VISION (Echap) | CAM 1 ... x -> CTRL VISION (F1 ... Fx) | Mémoires 6 à 10 (Shift) | Plein écran (F) | Affichage simplifié (S, Espace) | Instantané(s) (I) | Quitter (Q, ALT + F4)";
 const char *key_info_2_txt = "Plein écran (F) | Quitter (Q, ALT + F4)";
 const char *warning_txt = "Attention !";
 
@@ -453,10 +466,10 @@ gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 			gtk_widget_hide (current_cameras_set->master_rcp.scenes_bank_2_box);
 			gtk_widget_show (current_cameras_set->master_rcp.scenes_bank_1_box);
 		} else if (rcp_vision != NULL) {
-			if (event->keyval == GDK_KEY_Up) remove_timeout (rcp_vision->iris_plus_10_button, NULL, rcp_vision);
-			else if (event->keyval == GDK_KEY_Down) remove_timeout (rcp_vision->iris_minus_10_button, NULL, rcp_vision);
-			else if (event->keyval == GDK_KEY_Right) remove_timeout (rcp_vision->iris_plus_1_button, NULL, rcp_vision);
-			else if (event->keyval == GDK_KEY_Left) remove_timeout (rcp_vision->iris_minus_1_button, NULL, rcp_vision);
+			if ((event->keyval == GDK_KEY_Up) || (event->keyval == GDK_KEY_KP_Up)) remove_timeout (rcp_vision->iris_plus_10_button, NULL, rcp_vision);
+			else if ((event->keyval == GDK_KEY_Down) || (event->keyval == GDK_KEY_KP_Down)) remove_timeout (rcp_vision->iris_minus_10_button, NULL, rcp_vision);
+			else if ((event->keyval == GDK_KEY_Right) || (event->keyval == GDK_KEY_KP_Right)) remove_timeout (rcp_vision->iris_plus_1_button, NULL, rcp_vision);
+			else if ((event->keyval == GDK_KEY_Left) || (event->keyval == GDK_KEY_KP_Left)) remove_timeout (rcp_vision->iris_minus_1_button, NULL, rcp_vision);
 		} else return GDK_EVENT_PROPAGATE;
 	} else return GDK_EVENT_PROPAGATE;
 
@@ -584,6 +597,11 @@ int main (int argc, char** argv)
 	css_provider_store = gtk_css_provider_new ();
 	file = g_file_new_for_path ("resources" G_DIR_SEPARATOR_S "store.css");
 	gtk_css_provider_load_from_file (css_provider_store, file, NULL);
+	g_object_unref (file);
+
+	css_provider_scene_selected = gtk_css_provider_new ();
+	file = g_file_new_for_path ("resources" G_DIR_SEPARATOR_S "scene-selected.css");
+	gtk_css_provider_load_from_file (css_provider_scene_selected, file, NULL);
 	g_object_unref (file);
 
 	create_main_window ();

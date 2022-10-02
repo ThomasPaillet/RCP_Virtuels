@@ -18,6 +18,31 @@
 */
 
 #include "rcp.h"
+#include "misc.h"
+
+#include "rcp_AW_HE130.h"
+#include "rcp_AW_UE150.h"
+
+#include "protocol.h"
+#include "error.h"
+
+#include "ND_filter.h"
+#include "gamma.h"
+#include "chroma_phase.h"
+#include "color_temperature.h"
+#include "knee.h"
+#include "matrix.h"
+#include "detail.h"
+#include "saturation.h"
+#include "shutter.h"
+#include "pedestal.h"
+
+#include "cameras_set.h"
+#include "settings.h"
+#include "sw_p_08.h"
+#include "physical_rcp.h"
+
+//#include "main_window.h"
 
 #include <string.h>
 
@@ -231,6 +256,8 @@ void init_rcp (rcp_t *rcp)
 		rcp->scenes[i].iris_auto = IRIS_AUTO_DEFAULT;
 	}
 
+	rcp->scene_selected = -1;
+
 	rcp->knee_window = NULL;
 	rcp->HLG_knee_window = NULL;
 	rcp->matrix_window = NULL;
@@ -305,6 +332,11 @@ gboolean set_rcp_off (rcp_t *rcp)
 	g_signal_handler_block (rcp->day_night_toggle_button, rcp->day_night_handler_id);
 	gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (rcp->day_night_toggle_button), FALSE);
 	g_signal_handler_unblock (rcp->day_night_toggle_button, rcp->day_night_handler_id);
+
+/*	if (rcp->scene_selected != -1) {
+		gtk_style_context_remove_provider (gtk_widget_get_style_context (rcp->scenes_button[rcp->scene_selected]), GTK_STYLE_PROVIDER (css_provider_scene_selected));
+		rcp->scene_selected = -1;
+	}*/
 
 	g_signal_handler_block (rcp->ND_filter_combo_box, rcp->ND_filter_handler_id);
 	gtk_combo_box_set_active (GTK_COMBO_BOX (rcp->ND_filter_combo_box), -1);
@@ -992,7 +1024,9 @@ gboolean rcp_work_end (rcp_t *rcp)
 	IHM_UPDATE_COMBO_BOX(gamma)
 	IHM_UPDATE_COMBO_BOX(drs)
 
+	g_signal_handler_block (rcp->color_temperature_combo_box, rcp->color_temperature_handler_id_2);
 	IHM_UPDATE_COMBO_BOX(color_temperature)
+	g_signal_handler_unblock (rcp->color_temperature_combo_box, rcp->color_temperature_handler_id_2);
 
 	IHM_UPDATE_COMBO_BOX(knee_settings)
 	IHM_UPDATE_SCALE(knee_point)

@@ -17,7 +17,25 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "version.h"
+
 #include "rcp.h"
+#include "update_notification.h"
+
+#include "protocol.h"
+#include "misc.h"
+#include "update_ihm.h"
+#include "error.h"
+
+#include "ND_filter.h"
+#include "gain.h"
+#include "gamma.h"
+#include "color_temperature.h"
+
+#include "cameras_set.h"
+#include "settings.h"
+#include "sw_p_08.h"
+#include "physical_rcp.h"
 
 #include <unistd.h>
 
@@ -292,6 +310,8 @@ gboolean ABB_rcp_work_end (rcp_t *rcp)
 
 		return G_SOURCE_REMOVE;
 	}
+
+	deselect_scene (rcp);
 
 	gtk_widget_set_sensitive (rcp->on_standby_switch, TRUE);
 	gtk_widget_set_sensitive (rcp->standard_button, TRUE);

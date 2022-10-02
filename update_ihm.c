@@ -18,6 +18,18 @@
 */
 
 #include "rcp.h"
+#include "update_ihm.h"
+
+#include "gamma.h"
+#include "chroma_phase.h"
+#include "knee.h"
+#include "matrix.h"
+#include "detail.h"
+#include "saturation.h"
+#include "shutter.h"
+#include "pedestal.h"
+
+#include "settings.h"
 
 
 gboolean update_toggle_button (int_widget_t *int_widget)

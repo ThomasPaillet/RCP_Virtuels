@@ -18,6 +18,30 @@
 */
 
 #include "rcp.h"
+#include "rcp_AW_UE150.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "ND_filter.h"
+#include "gain.h"
+#include "gamma.h"
+#include "chroma_phase.h"
+#include "color_temperature.h"
+#include "knee.h"
+#include "matrix.h"
+#include "detail.h"
+#include "saturation.h"
+#include "white.h"
+#include "black.h"
+#include "shutter.h"
+#include "pedestal.h"
+#include "iris.h"
+
+#include "scenes.h"
+#include "settings.h"
+#include "sw_p_08.h"
+#include "physical_rcp.h"
 
 
 void init_rcp_AW_UE150 (rcp_t *rcp)
@@ -243,32 +267,32 @@ gpointer load_standard_AW_UE150 (rcp_t *rcp)
 }
 
 #define COPY_RCP_SCENE_PARAMETER(l) \
-	if (rcp->current_scene.l != rcp->scenes[rcp->scene_to_load].l) { \
-		rcp->current_scene.l = rcp->scenes[rcp->scene_to_load].l; \
+	if (rcp->current_scene.l != rcp->scenes[rcp->scene_selected].l) { \
+		rcp->current_scene.l = rcp->scenes[rcp->scene_selected].l; \
 		set_##l (rcp); \
 	}
 
 #define COPY_RCP_SCENE_PARAMETER_AW_UE150(l) \
-	if (rcp->current_scene.l != rcp->scenes[rcp->scene_to_load].l) { \
-		rcp->current_scene.l = rcp->scenes[rcp->scene_to_load].l; \
+	if (rcp->current_scene.l != rcp->scenes[rcp->scene_selected].l) { \
+		rcp->current_scene.l = rcp->scenes[rcp->scene_selected].l; \
 		set_##l##_AW_UE150 (rcp); \
 	}
 
 #define COPY_RCP_SCENE_LINEAR_MATRIX_PARAMETER(l) \
-	if (rcp->current_scene.linear_matrix.l != rcp->scenes[rcp->scene_to_load].linear_matrix.l) { \
-		rcp->current_scene.linear_matrix.l = rcp->scenes[rcp->scene_to_load].linear_matrix.l; \
+	if (rcp->current_scene.linear_matrix.l != rcp->scenes[rcp->scene_selected].linear_matrix.l) { \
+		rcp->current_scene.linear_matrix.l = rcp->scenes[rcp->scene_selected].linear_matrix.l; \
 		set_linear_matrix_##l (rcp); \
 	}
 
 #define COPY_RCP_SCENE_CC_SATURATION_PARAMETER(l) \
-	if (rcp->current_scene.cc_saturation[l] != rcp->scenes[rcp->scene_to_load].cc_saturation[l]) { \
-		rcp->current_scene.cc_saturation[l] = rcp->scenes[rcp->scene_to_load].cc_saturation[l]; \
+	if (rcp->current_scene.cc_saturation[l] != rcp->scenes[rcp->scene_selected].cc_saturation[l]) { \
+		rcp->current_scene.cc_saturation[l] = rcp->scenes[rcp->scene_selected].cc_saturation[l]; \
 		set_cc_saturation_##l (rcp, TRUE); \
 	}
 
 #define COPY_RCP_SCENE_CC_PHASE_PARAMETER(l) \
-	if (rcp->current_scene.cc_phase[l] != rcp->scenes[rcp->scene_to_load].cc_phase[l]) { \
-		rcp->current_scene.cc_phase[l] = rcp->scenes[rcp->scene_to_load].cc_phase[l]; \
+	if (rcp->current_scene.cc_phase[l] != rcp->scenes[rcp->scene_selected].cc_phase[l]) { \
+		rcp->current_scene.cc_phase[l] = rcp->scenes[rcp->scene_selected].cc_phase[l]; \
 		set_cc_phase_##l (rcp, TRUE); \
 	}
 

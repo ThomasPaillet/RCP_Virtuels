@@ -19,6 +19,22 @@
 
 #include "rcp.h"
 
+#include "rcp_AW_HE130.h"
+#include "rcp_AW_UE150.h"
+
+#include "protocol.h"
+#include "misc.h"
+#include "error.h"
+
+#include "master_rcp.h"
+#include "scenes.h"
+#include "settings.h"
+#include "sw_p_08.h"
+#include "tally.h"
+#include "physical_rcp.h"
+
+#include "main_window.h"
+
 #include <string.h>
 #include <unistd.h>
 
@@ -64,6 +80,8 @@ void on_standby_switch_activated (GtkSwitch *on_standby_switch, GParamSpec *pspe
 void standard_button_clicked (GtkButton *button, rcp_t *rcp)
 {
 	rcp_start_working (rcp);
+
+	deselect_scene (rcp);
 
 	if (rcp->model == AW_UE150) rcp->thread = g_thread_new (NULL, (GThreadFunc)load_standard_AW_UE150, rcp);
 	else rcp->thread = g_thread_new (NULL, (GThreadFunc)load_standard_AW_HE130, rcp);
@@ -118,7 +136,13 @@ void scene_button_clicked (GtkButton *button, rcp_t *rcp)
 
 		if (!triggered_by_master_rcp) save_settings_and_cameras_sets_to_config_file ();
 	} else {
-		rcp->scene_to_load = index;
+		if ((rcp->scene_selected != -1) && (rcp->scene_selected != index)) gtk_style_context_remove_provider (gtk_widget_get_style_context (rcp->scenes_button[rcp->scene_selected]), GTK_STYLE_PROVIDER (css_provider_scene_selected));
+
+		if (rcp->scene_selected != index) {
+			rcp->scene_selected = index;
+
+			gtk_style_context_add_provider (gtk_widget_get_style_context (rcp->scenes_button[index]), GTK_STYLE_PROVIDER (css_provider_scene_selected), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+		}
 
 		rcp_start_working (rcp);
 
@@ -163,7 +187,7 @@ GtkWidget *create_scenes_frame (rcp_t *rcp)
 		gtk_box_pack_start (GTK_BOX (box1), box2, FALSE, FALSE, 0);
 
 		widget = gtk_toggle_button_new_with_label ("S");
-		gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_store), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+		gtk_style_context_add_provider (gtk_widget_get_style_context (widget), GTK_STYLE_PROVIDER (css_provider_store), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 		gtk_box_pack_end (GTK_BOX (box1), widget, FALSE, FALSE, 0);
 		rcp->store_toggle_button = widget;
 	gtk_container_add (GTK_CONTAINER (frame), box1);
@@ -171,9 +195,19 @@ GtkWidget *create_scenes_frame (rcp_t *rcp)
 	return frame;
 }
 
+void deselect_scene (rcp_t *rcp)
+{
+	if (rcp->scene_selected != -1) {
+		gtk_style_context_remove_provider (gtk_widget_get_style_context (rcp->scenes_button[rcp->scene_selected]), GTK_STYLE_PROVIDER (css_provider_scene_selected));
+		rcp->scene_selected = -1;
+	}
+}
+
 void ABB_button_clicked (GtkButton *button, rcp_t *rcp)
 {
 	GSList *gslist_itr;
+
+	deselect_scene (rcp);
 
 	if (send_ABB_execution_control_command (rcp)) {
 		rcp_start_working (rcp);

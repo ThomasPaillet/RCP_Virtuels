@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018 2019 2020 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,7 +17,8 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "../rcp.h"
+#include "../operating_system.h"
+#include "../main_window.h"
 
 #include <dirent.h>
 #include <fcntl.h>

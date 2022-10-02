@@ -18,6 +18,10 @@
 */
 
 #include "rcp.h"
+#include "color_temperature.h"
+
+#include "protocol.h"
+#include "misc.h"
 
 
 int color_temperature_array_AW_HE130[121] = { \
@@ -37,6 +41,20 @@ int color_temperature_array_AW_UE150[401] = { \
 	10000, 10250, 10500, 10750, 11000, 11250, 11500, 11750, 12000, 12250, 12500, 12750, 13000, 13250, 13500, 13750, 14000, 14250, 14500, 14750, 15000 \
 	};
 
+
+gboolean deselect_scene_combo_box_changed (GtkWidget *widget, rcp_t *rcp)
+{
+	deselect_scene (rcp);
+
+	return FALSE;
+}
+
+gboolean deselect_scene_button_event (GtkWidget *widget, GdkEvent *event, rcp_t *rcp)
+{
+	deselect_scene (rcp);
+
+	return FALSE;
+}
 
 void set_color_temperature_AW_HE130 (rcp_t *rcp)
 {
@@ -274,27 +292,32 @@ GtkWidget *create_color_temperature_frame_AW_HE130 (rcp_t *rcp)
 			gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), label);
 		}
 		rcp->color_temperature_handler_id = g_signal_connect (widget, "changed", G_CALLBACK (color_temperature_changed_AW_HE130), rcp);
+		rcp->color_temperature_handler_id_2 = g_signal_connect (widget, "changed", G_CALLBACK (deselect_scene_combo_box_changed), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, TRUE, TRUE, 0);
 		rcp->color_temperature_combo_box = widget;
 
 		widget = gtk_button_new_with_label ("--");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_minus_10_button_pressed_AW_HE130), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_button_new_with_label ("-");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_minus_1_button_pressed_AW_HE130), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_widget_set_margin_end (widget, MARGIN_VALUE);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_button_new_with_label ("+");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_plus_1_button_pressed_AW_HE130), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_button_new_with_label ("++");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_plus_10_button_pressed_AW_HE130), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 	gtk_container_add (GTK_CONTAINER (frame), box);
@@ -584,28 +607,32 @@ GtkWidget *create_color_temperature_frame_AW_UE150 (rcp_t *rcp)
 			gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (widget), label);
 		}
 		rcp->color_temperature_handler_id = g_signal_connect (widget, "changed", G_CALLBACK (color_temperature_changed_AW_UE150), rcp);
-
+		rcp->color_temperature_handler_id_2 = g_signal_connect (widget, "changed", G_CALLBACK (deselect_scene_combo_box_changed), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, TRUE, TRUE, 0);
 		rcp->color_temperature_combo_box = widget;
 
 		widget = gtk_button_new_with_label ("--");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_minus_10_button_pressed_AW_UE150), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_button_new_with_label ("-");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_minus_1_button_pressed_AW_UE150), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_widget_set_margin_end (widget, MARGIN_VALUE);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_button_new_with_label ("+");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_plus_1_button_pressed_AW_UE150), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 		widget = gtk_button_new_with_label ("++");
 		g_signal_connect (widget, "button_press_event", G_CALLBACK (color_temperature_plus_10_button_pressed_AW_UE150), rcp);
+		g_signal_connect (widget, "button_press_event", G_CALLBACK (deselect_scene_button_event), rcp);
 		g_signal_connect (widget, "button_release_event", G_CALLBACK (remove_timeout), rcp);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 	gtk_container_add (GTK_CONTAINER (frame), box);

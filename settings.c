@@ -17,7 +17,27 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "version.h"
+
 #include "rcp.h"
+#include "settings.h"
+
+#include "protocol.h"
+#include "misc.h"
+#include "error.h"
+#include "update_notification.h"
+#include "operating_system.h"
+
+#include "gain.h"
+#include "shutter.h"
+
+#include "cameras_set.h"
+#include "scenes.h"
+#include "sw_p_08.h"
+#include "tally.h"
+#include "physical_rcp.h"
+
+#include "main_window.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -33,7 +53,7 @@ extern GdkPixbuf *pixbuf_logo_dark;
 #endif
 
 
-char *config_file_name = "RCP-Virtuels.dat";
+char *config_file_name = "RCP-Virtuels-" RCP_VIRTUELS_VERSION ".dat";
 FILE *config_file = NULL;
 
 gboolean backup_needed = FALSE;
@@ -2210,7 +2230,7 @@ void show_about_window (void)
 		gtk_label_set_markup (GTK_LABEL (widget), "<b>RCP virtuels pour caméras Panasonic AW-HE130 et AW-UE150</b>");
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
-		widget = gtk_label_new ("Version 4.0");
+		widget = gtk_label_new ("Version " RCP_VIRTUELS_VERSION);
 		gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
 
 #ifdef _WIN32

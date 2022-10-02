@@ -18,6 +18,12 @@
 */
 
 #include "rcp.h"
+#include "saturation.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "main_window.h"
 
 
 void set_saturation_label (rcp_t *rcp)

@@ -18,8 +18,18 @@
 */
 
 #include "rcp.h"
-
+#include "shutter.h"
 #include "cam_cmd_define.h"
+
+#include "protocol.h"
+#include "misc.h"
+
+#include "cameras_set.h"
+#include "settings.h"
+#include "sw_p_08.h"
+#include "physical_rcp.h"
+
+#include "main_window.h"
 
 #include <math.h>
 
