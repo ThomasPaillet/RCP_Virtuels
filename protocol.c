@@ -39,6 +39,7 @@ char my_ip_address[16];
 char network_address[3][4] = { { '\0' }, { '\0' }, { '\0' } };
 int network_address_len[3] = { 0, 0, 0 };
 
+
 char *http_ptz_cmd = "GET /cgi-bin/aw_ptz?cmd=";	//strlen = 24
 char *http_cam_cmd = "GET /cgi-bin/aw_cam?cmd=";	//strlen = 24
 
@@ -74,12 +75,12 @@ int full_http_header_size;
 	} else rcp->last_time = current_time;
 
 #define COMMAND_FUNC_END \
-/*	} else { \
+	} else { \
 		if (rcp->error_code != CAMERA_IS_UNREACHABLE_ERROR) { \
 			rcp->error_code = CAMERA_IS_UNREACHABLE_ERROR; \
 			g_idle_add ((GSourceFunc)camera_is_unreachable, rcp); \
 		} \
-*/	} \
+	} \
  \
 	closesocket (sock); \
  \
