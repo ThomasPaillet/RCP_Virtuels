@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,17 +17,14 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "white.h"
+
 #include "cam_cmd_define.h"
-
-#include "protocol.h"
-#include "misc.h"
-
-#include "sw_p_08.h"
-#include "physical_rcp.h"
-
 #include "main_window.h"
+#include "misc.h"
+#include "physical_rcp.h"
+#include "protocol.h"
+#include "sw_p_08.h"
 
 
 #define MIN_VALUE 0x000
@@ -48,11 +45,7 @@ BUTTON_PRESSED_MINUS_FUNC_PLUS_UPDATE_NOTIFICATION(r_gain,"ORI:",3,10)
 
 gboolean set_g_gain_delayed_AW_HE130 (rcp_t *rcp)
 {
-	rcp->last_time.tv_usec += 130000;
-	if (rcp->last_time.tv_usec >= 1000000) {
-		rcp->last_time.tv_sec++;
-		rcp->last_time.tv_usec -= 1000000;
-	}
+	rcp->last_time += 130000;
 
 	if (rcp->r_b) {
 		if (rcp->r_gain_need_update) {
@@ -123,7 +116,7 @@ gboolean set_g_gain_delayed_AW_HE130 (rcp_t *rcp)
 void g_gain_value_changed_AW_HE130 (GtkRange *g_gain_scale, rcp_t *rcp)
 {
 	int r_gain, g_gain, b_gain;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 	g_gain = (int)gtk_range_get_value (g_gain_scale);
 
@@ -154,12 +147,12 @@ void g_gain_value_changed_AW_HE130 (GtkRange *g_gain_scale, rcp_t *rcp)
 
 		rcp->current_scene.g_gain = g_gain;
 
-		gettimeofday (&current_time, NULL);
-		timersub (&current_time, &rcp->last_time, &elapsed_time);
+		current_time = g_get_monotonic_time ();
+		elapsed_time = current_time - rcp->last_time;
 
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) {
+		if (elapsed_time < 130000) {
 			rcp->need_last_call = TRUE;
-			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time.tv_usec) / 1000, (GSourceFunc)set_g_gain_delayed_AW_HE130, rcp);
+			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time) / 1000, (GSourceFunc)set_g_gain_delayed_AW_HE130, rcp);
 		} else {
 			if (rcp->timeout_id != 0) {
 				g_source_remove (rcp->timeout_id);
@@ -250,11 +243,7 @@ gboolean g_gain_button_held_AW_HE130 (rcp_t *rcp)
 			gtk_range_set_value (GTK_RANGE (rcp->r_gain_scale), r_gain);
 			g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
-			rcp->last_time.tv_usec += 130000;
-			if (rcp->last_time.tv_usec >= 1000000) {
-				rcp->last_time.tv_sec++;
-				rcp->last_time.tv_usec -= 1000000;
-			}
+			rcp->last_time += 130000;
 
 			send_cam_control_command_3_digits (rcp, "ORI:", r_gain, FALSE);
 
@@ -277,11 +266,7 @@ gboolean g_gain_button_held_AW_HE130 (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 
-				rcp->last_time.tv_usec += 130000;
-				if (rcp->last_time.tv_usec >= 1000000) {
-					rcp->last_time.tv_sec++;
-					rcp->last_time.tv_usec -= 1000000;
-				}
+				rcp->last_time += 130000;
 
 				send_cam_control_command_3_digits (rcp, "OBI:", b_gain, FALSE);
 
@@ -308,11 +293,7 @@ gboolean g_gain_button_held_AW_HE130 (rcp_t *rcp)
 			gtk_range_set_value (GTK_RANGE (rcp->b_gain_scale), b_gain);
 			g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
-			rcp->last_time.tv_usec += 130000;
-			if (rcp->last_time.tv_usec >= 1000000) {
-				rcp->last_time.tv_sec++;
-				rcp->last_time.tv_usec -= 1000000;
-			}
+			rcp->last_time += 130000;
 
 			send_cam_control_command_3_digits (rcp, "OBI:", b_gain, FALSE);
 
@@ -335,11 +316,7 @@ gboolean g_gain_button_held_AW_HE130 (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 
-				rcp->last_time.tv_usec += 130000;
-				if (rcp->last_time.tv_usec >= 1000000) {
-					rcp->last_time.tv_sec++;
-					rcp->last_time.tv_usec -= 1000000;
-				}
+				rcp->last_time += 130000;
 
 				send_cam_control_command_3_digits (rcp, "ORI:", r_gain, FALSE);
 
@@ -1088,11 +1065,7 @@ BUTTON_PRESSED_MINUS_FUNC_S(r_gain,"OSG:39:",3,10,AW_UE150)
 
 gboolean set_g_gain_delayed_AW_UE150 (rcp_t *rcp)
 {
-	rcp->last_time.tv_usec += 130000;
-	if (rcp->last_time.tv_usec >= 1000000) {
-		rcp->last_time.tv_sec++;
-		rcp->last_time.tv_usec -= 1000000;
-	}
+	rcp->last_time += 130000;
 
 	if (rcp->r_b) {
 		if (rcp->r_gain_need_update) {
@@ -1163,7 +1136,7 @@ gboolean set_g_gain_delayed_AW_UE150 (rcp_t *rcp)
 void g_gain_value_changed_AW_UE150 (GtkRange *g_gain_scale, rcp_t *rcp)
 {
 	int r_gain, g_gain, b_gain;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 	g_gain = (int)gtk_range_get_value (g_gain_scale);
 
@@ -1192,12 +1165,12 @@ void g_gain_value_changed_AW_UE150 (GtkRange *g_gain_scale, rcp_t *rcp)
 
 		rcp->current_scene.g_gain = g_gain;
 
-		gettimeofday (&current_time, NULL);
-		timersub (&current_time, &rcp->last_time, &elapsed_time);
+		current_time = g_get_monotonic_time ();
+		elapsed_time = current_time - rcp->last_time;
 
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) {
+		if (elapsed_time < 130000) {
 			rcp->need_last_call = TRUE;
-			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time.tv_usec) / 1000, (GSourceFunc)set_g_gain_delayed_AW_UE150, rcp);
+			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time) / 1000, (GSourceFunc)set_g_gain_delayed_AW_UE150, rcp);
 		} else {
 			if (rcp->timeout_id != 0) {
 				g_source_remove (rcp->timeout_id);
@@ -1287,11 +1260,7 @@ gboolean g_gain_button_held_AW_UE150 (rcp_t *rcp)
 			gtk_range_set_value (GTK_RANGE (rcp->r_gain_scale), r_gain);
 			g_signal_handler_unblock (rcp->r_gain_scale, rcp->r_gain_handler_id);
 
-			rcp->last_time.tv_usec += 130000;
-			if (rcp->last_time.tv_usec >= 1000000) {
-				rcp->last_time.tv_sec++;
-				rcp->last_time.tv_usec -= 1000000;
-			}
+			rcp->last_time += 130000;
 
 			send_cam_control_command_3_digits (rcp, "OSG:39:", r_gain, FALSE);
 
@@ -1313,11 +1282,7 @@ gboolean g_gain_button_held_AW_UE150 (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 
-				rcp->last_time.tv_usec += 130000;
-				if (rcp->last_time.tv_usec >= 1000000) {
-					rcp->last_time.tv_sec++;
-					rcp->last_time.tv_usec -= 1000000;
-				}
+				rcp->last_time += 130000;
 
 				send_cam_control_command_3_digits (rcp, "OSG:3A:", b_gain, FALSE);
 
@@ -1343,11 +1308,7 @@ gboolean g_gain_button_held_AW_UE150 (rcp_t *rcp)
 			gtk_range_set_value (GTK_RANGE (rcp->b_gain_scale), b_gain);
 			g_signal_handler_unblock (rcp->b_gain_scale, rcp->b_gain_handler_id);
 
-			rcp->last_time.tv_usec += 130000;
-			if (rcp->last_time.tv_usec >= 1000000) {
-				rcp->last_time.tv_sec++;
-				rcp->last_time.tv_usec -= 1000000;
-			}
+			rcp->last_time += 130000;
 
 			send_cam_control_command_3_digits (rcp, "OSG:3A:", b_gain, FALSE);
 
@@ -1369,11 +1330,7 @@ gboolean g_gain_button_held_AW_UE150 (rcp_t *rcp)
 
 				rcp->need_last_call = FALSE;
 
-				rcp->last_time.tv_usec += 130000;
-				if (rcp->last_time.tv_usec >= 1000000) {
-					rcp->last_time.tv_sec++;
-					rcp->last_time.tv_usec -= 1000000;
-				}
+				rcp->last_time += 130000;
 
 				send_cam_control_command_3_digits (rcp, "OSG:39:", r_gain, FALSE);
 

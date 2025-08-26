@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,16 +17,13 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "knee.h"
+
 #include "cam_cmd_define.h"
-
-#include "protocol.h"
-#include "misc.h"
-
 #include "cameras_set.h"
-
 #include "main_window.h"
+#include "misc.h"
+#include "protocol.h"
 
 
 char auto_knee_response_tooltip[] = "Permet de régler la vitesse de la réponse du coude auto (auto knee).\nPlus la vitesse de réponse augmente, plus la valeur de réglage est basse.";
@@ -227,11 +224,7 @@ void set_auto_knee_response (rcp_t *rcp)
 
 gboolean set_auto_knee_response_delayed (rcp_t *rcp)
 {
-	rcp->last_time.tv_usec += 130000;
-	if (rcp->last_time.tv_usec >= 1000000) {
-		rcp->last_time.tv_sec++;
-		rcp->last_time.tv_usec -= 1000000;
-	}
+	rcp->last_time += 130000;
 
 	send_cam_control_command_1_digit (rcp, "OSG:97:", rcp->current_scene.auto_knee_response, FALSE);
 
@@ -242,18 +235,18 @@ gboolean set_auto_knee_response_delayed (rcp_t *rcp)
 void auto_knee_response_value_changed (GtkRange *auto_knee_response_scale, rcp_t *rcp)
 {
 	int value;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 	value = (int)gtk_range_get_value (auto_knee_response_scale);
 
 	if (rcp->current_scene.auto_knee_response != value) {
 		rcp->current_scene.auto_knee_response = value;
 
-		gettimeofday (&current_time, NULL);
-		timersub (&current_time, &rcp->last_time, &elapsed_time);
+		current_time = g_get_monotonic_time ();
+		elapsed_time = current_time - rcp->last_time;
 
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) {
-			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time.tv_usec) / 1000, (GSourceFunc)set_auto_knee_response_delayed, rcp);
+		if (elapsed_time < 130000) {
+			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time) / 1000, (GSourceFunc)set_auto_knee_response_delayed, rcp);
 		} else {
 			if (rcp->timeout_id != 0) {
 				g_source_remove (rcp->timeout_id);

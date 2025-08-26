@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,6 +19,9 @@
 
 #ifndef __MATRIX_H
 #define __MATRIX_H
+
+
+#include "rcp.h"
 
 
 extern void (*set_cc_saturation_label_funcs[15]) (rcp_t *rcp);

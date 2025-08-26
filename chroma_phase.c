@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2021-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2021-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,16 +17,13 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "chroma_phase.h"
+
 #include "cam_cmd_define.h"
-
-#include "protocol.h"
-#include "misc.h"
-
 #include "cameras_set.h"
-
+#include "protocol.h"
 #include "main_window.h"
+#include "misc.h"
 
 
 #define MIN_VALUE 0x61

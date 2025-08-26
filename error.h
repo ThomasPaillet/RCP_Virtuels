@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -21,100 +21,68 @@
 #define __ERROR_H
 
 
+#include "rcp.h"
+
+
 #define CAMERA_IS_UNREACHABLE_ERROR 0xFFFF
 
 
 gboolean camera_is_unreachable (rcp_t *rcp);
 
-gboolean clear_rcp_error (rcp_t *rcp);
+gboolean clear_rcp_error (struct in_addr *src_in_addr);
 
-gboolean Motor_Driver_Error (rcp_t *rcp);
-gboolean Pan_Sensor_Error (rcp_t *rcp);
-gboolean Tilt_Sensor_Error (rcp_t *rcp);
-gboolean Controller_RX_Over_run_Error (rcp_t *rcp);
-gboolean Controller_RX_Framing_Error (rcp_t *rcp);
-gboolean Network_RX_Over_run_Error (rcp_t *rcp);
-gboolean Network_RX_Framing_Error (rcp_t *rcp);
-gboolean Controller_RX_Command_Buffer_Overflow (rcp_t *rcp);
-gboolean Network_RX_Command_Buffer_Overflow (rcp_t *rcp);
-gboolean System_Error (rcp_t *rcp);
-gboolean Spec_Limit_Over (rcp_t *rcp);
-gboolean ABB_execution_failed (rcp_t *rcp);
-gboolean ABB_execution_failed_busy_status (rcp_t *rcp);
+gboolean Motor_Driver_Error (struct in_addr *src_in_addr);
+gboolean Pan_Sensor_Error (struct in_addr *src_in_addr);
+gboolean Tilt_Sensor_Error (struct in_addr *src_in_addr);
+gboolean Controller_RX_Over_run_Error (struct in_addr *src_in_addr);
+gboolean Controller_RX_Framing_Error (struct in_addr *src_in_addr);
+gboolean Network_RX_Over_run_Error (struct in_addr *src_in_addr);
+gboolean Network_RX_Framing_Error (struct in_addr *src_in_addr);
+gboolean Controller_RX_Command_Buffer_Overflow (struct in_addr *src_in_addr);
+gboolean Network_RX_Command_Buffer_Overflow (struct in_addr *src_in_addr);
+gboolean System_Error (struct in_addr *src_in_addr);
+gboolean Spec_Limit_Over (struct in_addr *src_in_addr);
+gboolean ABB_execution_failed (struct in_addr *src_in_addr);
+gboolean ABB_execution_failed_busy_status (struct in_addr *src_in_addr);
 
-gboolean Network_communication_Error (rcp_t *rcp);
-gboolean CAMERA_communication_Error (rcp_t *rcp);
-gboolean CAMERA_RX_Over_run_Error (rcp_t *rcp);
-gboolean CAMERA_RX_Framing_Error (rcp_t *rcp);
-gboolean CAMERA_RX_Command_Buffer_Overflow (rcp_t *rcp);
+gboolean Network_communication_Error (struct in_addr *src_in_addr);
+gboolean CAMERA_communication_Error (struct in_addr *src_in_addr);
+gboolean CAMERA_RX_Over_run_Error (struct in_addr *src_in_addr);
+gboolean CAMERA_RX_Framing_Error (struct in_addr *src_in_addr);
+gboolean CAMERA_RX_Command_Buffer_Overflow (struct in_addr *src_in_addr);
 
-gboolean FPGA_Config_Error (rcp_t *rcp);
-gboolean NET_Life_monitoring_Error (rcp_t *rcp);
-gboolean BE_Life_monitoring_Error (rcp_t *rcp);
-gboolean IF_BE_UART_Buffer_Overflow (rcp_t *rcp);
-gboolean IF_BE_UART_Framing_Error (rcp_t *rcp);
-gboolean IF_BE_UART_Buffer_Overflow_2 (rcp_t *rcp);
-gboolean CAM_Life_monitoring_Error (rcp_t *rcp);
-gboolean Fan1_error (rcp_t *rcp);
-gboolean Fan2_error (rcp_t *rcp);
-gboolean High_Temp (rcp_t *rcp);
-gboolean Low_Temp (rcp_t *rcp);
-gboolean Temp_Sensor_Error (rcp_t *rcp);
-gboolean Lens_Initialize_Error (rcp_t *rcp);
-gboolean PT_Initialize_Error (rcp_t *rcp);
-gboolean MR_Level_Error (rcp_t *rcp);
-gboolean MR_Offset_Error (rcp_t *rcp);
-gboolean Origin_Offset_Error (rcp_t *rcp);
-gboolean Angle_MR_Sensor_Error (rcp_t *rcp);
-gboolean PT_Gear_Error (rcp_t *rcp);
-gboolean Motor_Disconnect_Error (rcp_t *rcp);
+gboolean FPGA_Config_Error (struct in_addr *src_in_addr);
+gboolean NET_Life_monitoring_Error (struct in_addr *src_in_addr);
+gboolean BE_Life_monitoring_Error (struct in_addr *src_in_addr);
+gboolean IF_BE_UART_Buffer_Overflow (struct in_addr *src_in_addr);
+gboolean IF_BE_UART_Framing_Error (struct in_addr *src_in_addr);
+gboolean IF_BE_UART_Buffer_Overflow_2 (struct in_addr *src_in_addr);
 
-gboolean log_clear_rcp_error (rcp_t *rcp);
-
-gboolean log_Motor_Driver_Error (rcp_t *rcp);
-gboolean log_Pan_Sensor_Error (rcp_t *rcp);
-gboolean log_Tilt_Sensor_Error (rcp_t *rcp);
-gboolean log_Controller_RX_Over_run_Error (rcp_t *rcp);
-gboolean log_Controller_RX_Framing_Error (rcp_t *rcp);
-gboolean log_Network_RX_Over_run_Error (rcp_t *rcp);
-gboolean log_Network_RX_Framing_Error (rcp_t *rcp);
-gboolean log_Controller_RX_Command_Buffer_Overflow (rcp_t *rcp);
-gboolean log_Network_RX_Command_Buffer_Overflow (rcp_t *rcp);
-gboolean log_System_Error (rcp_t *rcp);
-gboolean log_Spec_Limit_Over (rcp_t *rcp);
-gboolean log_ABB_execution_failed (rcp_t *rcp);
-gboolean log_ABB_execution_failed_busy_status (rcp_t *rcp);
-
-gboolean log_Network_communication_Error (rcp_t *rcp);
-gboolean log_CAMERA_communication_Error (rcp_t *rcp);
-gboolean log_CAMERA_RX_Over_run_Error (rcp_t *rcp);
-gboolean log_CAMERA_RX_Framing_Error (rcp_t *rcp);
-gboolean log_CAMERA_RX_Command_Buffer_Overflow (rcp_t *rcp);
-
-gboolean log_FPGA_Config_Error (rcp_t *rcp);
-gboolean log_NET_Life_monitoring_Error (rcp_t *rcp);
-gboolean log_BE_Life_monitoring_Error (rcp_t *rcp);
-gboolean log_IF_BE_UART_Buffer_Overflow (rcp_t *rcp);
-gboolean log_IF_BE_UART_Framing_Error (rcp_t *rcp);
-gboolean log_IF_BE_UART_Buffer_Overflow_2 (rcp_t *rcp);
-gboolean log_CAM_Life_monitoring_Error (rcp_t *rcp);
-gboolean log_Fan1_error (rcp_t *rcp);
-gboolean log_Fan2_error (rcp_t *rcp);
-gboolean log_High_Temp (rcp_t *rcp);
-gboolean log_Low_Temp (rcp_t *rcp);
-gboolean log_Temp_Sensor_Error (rcp_t *rcp);
-gboolean log_Lens_Initialize_Error (rcp_t *rcp);
-gboolean log_PT_Initialize_Error (rcp_t *rcp);
-gboolean log_MR_Level_Error (rcp_t *rcp);
-gboolean log_MR_Offset_Error (rcp_t *rcp);
-gboolean log_Origin_Offset_Error (rcp_t *rcp);
-gboolean log_Angle_MR_Sensor_Error (rcp_t *rcp);
-gboolean log_PT_Gear_Error (rcp_t *rcp);
-gboolean log_Motor_Disconnect_Error (rcp_t *rcp);
-
-void start_error_log (void);
-
-void stop_error_log (void);
+gboolean CAM_Life_monitoring_Error (struct in_addr *src_in_addr);
+gboolean NET_Life_monitoring_Error_2 (struct in_addr *src_in_addr);
+gboolean Fan1_error (struct in_addr *src_in_addr);
+gboolean Fan2_error (struct in_addr *src_in_addr);
+gboolean High_Temp (struct in_addr *src_in_addr);
+gboolean Low_Temp (struct in_addr *src_in_addr);
+gboolean Wiper_Error (struct in_addr *src_in_addr);
+gboolean Temp_Sensor_Error (struct in_addr *src_in_addr);
+gboolean Lens_Initialize_Error (struct in_addr *src_in_addr);
+gboolean PT_Initialize_Error (struct in_addr *src_in_addr);
+gboolean PoEpp_Software_auth_Timeout (struct in_addr *src_in_addr);
+gboolean PoEp_Software_auth_Timeout (struct in_addr *src_in_addr);
+gboolean USB_Streaming_Error (struct in_addr *src_in_addr);
+gboolean MR_Level_Error (struct in_addr *src_in_addr);
+gboolean MR_Offset_Error (struct in_addr *src_in_addr);
+gboolean Origin_Offset_Error (struct in_addr *src_in_addr);
+gboolean Angle_MR_Sensor_Error (struct in_addr *src_in_addr);
+gboolean PT_Gear_Error (struct in_addr *src_in_addr);
+gboolean Motor_Disconnect_Error (struct in_addr *src_in_addr);
+gboolean Gyro_Error (struct in_addr *src_in_addr);
+gboolean PT_Initialize_Error_2 (struct in_addr *src_in_addr);
+gboolean Update_Firmware_Error (struct in_addr *src_in_addr);
+gboolean Update_Hardware_Error (struct in_addr *src_in_addr);
+gboolean Update_Error (struct in_addr *src_in_addr);
+gboolean Update_Fan_Error (struct in_addr *src_in_addr);
 
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,6 +19,9 @@
 
 #ifndef __SW_P_08_H
 #define __SW_P_08_H
+
+
+#include "rcp.h"
 
 
 #define SW_P_08_TCP_PORT 8000

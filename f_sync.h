@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,32 +17,22 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef __MISC_H
-#define __MISC_H
+#ifndef __F_SYNC_H
+#define __F_SYNC_H
 
 
-#include "rcp.h"
+#ifdef _WIN32
+	#include <stdio.h>
+	#include <io.h>
 
+	#define F_SYNC(f) _commit (fileno (f));
 
-void init_rcp (rcp_t *rcp);
+#elif defined (__linux)
+	#include <stdio.h>
+	#include <unistd.h>
 
-gboolean rcp_start_working (rcp_t *rcp);
-
-//gboolean set_rcp_on (rcp_t *rcp);
-
-gboolean set_rcp_off (rcp_t *rcp);
-
-gpointer check_if_camera_is_on (rcp_t *rcp);
-
-gpointer start_rcp (rcp_t *rcp);
-
-void copy_rcp (rcp_t *rcp_dest, rcp_t *rcp_src);
-
-gboolean rcp_work_end (rcp_t *rcp);
-
-gboolean remove_timeout (GtkWidget *button, GdkEventButton *event, rcp_t *rcp);
-
-gboolean remove_green_timeout (GtkWidget *button, GdkEventButton *event, rcp_t *rcp);
+	#define F_SYNC(f) fsync (fileno (f));
+#endif
 
 
 #endif

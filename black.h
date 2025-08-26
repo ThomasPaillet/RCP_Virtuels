@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,6 +19,9 @@
 
 #ifndef __BLACK_H
 #define __BLACK_H
+
+
+#include "rcp.h"
 
 
 void set_r_pedestal (rcp_t *rcp);

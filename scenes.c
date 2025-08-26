@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,16 +17,13 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "scenes.h"
 
+#include "detail.h"
 #include "gamma.h"
 #include "knee.h"
-#include "detail.h"
-
-#include "settings.h"
-
 #include "main_window.h"
+#include "settings.h"
 
 #include <string.h>
 
@@ -214,12 +211,12 @@ gint rcp_list_box_sort (GtkListBoxRow *row1, GtkListBoxRow *row2, cameras_set_t 
 
 	for (index1 = 0; index1 < cameras_set->number_of_cameras; index1++)
 	{
-		if (strcmp (cameras_set->rcp_ptr_array[index1]->name, label1) == 0) break;
+		if (strcmp (cameras_set->cameras[index1]->name, label1) == 0) break;
 	}
 
 	for (index2 = 0; index2 < cameras_set->number_of_cameras; index2++)
 	{
-		if (strcmp (cameras_set->rcp_ptr_array[index2]->name, label2) == 0) break;
+		if (strcmp (cameras_set->cameras[index2]->name, label2) == 0) break;
 	}
 
 	return index1 - index2;
@@ -239,8 +236,8 @@ void source_rcp_list_box_row_selected (GtkListBox *list_box, GtkListBoxRow *sour
 	label = gtk_label_get_text (GTK_LABEL (gtk_bin_get_child (GTK_BIN (source_rcp_row))));
 
 	for (i = 0; i < source_cameras_set->number_of_cameras; i++) {
-		if (strcmp (source_cameras_set->rcp_ptr_array[i]->name, label) == 0) {
-			source_rcp = source_cameras_set->rcp_ptr_array[i];
+		if (strcmp (source_cameras_set->cameras[i]->name, label) == 0) {
+			source_rcp = source_cameras_set->cameras[i];
 			break;
 		}
 	}
@@ -265,8 +262,8 @@ void destination_rcp_list_box_row_selected (GtkListBox *list_box, GtkListBoxRow 
 	label = gtk_label_get_text (GTK_LABEL (gtk_bin_get_child (GTK_BIN (destination_rcp_row))));
 
 	for (i = 0; i < destination_cameras_set->number_of_cameras; i++) {
-		if (strcmp (destination_cameras_set->rcp_ptr_array[i]->name, label) == 0) {
-			destination_rcp = destination_cameras_set->rcp_ptr_array[i];
+		if (strcmp (destination_cameras_set->cameras[i]->name, label) == 0) {
+			destination_rcp = destination_cameras_set->cameras[i];
 			break;
 		}
 	}

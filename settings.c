@@ -1,5 +1,5 @@
 ﻿/*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,7 +19,6 @@
 
 #include "version.h"
 
-#include "rcp.h"
 #include "settings.h"
 
 #include "protocol.h"
@@ -1442,8 +1441,8 @@ void parameter_changed_AW_HE130 (GtkComboBox *combo_box, int *parameter)
 
 		for (cameras_set_tmp = cameras_sets; cameras_set_tmp != NULL; cameras_set_tmp = cameras_set_tmp->next) {
 			for (i = 0; i < cameras_set_tmp->number_of_cameras; i++) {
-				if (cameras_set_tmp->rcp_ptr_array[i]->active)
-					populate_shutter_step_combo_box_AW_HE130 (GTK_COMBO_BOX_TEXT (cameras_set_tmp->rcp_ptr_array[i]->shutter_step_combo_box));
+				if (cameras_set_tmp->cameras[i]->active)
+					populate_shutter_step_combo_box_AW_HE130 (GTK_COMBO_BOX_TEXT (cameras_set_tmp->cameras[i]->shutter_step_combo_box));
 			}
 		}
 
@@ -1598,7 +1597,7 @@ void parameter_changed_AW_UE150 (GtkComboBox *combo_box, int *parameter)
 
 			for (cameras_set_tmp = cameras_sets; cameras_set_tmp != NULL; cameras_set_tmp = cameras_set_tmp->next) {
 				for (i = 0; i < cameras_set_tmp->number_of_cameras; i++) {
-					rcp = cameras_set_tmp->rcp_ptr_array[i];
+					rcp = cameras_set_tmp->cameras[i];
 
 					if ((rcp->model == AW_UE150) && (rcp->active)) {
 						populate_shutter_step_combo_box_AW_UE150 (GTK_COMBO_BOX_TEXT (rcp->shutter_step_combo_box));
@@ -1651,7 +1650,7 @@ void parameter_changed_AW_UE150 (GtkComboBox *combo_box, int *parameter)
 		case SUPER_GAIN_INDEX_AW_UE150:
 			for (cameras_set_tmp = cameras_sets; cameras_set_tmp != NULL; cameras_set_tmp = cameras_set_tmp->next) {
 				for (i = 0; i < cameras_set_tmp->number_of_cameras; i++) {
-					rcp = cameras_set_tmp->rcp_ptr_array[i];
+					rcp = cameras_set_tmp->cameras[i];
 
 					if ((rcp->model == AW_UE150) && (rcp->active)) {
 						populate_gain_combo_box_AW_UE150 (GTK_COMBO_BOX_TEXT (rcp->gain_combo_box));
@@ -3149,7 +3148,7 @@ void load_cameras_sets_from_config_file (void)
 
 		fread (&cameras_set_tmp->number_of_cameras, sizeof (int), 1, config_file);
 		if ((cameras_set_tmp->number_of_cameras < 1) || (cameras_set_tmp->number_of_cameras > MAX_CAMERAS)) cameras_set_tmp->number_of_cameras = 5;
-		cameras_set_tmp->rcp_ptr_array = g_malloc (cameras_set_tmp->number_of_cameras * sizeof (rcp_t*));
+
 		cameras_set_tmp->rcp_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 
 		cameras_set_tmp->source_rcp_list_box = gtk_list_box_new ();
@@ -3164,7 +3163,7 @@ void load_cameras_sets_from_config_file (void)
 
 		for (j = 0; j < cameras_set_tmp->number_of_cameras; j++) {
 			rcp = g_malloc (sizeof (rcp_t));
-			cameras_set_tmp->rcp_ptr_array[j] = rcp;
+			cameras_set_tmp->cameras[j] = rcp;
 			rcp->cameras_set = cameras_set_tmp;
 
 			fread (rcp->name, sizeof (char), 3, config_file);
@@ -3331,7 +3330,7 @@ void save_settings_and_cameras_sets_to_config_file (void)
 		fwrite (&cameras_set_tmp->number_of_cameras, sizeof (int), 1, config_file);
 
 		for (j = 0; j < cameras_set_tmp->number_of_cameras; j++) {
-			rcp = cameras_set_tmp->rcp_ptr_array[j];
+			rcp = cameras_set_tmp->cameras[j];
 
 			fwrite (rcp->name, sizeof (char), 3, config_file);
 			fwrite (&rcp->active, sizeof (gboolean), 1, config_file);

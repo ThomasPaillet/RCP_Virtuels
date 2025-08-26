@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,29 +17,14 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "tally.h"
 
-#include "protocol.h"
-
 #include "cameras_set.h"
+#include "logging.h"
+#include "main_window.h"
+#include "protocol.h"
 #include "settings.h"
 #include "sw_p_08.h"
-
-#include "main_window.h"
-
-
-typedef struct {
-	guint16 total_byte_count;
-	guint8 minor_version_number;
-	guint8 flags;
-	guint16 screen;
-
-	guint16 index;
-	guint16 control;
-	guint16 length;
-	char text[2038];
-} tsl_umd_v5_packet_t;
 
 
 struct sockaddr_in tsl_umd_v5_address;
@@ -141,45 +126,101 @@ void init_tally (void)
 	tsl_umd_v5_address.sin_addr.s_addr = inet_addr (my_ip_address);
 }
 
-gpointer receive_tsl_umd_v5_msg (gpointer data)
+/*
+typedef struct tsl_umd_v5_packet_s {
+	guint16 total_byte_count;
+	guint8 minor_version_number;
+	guint8 flags;
+	guint16 screen;
+
+	guint16 index;
+	guint16 control;
+	guint16 length;
+	char text[2038];
+} tsl_umd_v5_packet_t;
+*/
+
+gpointer receive_tsl_umd_v5_packet (void)
 {
-	int msg_len;
-	tsl_umd_v5_packet_t packet;
+	int size, ptr, i;
+	char packet[2048];
+	guint16 total_byte_count, index, control, length;
 	cameras_set_t *cameras_set_itr;
 	rcp_t *rcp;
 
-	while ((msg_len = recv (tsl_umd_v5_socket, &packet, sizeof (tsl_umd_v5_packet_t), 0)) > 1) {
-		g_mutex_lock (&cameras_sets_mutex);
-		for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-			if (packet.index < cameras_set_itr->number_of_cameras) {
-				rcp = cameras_set_itr->rcp_ptr_array[packet.index];
-				rcp->tally_data = packet.control;
+	while ((size = recv (tsl_umd_v5_socket, packet, 2048, 0)) > 1) {
+		LOG_TSL_UMD_V5_PACKET(packet)
 
-				if ((packet.control & 0x80) && (packet.control & 0x40)) rcp->tally_brightness = 0.745098039;
-				else if (packet.control & 0x80) rcp->tally_brightness = 0.596078431;
-				else if (packet.control & 0x40) rcp->tally_brightness = 0.447058823;
-				else rcp->tally_brightness = 0.298039216;
+		total_byte_count = *((guint16 *)packet);
+		ptr = 6;
 
-				g_mutex_lock (&current_cameras_set_mutex);
+		do {
+			index = *((guint16 *)(packet + ptr));
+			control = *((guint16 *)(packet + ptr + 2));
+			length = *((guint16 *)(packet + ptr + 4));
 
-				if (packet.control & 0x30) {
-					if ((current_cameras_set == cameras_set_itr) && send_ip_tally && !rcp->ip_tally_is_on && rcp->camera_is_on) {
-						g_mutex_unlock (&current_cameras_set_mutex);
+			g_mutex_lock (&cameras_sets_mutex);
+			for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
+				if (index < cameras_set_itr->number_of_cameras) {
+					rcp = cameras_set_itr->cameras[index];
+					rcp->tally_data = control;
 
-						send_tally_on_control_command (rcp);
-					} else g_mutex_unlock (&current_cameras_set_mutex);
-				} else {
-					if ((current_cameras_set == cameras_set_itr) && send_ip_tally && rcp->ip_tally_is_on && rcp->camera_is_on) {
-						g_mutex_unlock (&current_cameras_set_mutex);
+					if ((control & 0x80) && (control & 0x40)) rcp->tally_brightness = 0.745098039;
+					else if (control & 0x80) rcp->tally_brightness = 0.596078431;
+					else if (control & 0x40) rcp->tally_brightness = 0.447058823;
+					else rcp->tally_brightness = 0.298039216;
 
-						send_tally_off_control_command (rcp);
-					} else g_mutex_unlock (&current_cameras_set_mutex);
+					g_mutex_lock (&current_cameras_set_mutex);
+
+					if (control & 0x30) {
+						if ((current_cameras_set == cameras_set_itr) && send_ip_tally && !rcp->ip_tally_is_on && rcp->camera_is_on) {
+							g_mutex_unlock (&current_cameras_set_mutex);
+
+							send_tally_on_control_command (rcp);
+						} else g_mutex_unlock (&current_cameras_set_mutex);
+					} else {
+						if ((current_cameras_set == cameras_set_itr) && send_ip_tally && rcp->ip_tally_is_on && rcp->camera_is_on) {
+							g_mutex_unlock (&current_cameras_set_mutex);
+
+							send_tally_off_control_command (rcp);
+						} else g_mutex_unlock (&current_cameras_set_mutex);
+					}
+
+					if (cameras_set_itr == current_cameras_set) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
+				} else if (index == 0xFFFF) {
+					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
+						rcp = cameras_set_itr->cameras[i];
+						rcp->tally_data = control;
+
+						if ((control & 0x80) && (control & 0x40)) rcp->tally_brightness = 0.745098039;
+						else if (control & 0x80) rcp->tally_brightness = 0.596078431;
+						else if (control & 0x40) rcp->tally_brightness = 0.447058823;
+						else rcp->tally_brightness = 0.298039216;
+
+						g_mutex_lock (&current_cameras_set_mutex);
+
+						if (control & 0x30) {
+							if ((current_cameras_set == cameras_set_itr) && send_ip_tally && !rcp->ip_tally_is_on && rcp->camera_is_on) {
+								g_mutex_unlock (&current_cameras_set_mutex);
+
+								send_tally_on_control_command (rcp);
+							} else g_mutex_unlock (&current_cameras_set_mutex);
+						} else {
+							if ((current_cameras_set == cameras_set_itr) && send_ip_tally && rcp->ip_tally_is_on && rcp->camera_is_on) {
+								g_mutex_unlock (&current_cameras_set_mutex);
+
+								send_tally_off_control_command (rcp);
+							} else g_mutex_unlock (&current_cameras_set_mutex);
+						}
+
+						if (cameras_set_itr == current_cameras_set) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
+					}
 				}
-
-				if (cameras_set_itr == current_cameras_set) g_idle_add ((GSourceFunc)g_source_rcp_queue_draw, rcp);
 			}
-		}
-		g_mutex_unlock (&cameras_sets_mutex);
+			g_mutex_unlock (&cameras_sets_mutex);
+
+			ptr += 6 + length;
+		} while (ptr <= total_byte_count - 6);
 	}
 
 	return NULL;
@@ -189,7 +230,8 @@ void start_tally (void)
 {
 	tsl_umd_v5_socket = socket (AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	bind (tsl_umd_v5_socket, (struct sockaddr *)&tsl_umd_v5_address, sizeof (struct sockaddr_in));
-	tsl_umd_v5_thread = g_thread_new (NULL, receive_tsl_umd_v5_msg, NULL);
+
+	tsl_umd_v5_thread = g_thread_new (NULL, (GThreadFunc)receive_tsl_umd_v5_packet, NULL);
 }
 
 void stop_tally (void)
@@ -203,7 +245,7 @@ void stop_tally (void)
 
 	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 		for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-			rcp = cameras_set_itr->rcp_ptr_array[i];
+			rcp = cameras_set_itr->cameras[i];
 
 			rcp->tally_data = 0x00;
 

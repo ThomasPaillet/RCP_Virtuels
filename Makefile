@@ -27,15 +27,17 @@ rcp_AW_HE130.o: protocol.h misc.h ND_filter.h gain.h gamma.h color_temperature.h
 
 rcp_AW_UE150.o: protocol.h misc.h ND_filter.h gain.h gamma.h chroma_phase.h color_temperature.h knee.h matrix.h detail.h saturation.h white.h black.h shutter.h pedestal.h iris.h scenes.h settings.h sw_p_08.h physical_rcp.h
 
-protocol.o: error.h update_notification.h
+protocol.o: error.h logging.h update_notification.h network_header.h
 
 misc.o: rcp_AW_HE130.h rcp_AW_UE150.h protocol.h error.h ND_filter.h gamma.h chroma_phase.h color_temperature.h knee.h matrix.h detail.h saturation.h shutter.h pedestal.h cameras_set.h settings.h sw_p_08.h physical_rcp.h
 
 update_ihm.o: gamma.h chroma_phase.h knee.h matrix.h detail.h saturation.h shutter.h pedestal.h settings.h
 
-error.o: misc.h
+error.o: cameras_set.h logging.h misc.h
 
-update_notification.o: version.h protocol.h misc.h update_ihm.h error.h ND_filter.h gain.h gamma.h color_temperature.h cameras_set.h settings.h sw_p_08.h physical_rcp.h
+logging.o: f_sync.h tally.h
+
+update_notification.o: version.h protocol.h misc.h update_ihm.h error.h ND_filter.h gain.h gamma.h color_temperature.h cameras_set.h settings.h sw_p_08.h physical_rcp.h network_header.h
 
 ND_filter.o: protocol.h sw_p_08.h physical_rcp.h
 
@@ -73,9 +75,9 @@ scenes.o: cameras_set.h gamma.h knee.h detail.h settings.h main_window.h
 
 settings.o: version.h protocol.h misc.h error.h update_notification.h operating_system.h gain.h shutter.h cameras_set.h scenes.h sw_p_08.h tally.h physical_rcp.h main_window.h
 
-sw_p_08.o: rcp_AW_HE130.h rcp_AW_UE150.h protocol.h misc.h operating_system.h cameras_set.h settings.h tally.h physical_rcp.h main_window.h
+sw_p_08.o: cameras_set.h logging.h rcp_AW_HE130.h rcp_AW_UE150.h protocol.h misc.h operating_system.h settings.h tally.h physical_rcp.h main_window.h
 
-tally.o: protocol.h cameras_set.h settings.h sw_p_08.h main_window.h
+tally.o: cameras_set.h logging.h main_window.h protocol.h settings.h sw_p_08.h
 
 physical_rcp.o: protocol.h update_ihm.h error.h settings.h sw_p_08.h
 

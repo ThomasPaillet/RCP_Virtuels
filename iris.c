@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,17 +17,14 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "iris.h"
-#include "ptz_cmd_define.h"
-
-#include "protocol.h"
-#include "misc.h"
-
-#include "sw_p_08.h"
-#include "physical_rcp.h"
 
 #include "main_window.h"
+#include "misc.h"
+#include "physical_rcp.h"
+#include "protocol.h"
+#include "ptz_cmd_define.h"
+#include "sw_p_08.h"
 
 
 #define MIN_VALUE 0x555

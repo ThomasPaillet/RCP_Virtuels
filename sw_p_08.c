@@ -1,5 +1,5 @@
 ﻿/*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,22 +17,19 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "sw_p_08.h"
 
-#include "rcp_AW_HE130.h"
-#include "rcp_AW_UE150.h"
-
-#include "protocol.h"
+#include "cameras_set.h"
+#include "logging.h"
+#include "main_window.h"
 #include "misc.h"
 #include "operating_system.h"
-
-#include "cameras_set.h"
+#include "physical_rcp.h"
+#include "protocol.h"
+#include "rcp_AW_HE130.h"
+#include "rcp_AW_UE150.h"
 #include "settings.h"
 #include "tally.h"
-#include "physical_rcp.h"
-
-#include "main_window.h"
 
 #include <string.h>
 
@@ -129,7 +126,7 @@ gboolean g_source_recall_memories (gpointer index)
 
 	if (current_cameras_set != NULL) {
 		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
-			rcp = current_cameras_set->rcp_ptr_array[i];
+			rcp = current_cameras_set->cameras[i];
 
 			if (!rcp->camera_is_on) continue;
 			if (rcp->camera_is_working) continue;
@@ -417,7 +414,7 @@ gpointer listen_to_rs_port (void)
 							g_mutex_lock (&current_cameras_set_mutex);
 
 							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
-								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+								rcp = current_cameras_set->cameras[(int)buffer[3]];
 							else rcp = NULL;
 
 							g_mutex_unlock (&current_cameras_set_mutex);
@@ -451,7 +448,7 @@ gpointer listen_to_rs_port (void)
 							g_mutex_lock (&current_cameras_set_mutex);
 
 							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
-								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+								rcp = current_cameras_set->cameras[(int)buffer[3]];
 							else rcp = NULL;
 
 							g_mutex_unlock (&current_cameras_set_mutex);
@@ -475,7 +472,7 @@ gpointer listen_to_rs_port (void)
 							g_mutex_lock (&current_cameras_set_mutex);
 
 							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
-								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+								rcp = current_cameras_set->cameras[(int)buffer[3]];
 							else rcp = NULL;
 
 							g_mutex_unlock (&current_cameras_set_mutex);
@@ -659,7 +656,7 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 							g_mutex_lock (&current_cameras_set_mutex);
 
 							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
-								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+								rcp = current_cameras_set->cameras[(int)buffer[3]];
 							else rcp = NULL;
 
 							g_mutex_unlock (&current_cameras_set_mutex);
@@ -692,7 +689,7 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 							g_mutex_lock (&current_cameras_set_mutex);
 
 							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
-								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+								rcp = current_cameras_set->cameras[(int)buffer[3]];
 							else rcp = NULL;
 
 							g_mutex_unlock (&current_cameras_set_mutex);
@@ -716,7 +713,7 @@ gpointer receive_message_from_remote_device (remote_device_t *remote_device)
 							g_mutex_lock (&current_cameras_set_mutex);
 
 							if ((current_cameras_set != NULL) && (buffer[3] < current_cameras_set->number_of_cameras))
-								rcp = current_cameras_set->rcp_ptr_array[(int)buffer[3]];
+								rcp = current_cameras_set->cameras[(int)buffer[3]];
 							else rcp = NULL;
 
 							g_mutex_unlock (&current_cameras_set_mutex);
@@ -782,6 +779,9 @@ gpointer sw_p_08_tcp_server (void)
 				closesocket (src_socket);
 				continue;
 			}
+
+			LOG_SW_P_08_INCOMMING_MESSAGE(inet_ntoa (src_addr.sin_addr),remote_devices[0].buffer,remote_devices[0].recv_len)
+
 			remote_devices[0].src_socket = src_socket;
 			memcpy (&remote_devices[0].src_addr, &src_addr, sizeof (struct sockaddr_in));
 			remote_devices[0].index = 0;
@@ -799,6 +799,9 @@ gpointer sw_p_08_tcp_server (void)
 				closesocket (src_socket);
 				continue;
 			}
+
+			LOG_SW_P_08_INCOMMING_MESSAGE(inet_ntoa (src_addr.sin_addr),remote_devices[1].buffer,remote_devices[1].recv_len)
+
 			remote_devices[1].src_socket = src_socket;
 			memcpy (&remote_devices[1].src_addr, &src_addr, sizeof (struct sockaddr_in));
 			remote_devices[1].index = 0;

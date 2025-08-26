@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,6 +19,9 @@
 
 #ifndef __ND_FILTER_H
 #define __ND_FILTER_H
+
+
+#include "rcp.h"
 
 
 void set_ND_filter (rcp_t *rcp);

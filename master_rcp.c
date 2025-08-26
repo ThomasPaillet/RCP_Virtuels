@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -54,7 +54,7 @@ void on_standby_master_switch_activated (GtkSwitch *on_standby_switch, GParamSpe
 	active = gtk_switch_get_active (on_standby_switch);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if ((rcp->ip_address_is_valid) && (!rcp->camera_is_working)) gtk_switch_set_active (GTK_SWITCH (rcp->on_standby_switch), active);
 	}
@@ -66,7 +66,7 @@ void standard_master_button_clicked (GtkButton *button, cameras_set_t *cameras_s
 	rcp_t *rcp;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -137,7 +137,7 @@ void mire_master_button_clicked (GtkButton *mire_button, cameras_set_t *cameras_
 	cameras_set->master_rcp.mire = !cameras_set->master_rcp.mire;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -154,7 +154,7 @@ void day_night_master_button_clicked (GtkButton *day_night_button, cameras_set_t
 	cameras_set->master_rcp.day_night = !cameras_set->master_rcp.day_night;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -180,7 +180,7 @@ void scene_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 	triggered_by_master_rcp = TRUE;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -206,7 +206,7 @@ void store_master_toggle_button_clicked (GtkToggleButton *store_toggle_button, c
 	active = gtk_toggle_button_get_active (store_toggle_button);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -221,7 +221,7 @@ void ABB_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set)
 	rcp_t *rcp;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -260,7 +260,7 @@ void ND_filter_master_changed (GtkComboBox *ND_filter_combo_box, cameras_set_t *
 	active_item = gtk_combo_box_get_active (ND_filter_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -293,7 +293,7 @@ void gain_master_changed (GtkComboBox *gain_combo_box, cameras_set_t *cameras_se
 	active_item = gtk_combo_box_get_active (gain_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -317,7 +317,7 @@ void gamma_type_master_changed (GtkComboBox *gamma_type_combo_box, cameras_set_t
 	active_item = gtk_combo_box_get_active (gamma_type_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -349,7 +349,7 @@ void gamma_master_changed (GtkComboBox *gamma_combo_box, cameras_set_t *cameras_
 	active_item = gtk_combo_box_get_active (gamma_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -371,7 +371,7 @@ void drs_master_changed (GtkComboBox *drs_combo_box, cameras_set_t *cameras_set)
 	active_item = gtk_combo_box_get_active (drs_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -393,7 +393,7 @@ void color_temperature_master_changed (GtkComboBox *color_temperature_combo_box,
 	active_item = gtk_combo_box_get_active (color_temperature_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -418,7 +418,7 @@ void color_temperature_plus_10_master_button_clicked (GtkButton *button, cameras
 	int index;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -437,7 +437,7 @@ void color_temperature_plus_1_master_button_clicked (GtkButton *button, cameras_
 	int index;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -456,7 +456,7 @@ void color_temperature_minus_1_master_button_clicked (GtkButton *button, cameras
 	int index;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -479,7 +479,7 @@ void color_temperature_minus_10_master_button_clicked (GtkButton *button, camera
 	int index;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -504,7 +504,7 @@ void knee_settings_master_changed (GtkComboBox *knee_settings_combo_box, cameras
 	active_item = gtk_combo_box_get_active (knee_settings_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -528,7 +528,7 @@ void matrix_type_master_changed (GtkComboBox *matrix_type_combo_box, cameras_set
 	active_item = gtk_combo_box_get_active (matrix_type_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -552,7 +552,7 @@ void detail_master_button_clicked (GtkButton *button, cameras_set_t *cameras_set
 	else gtk_button_set_label (button, "Off");
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -575,7 +575,7 @@ void saturation_0_master_button_clicked (GtkButton *button, cameras_set_t *camer
 	rcp_t *rcp;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -631,7 +631,7 @@ void white_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 	rcp_t *rcp;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -687,7 +687,7 @@ void white_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 	g_signal_handler_unblock (cameras_set->master_rcp.b_gain_scale, cameras_set->master_rcp.b_gain_handler_id);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -752,7 +752,7 @@ void black_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 	rcp_t *rcp;
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -794,7 +794,7 @@ void black_raz_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 	g_signal_handler_unblock (cameras_set->master_rcp.b_pedestal_scale, cameras_set->master_rcp.b_pedestal_handler_id);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -819,7 +819,7 @@ void shutter_type_master_changed (GtkComboBox *shutter_type_combo_box, cameras_s
 	active_item = gtk_combo_box_get_active (shutter_type_combo_box);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -858,7 +858,7 @@ void pedestal_raz_master_button_clicked (GtkButton *button, cameras_set_t *camer
 	g_signal_handler_unblock (cameras_set->master_rcp.pedestal_scale, cameras_set->master_rcp.pedestal_handler_id);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -897,7 +897,7 @@ void iris_auto_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 	else gtk_widget_set_sensitive (cameras_set->master_rcp.iris_sensitive_widgets, TRUE);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;
@@ -926,7 +926,7 @@ void iris_auto_master_button_clicked (GtkButton *button, cameras_set_t *cameras_
 	gtk_widget_unset_state_flags (button, GTK_STATE_FLAG_ACTIVE);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		if (!rcp->camera_is_on) continue;
 		if (rcp->camera_is_working) continue;

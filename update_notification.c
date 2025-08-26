@@ -52,7 +52,7 @@ GThread *update_notification_thread;
 	g_mutex_lock (&cameras_sets_mutex); \
 	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) { \
 		for (i = 0; i < cameras_set_itr->number_of_cameras; i++) { \
-			rcp = cameras_set_itr->rcp_ptr_array[i]; \
+			rcp = cameras_set_itr->cameras[i]; \
  \
 			if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) { \
 				g_mutex_lock (&rcp->cmd_mutex); \
@@ -70,7 +70,7 @@ GThread *update_notification_thread;
 	g_mutex_lock (&cameras_sets_mutex); \
 	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) { \
 		for (i = 0; i < cameras_set_itr->number_of_cameras; i++) { \
-			rcp = cameras_set_itr->rcp_ptr_array[i]; \
+			rcp = cameras_set_itr->cameras[i]; \
  \
 			if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) { \
 				g_mutex_lock (&rcp->cmd_mutex); \
@@ -501,6 +501,7 @@ gpointer receive_update_notification (gpointer nothing)
 	socklen_t addrlen;
 	SOCKET src_socket;
 	struct sockaddr_in src_addr;
+	struct in_addr *src_in_addr;
 	char buffer[556];
 	int buffer_len;
 	cameras_set_t *cameras_set_itr;
@@ -533,7 +534,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if (buffer[32] == '1') rcp->auto_focus = TRUE;
@@ -564,7 +565,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if ((buffer[32] == '1') && (rcp->day_night == FALSE)) {
@@ -586,7 +587,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if ((buffer[34] == '1') && (rcp->mire == FALSE)) {
@@ -633,7 +634,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if (buffer[34] != settings_array_AW_HE130[COLOR_BAR_SETUP_LEVEL_INDEX_AW_HE130].answers[settings_parameters_indexes_array_AW_HE130[COLOR_BAR_SETUP_LEVEL_INDEX_AW_HE130]][0])
@@ -652,7 +653,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							g_idle_add ((GSourceFunc)ABB_execution_failed_busy_status, rcp);
@@ -681,7 +682,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							g_idle_add ((GSourceFunc)ABB_execution_failed, rcp);
@@ -716,7 +717,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if ((buffer[33] - 48) != status_lamp) {
@@ -742,7 +743,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							g_mutex_lock (&rcp->cmd_mutex);
@@ -772,7 +773,7 @@ gpointer receive_update_notification (gpointer nothing)
 					g_mutex_lock (&cameras_sets_mutex);
 					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
+							rcp = cameras_set_itr->cameras[i];
 
 							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 								if (buffer[34] == '1') rcp->auto_focus = TRUE;
@@ -803,7 +804,7 @@ gpointer receive_update_notification (gpointer nothing)
 					g_mutex_lock (&cameras_sets_mutex);
 					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
+							rcp = cameras_set_itr->cameras[i];
 
 							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 								g_idle_add ((GSourceFunc)ABB_rcp_work_end, rcp);
@@ -844,7 +845,7 @@ gpointer receive_update_notification (gpointer nothing)
 					g_mutex_lock (&cameras_sets_mutex);
 					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
+							rcp = cameras_set_itr->cameras[i];
 
 							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 								if (buffer[34] != settings_array[WHITE_BALANCE_MODE_INDEX].answers[settings_parameters_indexes_array[WHITE_BALANCE_MODE_INDEX]][0])
@@ -1080,7 +1081,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if ((buffer[37] != settings_array[WHITE_CLIP_LEVEL_INDEX].answers[settings_parameters_indexes_array[WHITE_CLIP_LEVEL_INDEX]][0]) || \
@@ -1116,7 +1117,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array[WHITE_CLIP_INDEX].answers[settings_parameters_indexes_array[WHITE_CLIP_INDEX]][0])
@@ -1192,7 +1193,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if ((buffer[37] != settings_array[FRAME_MIX_INDEX].answers[settings_parameters_indexes_array[FRAME_MIX_INDEX]][0]) || \
@@ -1225,7 +1226,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (rcp->model == AW_UE150) {
@@ -1292,7 +1293,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (rcp->model == AW_UE150) {
@@ -1329,7 +1330,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array[OSD_STATUS_INDEX].answers[settings_parameters_indexes_array[OSD_STATUS_INDEX]][0])
@@ -1358,7 +1359,7 @@ gpointer receive_update_notification (gpointer nothing)
 						g_mutex_lock (&cameras_sets_mutex);
 						for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 							for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-								rcp = cameras_set_itr->rcp_ptr_array[i];
+								rcp = cameras_set_itr->cameras[i];
 
 								if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 									if (buffer[37] != settings_array[TALLY_BRIGHTNESS_INDEX].answers[settings_parameters_indexes_array[TALLY_BRIGHTNESS_INDEX]][0])
@@ -1400,7 +1401,7 @@ gpointer receive_update_notification (gpointer nothing)
 						g_mutex_lock (&cameras_sets_mutex);
 						for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 							for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-								rcp = cameras_set_itr->rcp_ptr_array[i];
+								rcp = cameras_set_itr->cameras[i];
 
 								if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 									if (buffer[38] != settings_array[DNR_INDEX].answers[settings_parameters_indexes_array[DNR_INDEX]][1])
@@ -1425,7 +1426,7 @@ gpointer receive_update_notification (gpointer nothing)
 						g_mutex_lock (&cameras_sets_mutex);
 						for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 							for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-								rcp = cameras_set_itr->rcp_ptr_array[i];
+								rcp = cameras_set_itr->cameras[i];
 
 								if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 									if (picture_level != (data - 0x32)) send_cam_control_command_2_digits (rcp, "OSD:48:", picture_level + 0x32, TRUE);
@@ -1452,7 +1453,7 @@ gpointer receive_update_notification (gpointer nothing)
 						g_mutex_lock (&cameras_sets_mutex);
 						for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 							for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-								rcp = cameras_set_itr->rcp_ptr_array[i];
+								rcp = cameras_set_itr->cameras[i];
 
 								if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 									if (buffer[38] != settings_array[AGC_MAX_GAIN_INDEX].answers[settings_parameters_indexes_array[AGC_MAX_GAIN_INDEX]][1])
@@ -1593,7 +1594,7 @@ gpointer receive_update_notification (gpointer nothing)
 						g_mutex_lock (&cameras_sets_mutex);
 						for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 							for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-								rcp = cameras_set_itr->rcp_ptr_array[i];
+								rcp = cameras_set_itr->cameras[i];
 
 								if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 									if (buffer[37] != settings_array_AW_HE130[DOWN_CONVERSION_MODE_INDEX_AW_HE130].answers[settings_parameters_indexes_array_AW_HE130[DOWN_CONVERSION_MODE_INDEX_AW_HE130]][0])
@@ -1642,7 +1643,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[HDMI_VIDEO_SAMPLING_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[HDMI_VIDEO_SAMPLING_INDEX_AW_UE150]][0])
@@ -1671,7 +1672,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array[PRESET_SCOPE_INDEX].answers[settings_parameters_indexes_array[PRESET_SCOPE_INDEX]][0])
@@ -1706,7 +1707,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array[OSD_OFF_WITH_TALLY_INDEX].answers[settings_parameters_indexes_array[OSD_OFF_WITH_TALLY_INDEX]][0])
@@ -1724,7 +1725,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (rcp->model == AW_UE150) {
@@ -1796,7 +1797,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (rcp->model == AW_UE150) {
@@ -1825,7 +1826,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (rcp->model == AW_UE150) {
@@ -1859,7 +1860,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (rcp->model == AW_UE150) {
@@ -1930,7 +1931,7 @@ gpointer receive_update_notification (gpointer nothing)
 					g_mutex_lock (&cameras_sets_mutex);
 					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
+							rcp = cameras_set_itr->cameras[i];
 
 							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 								g_mutex_lock (&rcp->cmd_mutex);
@@ -2031,7 +2032,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if ((rcp->model == AW_UE150) && rcp->active) {
@@ -2059,7 +2060,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SUPER_GAIN_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SUPER_GAIN_INDEX_AW_UE150]][0])
@@ -2087,7 +2088,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_3G_3G_SDI_OUT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_3G_3G_SDI_OUT_INDEX_AW_UE150]][0])
@@ -2117,7 +2118,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SHOOTING_MODE_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SHOOTING_MODE_INDEX_AW_UE150]][0])
@@ -2184,7 +2185,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[AUTO_IRIS_SPEED_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[AUTO_IRIS_SPEED_INDEX_AW_UE150]][0])
@@ -2212,7 +2213,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[AUTO_IRIS_WINDOW_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[AUTO_IRIS_WINDOW_INDEX_AW_UE150]][0])
@@ -2323,7 +2324,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[PEDESTAL_OFFSET_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[PEDESTAL_OFFSET_INDEX_AW_UE150]][0])
@@ -2382,7 +2383,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_12G_OPTICAL_FORMAT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_12G_OPTICAL_FORMAT_INDEX_AW_UE150]][0])
@@ -2410,7 +2411,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_12G_OPTICAL_HDR_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_12G_OPTICAL_HDR_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2440,7 +2441,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_12G_OPTICAL_3G_SDI_OUT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_12G_OPTICAL_3G_SDI_OUT_INDEX_AW_UE150]][0])
@@ -2468,7 +2469,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_3G_FORMAT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_3G_FORMAT_INDEX_AW_UE150]][0])
@@ -2496,7 +2497,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_3G_HDR_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_3G_HDR_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2524,7 +2525,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[MONI_FORMAT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[MONI_FORMAT_INDEX_AW_UE150]][0])
@@ -2552,7 +2553,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[MONI_HDR_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[MONI_HDR_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2580,7 +2581,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[HDMI_FORMAT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[HDMI_FORMAT_INDEX_AW_UE150]][0])
@@ -2608,7 +2609,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[HDMI_HDR_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[HDMI_HDR_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2653,7 +2654,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[COLOR_SETTING_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[COLOR_SETTING_INDEX_AW_UE150]][0])
@@ -2681,7 +2682,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_12G_OPTICAL_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_12G_OPTICAL_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2709,7 +2710,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[SDI_3G_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[SDI_3G_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2737,7 +2738,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[MONI_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[MONI_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2765,7 +2766,7 @@ gpointer receive_update_notification (gpointer nothing)
 							g_mutex_lock (&cameras_sets_mutex);
 							for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 								for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-									rcp = cameras_set_itr->rcp_ptr_array[i];
+									rcp = cameras_set_itr->cameras[i];
 
 									if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 										if (buffer[37] != settings_array_AW_UE150[HDMI_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150].answers[settings_parameters_indexes_array_AW_UE150[HDMI_V_LOG_OUTPUT_SELECT_INDEX_AW_UE150]][0])
@@ -2801,7 +2802,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							rcp->ip_tally_is_on = FALSE;
@@ -2817,7 +2818,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if (!rcp->camera_is_on) {
@@ -2845,7 +2846,7 @@ gpointer receive_update_notification (gpointer nothing)
 				g_mutex_lock (&cameras_sets_mutex);
 				for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 					for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-						rcp = cameras_set_itr->rcp_ptr_array[i];
+						rcp = cameras_set_itr->cameras[i];
 
 						if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 							if (!rcp->camera_is_on) {
@@ -2874,7 +2875,7 @@ gpointer receive_update_notification (gpointer nothing)
 /*			g_mutex_lock (&cameras_sets_mutex);
 			for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 				for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-					rcp = cameras_set_itr->rcp_ptr_array[i];
+					rcp = cameras_set_itr->cameras[i];
 
 					if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 						rcp->last_version_information_notification_time = current_time;
@@ -2885,583 +2886,79 @@ gpointer receive_update_notification (gpointer nothing)
 			}
 			g_mutex_unlock (&cameras_sets_mutex);*/
 		} else if ((buffer[30] == 'r') && (buffer[31] == 'E') && (buffer[32] == 'R')) {	//rER[Error Code]	//Error information
+			src_in_addr = g_malloc (sizeof (struct in_addr));
+			*src_in_addr = src_addr.sin_addr;
+
 			if (buffer[33] == '0') {
-				if (buffer[34] == '0') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)clear_rcp_error, rcp); //Normal
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_clear_rcp_error (rcp);
-				} else if ((buffer[34] == '1') || (buffer[34] == '2')) {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)clear_rcp_error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_clear_rcp_error (rcp);
-				} else if (buffer[34] == '3') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Motor_Driver_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Motor_Driver_Error (rcp);
-				} else if (buffer[34] == '4') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Pan_Sensor_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Pan_Sensor_Error (rcp);
-				} else if (buffer[34] == '5') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Tilt_Sensor_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Tilt_Sensor_Error (rcp);
-				} else if (buffer[34] == '6') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Controller_RX_Over_run_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Controller_RX_Over_run_Error (rcp);
-				} else if (buffer[34] == '7') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Controller_RX_Framing_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Controller_RX_Framing_Error (rcp);
-				} else if (buffer[34] == '8') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Network_RX_Over_run_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Network_RX_Over_run_Error (rcp);
-				} else if (buffer[34] == '9') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Network_RX_Framing_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Network_RX_Framing_Error (rcp);
-				} else if ((buffer[34] == 'A') || (buffer[34] == 'B')) {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)clear_rcp_error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_clear_rcp_error (rcp);
-				}
+				if (buffer[34] == '0') g_idle_add ((GSourceFunc)clear_rcp_error, src_in_addr); //Normal
+				else if ((buffer[34] == '1') || (buffer[34] == '2')) g_idle_add ((GSourceFunc)clear_rcp_error, src_in_addr);
+				else if (buffer[34] == '3') g_idle_add ((GSourceFunc)Motor_Driver_Error, src_in_addr);
+				else if (buffer[34] == '4') g_idle_add ((GSourceFunc)Pan_Sensor_Error, src_in_addr);
+				else if (buffer[34] == '5') g_idle_add ((GSourceFunc)Tilt_Sensor_Error, src_in_addr);
+				else if (buffer[34] == '6') g_idle_add ((GSourceFunc)Controller_RX_Over_run_Error, src_in_addr);
+				else if (buffer[34] == '7') g_idle_add ((GSourceFunc)Controller_RX_Framing_Error, src_in_addr);
+				else if (buffer[34] == '8') g_idle_add ((GSourceFunc)Network_RX_Over_run_Error, src_in_addr);
+				else if (buffer[34] == '9') g_idle_add ((GSourceFunc)Network_RX_Framing_Error, src_in_addr);
+				else if ((buffer[34] == 'A') || (buffer[34] == 'B')) g_idle_add ((GSourceFunc)clear_rcp_error, src_in_addr);
+				else g_free (src_in_addr);
 			} else if (buffer[33] == '1') {
-				if (buffer[34] == '7') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Controller_RX_Command_Buffer_Overflow, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Controller_RX_Command_Buffer_Overflow (rcp);
-				} else if (buffer[34] == '9') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Network_RX_Command_Buffer_Overflow, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Network_RX_Command_Buffer_Overflow (rcp);
-				}
+				if (buffer[34] == '7') g_idle_add ((GSourceFunc)Controller_RX_Command_Buffer_Overflow, src_in_addr);
+				else if (buffer[34] == '9') g_idle_add ((GSourceFunc)Network_RX_Command_Buffer_Overflow, src_in_addr);
+				else g_free (src_in_addr);
 			} else if (buffer[33] == '2') {
-				if (buffer[34] == '1') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)System_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_System_Error (rcp);
-				} else if (buffer[34] == '2') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Spec_Limit_Over, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Spec_Limit_Over (rcp);
-				} else if (buffer[34] == '3') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)FPGA_Config_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_FPGA_Config_Error (rcp);
-				} else if (buffer[34] == '4') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								if (rcp->model == AW_UE150) g_idle_add ((GSourceFunc)NET_Life_monitoring_Error, rcp);
-								else g_idle_add ((GSourceFunc)Network_communication_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) {
-						if (rcp->model == AW_UE150) log_NET_Life_monitoring_Error (rcp);
-						else log_Network_communication_Error (rcp);
-					}
+				if (buffer[34] == '1') g_idle_add ((GSourceFunc)System_Error, src_in_addr);
+				else if (buffer[34] == '2') g_idle_add ((GSourceFunc)Spec_Limit_Over, src_in_addr);
+				else if (buffer[34] == '3') g_idle_add ((GSourceFunc)FPGA_Config_Error, src_in_addr);
+				else if (buffer[34] == '4') {
+					if (rcp->model == AW_HE130) g_idle_add ((GSourceFunc)Network_communication_Error, src_in_addr);
+					else g_idle_add ((GSourceFunc)NET_Life_monitoring_Error, src_in_addr);
 				} else if (buffer[34] == '5') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								if (rcp->model == AW_UE150) g_idle_add ((GSourceFunc)BE_Life_monitoring_Error, rcp);
-								else g_idle_add ((GSourceFunc)CAMERA_communication_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) {
-						if (rcp->model == AW_UE150) log_BE_Life_monitoring_Error (rcp);
-						else log_CAMERA_communication_Error (rcp);
-					}
+					if (rcp->model == AW_HE130) g_idle_add ((GSourceFunc)CAMERA_communication_Error, src_in_addr);
+					else g_idle_add ((GSourceFunc)BE_Life_monitoring_Error, src_in_addr);
 				} else if (buffer[34] == '6') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								if (rcp->model == AW_UE150) g_idle_add ((GSourceFunc)IF_BE_UART_Buffer_Overflow, rcp);
-								else g_idle_add ((GSourceFunc)CAMERA_RX_Over_run_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) {
-						if (rcp->model == AW_UE150) log_IF_BE_UART_Buffer_Overflow (rcp);
-						else log_CAMERA_RX_Over_run_Error (rcp);
-					}
+					if (rcp->model == AW_HE130) g_idle_add ((GSourceFunc)CAMERA_RX_Over_run_Error, src_in_addr);
+					else g_idle_add ((GSourceFunc)IF_BE_UART_Buffer_Overflow, src_in_addr);
 				} else if (buffer[34] == '7') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								if (rcp->model == AW_UE150) g_idle_add ((GSourceFunc)IF_BE_UART_Framing_Error, rcp);
-								else g_idle_add ((GSourceFunc)CAMERA_RX_Framing_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) {
-						if (rcp->model == AW_UE150) log_IF_BE_UART_Framing_Error (rcp);
-						else log_CAMERA_RX_Framing_Error (rcp);
-					}
+					if (rcp->model == AW_HE130) g_idle_add ((GSourceFunc)CAMERA_RX_Framing_Error, src_in_addr);
+					else g_idle_add ((GSourceFunc)IF_BE_UART_Framing_Error, src_in_addr);
 				} else if (buffer[34] == '8') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								if (rcp->model == AW_UE150) g_idle_add ((GSourceFunc)IF_BE_UART_Buffer_Overflow_2, rcp);
-								else g_idle_add ((GSourceFunc)CAMERA_RX_Command_Buffer_Overflow, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) {
-						if (rcp->model == AW_UE150) log_IF_BE_UART_Buffer_Overflow_2 (rcp);
-						else log_CAMERA_RX_Command_Buffer_Overflow (rcp);
-					}
-				} else if (buffer[34] == '9') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)CAM_Life_monitoring_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_CAM_Life_monitoring_Error (rcp);
-				}
+					if (rcp->model == AW_HE130) g_idle_add ((GSourceFunc)CAMERA_RX_Command_Buffer_Overflow, src_in_addr);
+					else g_idle_add ((GSourceFunc)IF_BE_UART_Buffer_Overflow_2, src_in_addr);
+				} else if (buffer[34] == '9') g_idle_add ((GSourceFunc)CAM_Life_monitoring_Error, src_in_addr);
+				else g_free (src_in_addr);
 			} else if (buffer[33] == '3') {
-				if (buffer[34] == '1') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Fan1_error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Fan1_error (rcp);
-				} else if (buffer[34] == '2') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Fan2_error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Fan2_error (rcp);
-				} else if (buffer[34] == '3') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)High_Temp, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_High_Temp (rcp);
-				} else if (buffer[34] == '6') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Low_Temp, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Low_Temp (rcp);
-				}
+				if (buffer[34] == '0') g_idle_add ((GSourceFunc)NET_Life_monitoring_Error_2, src_in_addr);
+				else if (buffer[34] == '1') g_idle_add ((GSourceFunc)Fan1_error, src_in_addr);
+				else if (buffer[34] == '2') g_idle_add ((GSourceFunc)Fan2_error, src_in_addr);
+				else if (buffer[34] == '3') g_idle_add ((GSourceFunc)High_Temp, src_in_addr);
+				else if (buffer[34] == '6') g_idle_add ((GSourceFunc)Low_Temp, src_in_addr);
+				else if (buffer[34] == '9') g_idle_add ((GSourceFunc)Wiper_Error, src_in_addr);
+				else g_free (src_in_addr);
 			} else if (buffer[33] == '4') {
-				if (buffer[34] == '0') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Temp_Sensor_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Temp_Sensor_Error (rcp);
-				} else if (buffer[34] == '1') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Lens_Initialize_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Lens_Initialize_Error (rcp);
-				} else if (buffer[34] == '2') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)PT_Initialize_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_PT_Initialize_Error (rcp);
-				}
+				if (buffer[34] == '0') g_idle_add ((GSourceFunc)Temp_Sensor_Error, src_in_addr);
+				else if (buffer[34] == '1') g_idle_add ((GSourceFunc)Lens_Initialize_Error, src_in_addr);
+				else if (buffer[34] == '2') g_idle_add ((GSourceFunc)PT_Initialize_Error, src_in_addr);
+				else if (buffer[34] == '3') g_idle_add ((GSourceFunc)PoEpp_Software_auth_Timeout, src_in_addr);
+				else if (buffer[34] == '5') g_idle_add ((GSourceFunc)PoEp_Software_auth_Timeout, src_in_addr);
+				else if (buffer[34] == '7') g_idle_add ((GSourceFunc)USB_Streaming_Error, src_in_addr);
+				else g_free (src_in_addr);
 			} else if (buffer[33] == '5') {
-				if (buffer[34] == '0') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)MR_Level_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_MR_Level_Error (rcp);
-				} else if (buffer[34] == '2') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)MR_Offset_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_MR_Offset_Error (rcp);
-				} else if (buffer[34] == '3') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Origin_Offset_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Origin_Offset_Error (rcp);
-				} else if (buffer[34] == '4') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Angle_MR_Sensor_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Angle_MR_Sensor_Error (rcp);
-				} else if (buffer[34] == '5') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)PT_Gear_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_PT_Gear_Error (rcp);
-				} else if (buffer[34] == '6') {
-					rcp = NULL;
-					g_mutex_lock (&cameras_sets_mutex);
-					for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
-						for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-							rcp = cameras_set_itr->rcp_ptr_array[i];
-
-							if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
-								g_idle_add ((GSourceFunc)Motor_Disconnect_Error, rcp);
-								break;
-							}
-						}
-					}
-					g_mutex_unlock (&cameras_sets_mutex);
-
-					if (rcp != NULL) log_Motor_Disconnect_Error (rcp);
-				}
-			}
+				if (buffer[34] == '0') g_idle_add ((GSourceFunc)MR_Level_Error, src_in_addr);
+				else if (buffer[34] == '2') g_idle_add ((GSourceFunc)MR_Offset_Error, src_in_addr);
+				else if (buffer[34] == '3') g_idle_add ((GSourceFunc)Origin_Offset_Error, src_in_addr);
+				else if (buffer[34] == '4') g_idle_add ((GSourceFunc)Angle_MR_Sensor_Error, src_in_addr);
+				else if (buffer[34] == '5') g_idle_add ((GSourceFunc)PT_Gear_Error, src_in_addr);
+				else if (buffer[34] == '6') g_idle_add ((GSourceFunc)Motor_Disconnect_Error, src_in_addr);
+				else if (buffer[34] == '7') g_idle_add ((GSourceFunc)Gyro_Error, src_in_addr);
+				else if (buffer[34] == '8') g_idle_add ((GSourceFunc)PT_Initialize_Error_2, src_in_addr);
+				else g_free (src_in_addr);
+			} else if (buffer[33] == '6') {
+				if (buffer[34] == '0') g_idle_add ((GSourceFunc)Update_Firmware_Error, src_in_addr);
+				else if (buffer[34] == '1') g_idle_add ((GSourceFunc)Update_Hardware_Error, src_in_addr);
+				else if (buffer[34] == '2') g_idle_add ((GSourceFunc)Update_Error, src_in_addr);
+				else if (buffer[34] == '3') g_idle_add ((GSourceFunc)Update_Fan_Error, src_in_addr);
+				else g_free (src_in_addr);
+			} else g_free (src_in_addr);
 		} else if ((buffer[30] == 't') && (buffer[31] == 'A') && (buffer[32] == 'E')) {	//tAE	//Tally input
 #ifdef MAIN_SETTINGS_READ_ONLY
 			tally_input = buffer[33] - 48;
@@ -3470,7 +2967,7 @@ gpointer receive_update_notification (gpointer nothing)
 			g_mutex_lock (&cameras_sets_mutex);
 			for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 				for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-					rcp = cameras_set_itr->rcp_ptr_array[i];
+					rcp = cameras_set_itr->cameras[i];
 
 					if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 						if ((buffer[33] - 48) != tally_input) {
@@ -3489,7 +2986,7 @@ gpointer receive_update_notification (gpointer nothing)
 			g_mutex_lock (&cameras_sets_mutex);
 			for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 				for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-					rcp = cameras_set_itr->rcp_ptr_array[i];
+					rcp = cameras_set_itr->cameras[i];
 
 					if (rcp->address.sin_addr.s_addr == src_addr.sin_addr.s_addr) {
 						send_cam_request_command (rcp, "QAW", &data);

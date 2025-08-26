@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,11 +17,10 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "color_temperature.h"
 
-#include "protocol.h"
 #include "misc.h"
+#include "protocol.h"
 
 
 int color_temperature_array_AW_HE130[121] = { \
@@ -63,11 +62,7 @@ void set_color_temperature_AW_HE130 (rcp_t *rcp)
 
 gboolean set_color_temperature_delayed_AW_HE130 (rcp_t *rcp)
 {
-	rcp->last_time.tv_usec += 130000;
-	if (rcp->last_time.tv_usec >= 1000000) {
-		rcp->last_time.tv_sec++;
-		rcp->last_time.tv_usec -= 1000000;
-	}
+	rcp->last_time += 130000;
 
 	send_cam_control_command_3_digits (rcp, "OSD:B1:", 120 - rcp->current_scene.color_temperature, FALSE);
 
@@ -77,15 +72,15 @@ gboolean set_color_temperature_delayed_AW_HE130 (rcp_t *rcp)
 
 void color_temperature_changed_AW_HE130 (GtkComboBox *color_temperature_combo_box, rcp_t *rcp)
 {
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 	rcp->current_scene.color_temperature = gtk_combo_box_get_active (color_temperature_combo_box);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
+	current_time = g_get_monotonic_time ();
+	elapsed_time = current_time - rcp->last_time;
 
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) {
-		if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time.tv_usec) / 1000, (GSourceFunc)set_color_temperature_delayed_AW_HE130, rcp);
+	if (elapsed_time < 130000) {
+		if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time) / 1000, (GSourceFunc)set_color_temperature_delayed_AW_HE130, rcp);
 	} else {
 		if (rcp->timeout_id != 0) {
 			g_source_remove (rcp->timeout_id);
@@ -113,11 +108,7 @@ gboolean color_temperature_button_held_AW_HE130 (rcp_t *rcp)
 		gtk_combo_box_set_active (GTK_COMBO_BOX (rcp->color_temperature_combo_box), index);
 		g_signal_handler_unblock (rcp->color_temperature_combo_box, rcp->color_temperature_handler_id);
 
-		rcp->last_time.tv_usec += 130000;
-		if (rcp->last_time.tv_usec >= 1000000) {
-			rcp->last_time.tv_sec++;
-			rcp->last_time.tv_usec -= 1000000;
-		}
+		rcp->last_time += 130000;
 
 		send_cam_control_command_3_digits (rcp, "OSD:B1:", 120 - rcp->current_scene.color_temperature, FALSE);
 
@@ -378,11 +369,7 @@ void set_color_temperature_AW_UE150_now (rcp_t *rcp)
 
 gboolean set_color_temperature_delayed_AW_UE150 (rcp_t *rcp)
 {
-	rcp->last_time.tv_usec += 130000;
-	if (rcp->last_time.tv_usec >= 1000000) {
-		rcp->last_time.tv_sec++;
-		rcp->last_time.tv_usec -= 1000000;
-	}
+	rcp->last_time += 130000;
 
 	set_color_temperature_AW_UE150_now (rcp);
 
@@ -392,15 +379,15 @@ gboolean set_color_temperature_delayed_AW_UE150 (rcp_t *rcp)
 
 void color_temperature_changed_AW_UE150 (GtkComboBox *color_temperature_combo_box, rcp_t *rcp)
 {
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 	rcp->current_scene.color_temperature = gtk_combo_box_get_active (color_temperature_combo_box);
 
-	gettimeofday (&current_time, NULL);
-	timersub (&current_time, &rcp->last_time, &elapsed_time);
+	current_time = g_get_monotonic_time ();
+	elapsed_time = current_time - rcp->last_time;
 
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) {
-		if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time.tv_usec) / 1000, (GSourceFunc)set_color_temperature_delayed_AW_UE150, rcp);
+	if (elapsed_time < 130000) {
+		if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time) / 1000, (GSourceFunc)set_color_temperature_delayed_AW_UE150, rcp);
 	} else {
 		if (rcp->timeout_id != 0) {
 			g_source_remove (rcp->timeout_id);
@@ -428,11 +415,7 @@ gboolean color_temperature_button_held_AW_UE150 (rcp_t *rcp)
 		gtk_combo_box_set_active (GTK_COMBO_BOX (rcp->color_temperature_combo_box), index);
 		g_signal_handler_unblock (rcp->color_temperature_combo_box, rcp->color_temperature_handler_id);
 
-		rcp->last_time.tv_usec += 130000;
-		if (rcp->last_time.tv_usec >= 1000000) {
-			rcp->last_time.tv_sec++;
-			rcp->last_time.tv_usec -= 1000000;
-		}
+		rcp->last_time += 130000;
 
 		set_color_temperature_AW_UE150_now (rcp);
 

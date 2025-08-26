@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,16 +17,15 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "protocol.h"
 
 #include "error.h"
+#include "logging.h"
 
 #include "update_notification.h"
 
 #include <string.h>
 #include <stdio.h>
-#include <time.h>
 #include <unistd.h>	//gethostname usleep
 
 #if defined (__linux)
@@ -62,16 +61,14 @@ int full_http_header_size;
 
 
 #define WAIT_IF_NEEDED \
-	gettimeofday (&current_time, NULL); \
-	timersub (&current_time, &rcp->last_time, &elapsed_time); \
-	if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) { \
-		usleep (130000 - elapsed_time.tv_usec); \
+	current_time = g_get_monotonic_time (); \
  \
-		rcp->last_time.tv_usec += 130000; \
-		if (rcp->last_time.tv_usec >= 1000000) { \
-			rcp->last_time.tv_sec++; \
-			rcp->last_time.tv_usec -= 1000000; \
-		} \
+	elapsed_time = current_time - rcp->last_time; \
+ \
+	if (elapsed_time < 130000) { \
+		usleep (130000 - elapsed_time); \
+ \
+		rcp->last_time = current_time + 130000 - elapsed_time; \
 	} else rcp->last_time = current_time;
 
 #define COMMAND_FUNC_END \
@@ -165,7 +162,7 @@ void send_cam_request_command (rcp_t *rcp, char* cmd, int *response)
 	int size, index;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
@@ -185,8 +182,10 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
 
 		index = 0;
 		size = recv (sock, buffer, sizeof (buffer), 0);
@@ -196,6 +195,8 @@ WAIT_IF_NEEDED
 			size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
 		}
 		buffer[index] = '\0';
+
+		LOG_RCP_RESPONSE(buffer,index)
 
 		index--;
 		while ((buffer[index] != ':') && (buffer[index] != '\n')) index--;
@@ -210,7 +211,7 @@ void send_cam_request_command_2 (rcp_t *rcp, char* cmd, int *response)
 	int size, index;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
@@ -230,8 +231,10 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
 
 		index = 0;
 
@@ -242,6 +245,8 @@ WAIT_IF_NEEDED
 			size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
 		}
 		buffer[index] = '\0';
+
+		LOG_RCP_RESPONSE(buffer,index)
 
 		index--;
 		while ((buffer[index] != ':') && (buffer[index] != '\n')) index--;
@@ -258,8 +263,9 @@ void send_cam_request_command_string (rcp_t *rcp, char* cmd, char *response)
 	int size, index;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 	char buffer[264];
+	int retry = 2;
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -278,8 +284,10 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
 
 		index = 0;
 		size = recv (sock, buffer, sizeof (buffer), 0);
@@ -289,6 +297,8 @@ WAIT_IF_NEEDED
 			size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
 		}
 		buffer[index] = '\0';
+
+		LOG_RCP_RESPONSE(buffer,index)
 
 		index--;
 		while ((buffer[index] != ':') && (buffer[index] != '\n')) index--;
@@ -303,7 +313,9 @@ void send_cam_control_command (rcp_t *rcp, char* cmd)
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -326,8 +338,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -336,6 +364,8 @@ void send_cam_control_command_now (rcp_t *rcp, char* cmd)
 	int size;
 	char *http_cmd;
 	SOCKET sock;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -356,8 +386,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 	sock = socket (AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -366,7 +412,8 @@ void send_cam_control_command_string (rcp_t *rcp, char* cmd, char* value)
 	int size, index;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -396,8 +443,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -406,7 +469,9 @@ void send_cam_control_command_1_digit (rcp_t *rcp, char* cmd, int value, gboolea
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -434,8 +499,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 WAIT_IF_NEEDED
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 1 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -444,7 +525,9 @@ void send_cam_control_command_2_digits (rcp_t *rcp, char* cmd, int value, gboole
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -476,8 +559,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 WAIT_IF_NEEDED
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 2 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -486,7 +585,9 @@ void send_cam_control_command_3_digits (rcp_t *rcp, char* cmd, int value, gboole
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -521,8 +622,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 WAIT_IF_NEEDED
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 3 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -531,7 +648,9 @@ void send_cam_control_command_4_digits (rcp_t *rcp, char* cmd, int value, gboole
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -569,8 +688,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 WAIT_IF_NEEDED
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 4 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -579,7 +714,9 @@ void send_cam_control_command_5_digits (rcp_t *rcp, char* cmd, int value, gboole
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -620,8 +757,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 WAIT_IF_NEEDED
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 5 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -630,7 +783,7 @@ void send_ptz_request_command (rcp_t *rcp, char* cmd, int *response)
 	int size, index;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
@@ -650,8 +803,10 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
 
 		index = 0;
 		size = recv (sock, buffer, sizeof (buffer), 0);
@@ -661,6 +816,8 @@ WAIT_IF_NEEDED
 			size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
 		}
 		buffer[index] = '\0';
+
+		LOG_RCP_RESPONSE(buffer,index)
 
 		*response = buffer[--index] - 48;
 	} else {
@@ -682,7 +839,7 @@ void send_ptz_request_command_string (rcp_t *rcp, char* cmd, char *response)
 	int size, index;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
@@ -702,8 +859,10 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
 
 		index = 0;
 		size = recv (sock, buffer, sizeof (buffer), 0);
@@ -713,6 +872,8 @@ WAIT_IF_NEEDED
 			size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
 		}
 		buffer[index] = '\0';
+
+		LOG_RCP_RESPONSE(buffer,index)
 
 		index--;
 		while (buffer[index] != '\n') index--;
@@ -727,7 +888,9 @@ void send_ptz_control_command (rcp_t *rcp, char* cmd)
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -750,8 +913,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -760,7 +939,9 @@ void send_ptz_control_command_3_digits (rcp_t *rcp, char* cmd, int value, gboole
 	int size;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -795,8 +976,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 WAIT_IF_NEEDED
 	}
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, size + 3 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -805,7 +1002,9 @@ void send_tally_on_control_command (rcp_t *rcp)
 	GSList *gslist_itr;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int size, index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -836,8 +1035,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, 4 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -846,7 +1061,9 @@ void send_tally_off_control_command (rcp_t *rcp)
 	GSList *gslist_itr;
 	char *http_cmd;
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int size, index;
+	char buffer[264];
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -877,8 +1094,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, http_cmd, 4 + full_http_header_size, 0);
+
+		LOG_RCP_COMMAND(http_cmd)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -886,7 +1119,8 @@ gboolean send_ABB_execution_control_command (rcp_t *rcp)
 {
 	char buffer[264];
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
+	int size, index;
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -899,8 +1133,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, 104 + http_header_size, 0);
+
+		LOG_RCP_COMMAND(buffer)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 		closesocket (sock);
 g_mutex_unlock (&rcp->cmd_mutex);
@@ -919,7 +1169,7 @@ void send_update_start_cmd (rcp_t *rcp)
 	int size, index;
 	char buffer[280];
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -937,10 +1187,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
 
-//		rcp->last_version_information_notification_time = current_time.tv_sec;
+		LOG_RCP_COMMAND(buffer)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 		if (rcp->error_code == CAMERA_IS_UNREACHABLE_ERROR) {
 			rcp->error_code = 0x00;
@@ -954,7 +1218,7 @@ void send_update_stop_cmd (rcp_t *rcp)
 	int size, index;
 	char buffer[280];
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
+	gint64 current_time, elapsed_time;
 
 g_mutex_lock (&rcp->cmd_mutex);
 
@@ -972,8 +1236,24 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, size, 0);
+
+		LOG_RCP_COMMAND(buffer)
+
+		if (logging && log_panasonic) {
+			index = 0;
+			size = recv (sock, buffer, sizeof (buffer), 0);
+
+			while (size > 0) {
+				index += size;
+				size = recv (sock, buffer + index, sizeof (buffer) - index, 0);
+			}
+
+			g_mutex_lock (&logging_mutex);
+			log_rcp_response (__FILE__, rcp, buffer, index);
+			g_mutex_unlock (&logging_mutex);
+		}
 
 COMMAND_FUNC_END
 
@@ -982,8 +1262,8 @@ gpointer send_jpeg_image_request_cmd (rcp_t *rcp)
 	int size, index;
 	char buffer[8192];
 	SOCKET sock;
-	struct timeval current_time, elapsed_time;
-	struct tm *time;
+	gint64 current_time, elapsed_time;
+	GDateTime *date_time;
 	FILE *jpeg_file;
 	char jpeg_file_name[40];
 
@@ -1000,12 +1280,15 @@ g_mutex_lock (&rcp->cmd_mutex);
 
 WAIT_IF_NEEDED
 
-	if (connect (sock, (struct sockaddr *) &rcp->address, sizeof (struct sockaddr_in)) == 0) {
+	if (connect (sock, (struct sockaddr *)&rcp->address, sizeof (struct sockaddr_in)) == 0) {
 		send (sock, buffer, 122 + size + http_header_size, 0);
 
-		time = localtime (&current_time.tv_sec);
-		sprintf (jpeg_file_name, "20%02d-%02d-%02d %02d_%02d_%02d Camera %s.jpg", time->tm_year - 100, time->tm_mon + 1, time->tm_mday, time->tm_hour, time->tm_min, time->tm_sec, rcp->name);
+		LOG_RCP_COMMAND(buffer)
+
+		date_time = g_date_time_new_now_local ();
+		sprintf (jpeg_file_name, "%04d-%02d-%02d %02dh-%02dm-%02ds Camera %s.jpg", g_date_time_get_year (date_time), g_date_time_get_month (date_time), g_date_time_get_day_of_month (date_time), g_date_time_get_hour (date_time), g_date_time_get_minute (date_time), g_date_time_get_second (date_time), rcp->name);
 		jpeg_file = fopen (jpeg_file_name, "wb");
+		g_date_time_unref (date_time);
 
 		if (rcp->model == AW_HE130) recv (sock, buffer, sizeof (buffer), 0);
 		size = recv (sock, buffer, sizeof (buffer), 0);

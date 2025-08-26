@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2021-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2021-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,14 +17,12 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "gain.h"
 
+#include "physical_rcp.h"
 #include "protocol.h"
-
 #include "settings.h"
 #include "sw_p_08.h"
-#include "physical_rcp.h"
 
 
 void set_gain_AW_HE130 (rcp_t *rcp)

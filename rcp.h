@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -22,31 +22,7 @@
 
 
 #include <gtk/gtk.h>
-#include <sys/time.h>
-
-
-#ifdef _WIN32
-	#include <winsock2.h>
-
-	#define SHUT_RD SD_RECEIVE
-
-	typedef int socklen_t;
-
-	void WSAInit (void);
-
-	void timersub (const struct timeval* tvp, const struct timeval* uvp, struct timeval* vvp);
-#elif defined (__linux)
-	#include <sys/socket.h>
-	#include <netinet/in.h>
-	#include <arpa/inet.h>
-	#include <netdb.h>
-
-	#define SOCKET int
-	#define INVALID_SOCKET -1
-	#define closesocket close
-	#define WSAInit()
-	#define WSACleanup()
-#endif
+#include "network_header.h"
 
 
 typedef enum { fps_59_94p, fps_59_94i, fps_50p, fps_50i, fps_29_97p, fps_25p, fps_24p, fps_23_98p } fps_t;
@@ -54,6 +30,7 @@ typedef enum { fps_59_94p, fps_59_94i, fps_50p, fps_50i, fps_29_97p, fps_25p, fp
 
 #define AW_HE130 0
 #define AW_UE150 1
+#define AW_UE160 2
 
 #define ND_FILTER_DEFAULT 0							//Through
 
@@ -240,10 +217,8 @@ typedef struct {
 
 	int model;
 
-//	time_t last_version_information_notification_time;
-
 	GThread *thread;
-	struct timeval last_time;
+	gint64 last_time;
 	guint timeout_id;
 	gboolean r_b;
 	gboolean need_last_call;

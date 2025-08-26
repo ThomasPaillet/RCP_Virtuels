@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -20,6 +20,7 @@
 #include "rcp.h"
 #include "main_window.h"
 
+#include "logging.h"
 #include "protocol.h"
 #include "misc.h"
 #include "error.h"
@@ -153,7 +154,7 @@ void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, g
 
 	if ((send_ip_tally) && (current_cameras_set != NULL)) {
 		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
-			rcp = current_cameras_set->rcp_ptr_array[i];
+			rcp = current_cameras_set->cameras[i];
 
 			if (rcp->camera_is_on && rcp->ip_tally_is_on) send_tally_off_control_command (rcp);
 		}
@@ -176,8 +177,8 @@ void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, g
 		return;
 	}
 
-	if ((int)tally_pgm < current_cameras_set->number_of_cameras) rcp_pgm = current_cameras_set->rcp_ptr_array[(int)tally_pgm];
-	if ((int)tally_pvw < current_cameras_set->number_of_cameras) rcp_pvw = current_cameras_set->rcp_ptr_array[(int)tally_pvw];
+	if ((int)tally_pgm < current_cameras_set->number_of_cameras) rcp_pgm = current_cameras_set->cameras[(int)tally_pgm];
+	if ((int)tally_pvw < current_cameras_set->number_of_cameras) rcp_pvw = current_cameras_set->cameras[(int)tally_pvw];
 
 	tell_camera_set_is_selected (page_num);
 
@@ -185,7 +186,7 @@ void main_window_notebook_switch_page (GtkNotebook *notebook, GtkWidget *page, g
 
 	if (send_ip_tally) {
 		for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
-			rcp = current_cameras_set->rcp_ptr_array[i];
+			rcp = current_cameras_set->cameras[i];
 
 			if ((rcp->camera_is_on) && ((rcp->tally_data & 0x30) || (rcp == rcp_pgm))) send_tally_on_control_command (rcp);
 		}
@@ -319,12 +320,12 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 		else if ((GDK_KEY_F1 <= event->keyval) && (event->keyval <= GDK_KEY_F15)) {
 			rcp_num = event->keyval - GDK_KEY_F1;
 			if (rcp_num >= current_cameras_set->number_of_cameras) rcp_num = current_cameras_set->number_of_cameras - 1;
-			rcp_button_press_event (NULL, NULL, current_cameras_set->rcp_ptr_array[rcp_num]);
+			rcp_button_press_event (NULL, NULL, current_cameras_set->cameras[rcp_num]);
 		} else if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
 			for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
-				if (current_cameras_set->rcp_ptr_array[i]->active) {
-					gtk_widget_hide (current_cameras_set->rcp_ptr_array[i]->scenes_bank_1_box);
-					gtk_widget_show (current_cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
+				if (current_cameras_set->cameras[i]->active) {
+					gtk_widget_hide (current_cameras_set->cameras[i]->scenes_bank_1_box);
+					gtk_widget_show (current_cameras_set->cameras[i]->scenes_bank_2_box);
 				}
 			}
 			gtk_widget_hide (current_cameras_set->master_rcp.scenes_bank_1_box);
@@ -409,7 +410,7 @@ gboolean main_window_key_press (GtkWidget *widget, GdkEventKey *event)
 				}
 			} else {
 				for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
-					rcp = current_cameras_set->rcp_ptr_array[i];
+					rcp = current_cameras_set->cameras[i];
 
 					if ((rcp->active) && (rcp->camera_is_on) && (!rcp->camera_is_working)) {
 						if (rcp->thread != NULL) g_thread_join (rcp->thread);
@@ -458,9 +459,9 @@ gboolean main_window_key_release (GtkWidget *widget, GdkEventKey *event)
 	if (current_cameras_set != NULL) {
 		if ((event->keyval == GDK_KEY_Shift_L) || (event->keyval == GDK_KEY_Shift_R)) {
 			for (i = 0; i < current_cameras_set->number_of_cameras; i++) {
-				if (current_cameras_set->rcp_ptr_array[i]->active) {
-					gtk_widget_hide (current_cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
-					gtk_widget_show (current_cameras_set->rcp_ptr_array[i]->scenes_bank_1_box);
+				if (current_cameras_set->cameras[i]->active) {
+					gtk_widget_hide (current_cameras_set->cameras[i]->scenes_bank_2_box);
+					gtk_widget_show (current_cameras_set->cameras[i]->scenes_bank_1_box);
 				}
 			}
 			gtk_widget_hide (current_cameras_set->master_rcp.scenes_bank_2_box);
@@ -526,6 +527,8 @@ int main (int argc, char** argv)
 
 	g_resources_register (gresources_get_resource ());
 #endif
+
+	init_logging ();
 
 	init_protocol ();
 
@@ -627,7 +630,7 @@ int main (int argc, char** argv)
 
 	for (cameras_set_itr = cameras_sets; cameras_set_itr != NULL; cameras_set_itr = cameras_set_itr->next) {
 		for (i = 0; i < cameras_set_itr->number_of_cameras; i++) {
-			rcp = cameras_set_itr->rcp_ptr_array[i];
+			rcp = cameras_set_itr->cameras[i];
 
 			if (rcp->active) {
 				gtk_widget_hide (rcp->scenes_bank_2_box);
@@ -665,8 +668,6 @@ int main (int argc, char** argv)
 		show_cameras_set_configuration_window ();
 	}
 
-	start_error_log ();
-
 	start_update_notification ();
 
 	for (glist_itr = rcp_start_glist; glist_itr != NULL; glist_itr = glist_itr->next) {
@@ -679,7 +680,9 @@ int main (int argc, char** argv)
 
 	start_sw_p_08 ();
 
+
 	gtk_main ();
+
 
 	if (backup_needed || physical_rcp.connected) save_settings_and_cameras_sets_to_config_file ();
 
@@ -692,7 +695,7 @@ int main (int argc, char** argv)
 
 	stop_update_notification ();
 
-	stop_error_log ();
+	if (logging) stop_logging ();
 
 	g_list_free (rcp_start_glist);
 

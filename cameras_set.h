@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -21,6 +21,7 @@
 #define __CAMERAS_SET_H
 
 
+#include "rcp.h"
 #include "master_rcp.h"
 
 
@@ -33,7 +34,7 @@ typedef struct cameras_set_s {
 	char name[CAMERAS_SET_NAME_LENGTH + 1];
 
 	int number_of_cameras;
-	rcp_t **rcp_ptr_array;
+	rcp_t *cameras[MAX_CAMERAS];
 
 	master_rcp_t master_rcp;
 

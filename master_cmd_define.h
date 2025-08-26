@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2021-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2021-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -30,7 +30,7 @@ void l##_master_value_changed (GtkRange *l##_scale, cameras_set_t *cameras_set) 
 	l = (int)gtk_range_get_value (l##_scale); \
  \
 	for (i = 0; i < cameras_set->number_of_cameras; i++) { \
-		rcp = cameras_set->rcp_ptr_array[i]; \
+		rcp = cameras_set->cameras[i]; \
  \
 		if (!rcp->camera_is_on) continue; \
 		if (rcp->camera_is_working) continue; \
@@ -89,7 +89,7 @@ gboolean l##_plus_##v##_master_button_pressed (GtkButton *button, GdkEventButton
  \
 	if (cameras_set->master_rcp.l != value) { \
 		for (i = 0; i < cameras_set->number_of_cameras; i++) { \
-			rcp = cameras_set->rcp_ptr_array[i]; \
+			rcp = cameras_set->cameras[i]; \
  \
 			if (!rcp->camera_is_on) continue; \
 			if (rcp->camera_is_working) continue; \
@@ -120,7 +120,7 @@ gboolean l##_plus_##v##_master_button_released (GtkButton *button, GdkEventButto
 	gtk_widget_unset_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE); \
  \
 	for (i = 0; i < cameras_set->number_of_cameras; i++) { \
-		rcp = cameras_set->rcp_ptr_array[i]; \
+		rcp = cameras_set->cameras[i]; \
  \
 		if (!rcp->camera_is_on) continue; \
 		if (rcp->camera_is_working) continue; \
@@ -162,7 +162,7 @@ gboolean l##_minus_##v##_master_button_pressed (GtkButton *button, GdkEventButto
  \
 	if (cameras_set->master_rcp.l != value) { \
 		for (i = 0; i < cameras_set->number_of_cameras; i++) { \
-			rcp = cameras_set->rcp_ptr_array[i]; \
+			rcp = cameras_set->cameras[i]; \
  \
 			if (!rcp->camera_is_on) continue; \
 			if (rcp->camera_is_working) continue; \
@@ -193,7 +193,7 @@ gboolean l##_minus_##v##_master_button_released (GtkButton *button, GdkEventButt
 	gtk_widget_unset_state_flags (GTK_WIDGET (button), GTK_STATE_FLAG_ACTIVE); \
  \
 	for (i = 0; i < cameras_set->number_of_cameras; i++) { \
-		rcp = cameras_set->rcp_ptr_array[i]; \
+		rcp = cameras_set->cameras[i]; \
  \
 		if (!rcp->camera_is_on) continue; \
 		if (rcp->camera_is_working) continue; \

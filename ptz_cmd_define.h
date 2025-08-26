@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -29,11 +29,7 @@ void set_##l (rcp_t *rcp) \
  \
 gboolean set_##l##_delayed (rcp_t *rcp) \
 { \
-	rcp->last_time.tv_usec += 130000; \
-	if (rcp->last_time.tv_usec >= 1000000) { \
-		rcp->last_time.tv_sec++; \
-		rcp->last_time.tv_usec -= 1000000; \
-	} \
+	rcp->last_time += 130000; \
  \
 	send_ptz_control_command_##d##_digits (rcp, c, rcp->current_scene.l, FALSE); \
  \
@@ -44,18 +40,18 @@ gboolean set_##l##_delayed (rcp_t *rcp) \
 void l##_value_changed (GtkRange *l##_scale, rcp_t *rcp) \
 { \
 	int l; \
-	struct timeval current_time, elapsed_time; \
+	gint64 current_time, elapsed_time; \
  \
 	l = (int)gtk_range_get_value (l##_scale); \
  \
 	if (rcp->current_scene.l != l) { \
 		rcp->current_scene.l = l; \
  \
-		gettimeofday (&current_time, NULL); \
-		timersub (&current_time, &rcp->last_time, &elapsed_time); \
+		current_time = g_get_monotonic_time (); \
+		elapsed_time = current_time - rcp->last_time; \
  \
-		if ((elapsed_time.tv_sec == 0) && (elapsed_time.tv_usec < 130000)) { \
-			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time.tv_usec) / 1000, (GSourceFunc)set_##l##_delayed, rcp); \
+		if (elapsed_time < 130000) { \
+			if (rcp->timeout_id == 0) rcp->timeout_id = g_timeout_add ((130000 - elapsed_time) / 1000, (GSourceFunc)set_##l##_delayed, rcp); \
 		} else { \
 			if (rcp->timeout_id != 0) { \
 				g_source_remove (rcp->timeout_id); \
@@ -84,11 +80,7 @@ gboolean l##_button_held (rcp_t *rcp) \
 		gtk_range_set_value (GTK_RANGE (rcp->l##_scale), value); \
 		g_signal_handler_unblock (rcp->l##_scale, rcp->l##_handler_id); \
  \
-		rcp->last_time.tv_usec += 130000; \
-		if (rcp->last_time.tv_usec >= 1000000) { \
-			rcp->last_time.tv_sec++; \
-			rcp->last_time.tv_usec -= 1000000; \
-		} \
+		rcp->last_time += 130000; \
  \
 		send_ptz_control_command_##d##_digits (rcp, c, value, FALSE); \
  \

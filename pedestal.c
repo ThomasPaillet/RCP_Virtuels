@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,14 +17,12 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "pedestal.h"
+
 #include "cam_cmd_define.h"
-
-#include "protocol.h"
-#include "misc.h"
-
 #include "main_window.h"
+#include "misc.h"
+#include "protocol.h"
 
 
 #define MIN_VALUE 0x000

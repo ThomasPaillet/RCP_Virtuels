@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,7 +17,6 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "cameras_set.h"
 
 #include "rcp_AW_HE130.h"
@@ -184,7 +183,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		cameras_set->destination_rcp_list_box = widget;
 
 		for (i = 0; ((i < cameras_set->number_of_cameras) && (i < new_number_of_cameras)); i++) {
-			rcp = cameras_set->rcp_ptr_array[i];
+			rcp = cameras_set->cameras[i];
 
 			rcp->active = gtk_switch_get_active (GTK_SWITCH (cameras_configuration_widgets[i].camera_switch));
 
@@ -232,16 +231,16 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		gtk_widget_show_all (cameras_set->page);
 
 		for (i = 0; ((i < cameras_set->number_of_cameras) && (i < new_number_of_cameras)); i++) {
-			if (cameras_set->rcp_ptr_array[i]->active) {
-				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->scenes_bank_2_box);
+			if (cameras_set->cameras[i]->active) {
+				gtk_widget_hide (cameras_set->cameras[i]->scenes_bank_2_box);
 
-				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->shutter_step_combo_box);
-				gtk_widget_hide (cameras_set->rcp_ptr_array[i]->shutter_synchro_button);
+				gtk_widget_hide (cameras_set->cameras[i]->shutter_step_combo_box);
+				gtk_widget_hide (cameras_set->cameras[i]->shutter_synchro_button);
 
 				if (rcp->model == AW_UE150) {
-					gtk_widget_hide (cameras_set->rcp_ptr_array[i]->HLG_knee_frame);
-					gtk_widget_hide (cameras_set->rcp_ptr_array[i]->ELC_limit_label);
-					gtk_widget_hide (cameras_set->rcp_ptr_array[i]->ELC_limit_combo_box);
+					gtk_widget_hide (cameras_set->cameras[i]->HLG_knee_frame);
+					gtk_widget_hide (cameras_set->cameras[i]->ELC_limit_label);
+					gtk_widget_hide (cameras_set->cameras[i]->ELC_limit_combo_box);
 				}
 			}
 		}
@@ -271,7 +270,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		gtk_widget_show_all (cameras_set->destination_list_box_row);
 	} else {
 		for (i = new_number_of_cameras; i < cameras_set->number_of_cameras; i++) {
-			rcp = cameras_set->rcp_ptr_array[i];
+			rcp = cameras_set->cameras[i];
 
 			g_mutex_lock (&sw_p_08_mutex);
 			if (rcp == rcp_vision) rcp_vision = NULL;
@@ -332,11 +331,9 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 	}
 
 	if (new_number_of_cameras > cameras_set->number_of_cameras) {
-		cameras_set->rcp_ptr_array = g_realloc (cameras_set->rcp_ptr_array, new_number_of_cameras * sizeof (rcp_t*));
-
 		for (i = cameras_set->number_of_cameras; i < new_number_of_cameras; i++) {
 			rcp = g_malloc (sizeof (rcp_t));
-			cameras_set->rcp_ptr_array[i] = rcp;
+			cameras_set->cameras[i] = rcp;
 			rcp->cameras_set = cameras_set;
 
 			entry_buffer_text = gtk_entry_buffer_get_text (cameras_configuration_widgets[i].name_entry_buffer);
@@ -387,7 +384,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 	ip_addresss_list = NULL;
 
 	for (i = 0; i < new_number_of_cameras; i++) {
-		rcp = cameras_set->rcp_ptr_array[i];
+		rcp = cameras_set->cameras[i];
 
 		camera_is_active = gtk_switch_get_active (GTK_SWITCH (cameras_configuration_widgets[i].camera_switch));
 
@@ -617,9 +614,7 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 						for (gslist_itr = rcp->other_rcp->next; gslist_itr != NULL; gslist_itr = gslist_itr->next) {
 							other_rcp = (rcp_t*)(gslist_itr->data);
 
-							if (other_rcp->last_time.tv_sec > updated_rcp->last_time.tv_sec) updated_rcp = other_rcp;
-							else if ((other_rcp->last_time.tv_sec == updated_rcp->last_time.tv_sec) && \
-								(other_rcp->last_time.tv_usec > updated_rcp->last_time.tv_usec)) updated_rcp = other_rcp;
+							if (other_rcp->last_time > updated_rcp->last_time) updated_rcp = other_rcp;
 						}
 
 						if (rcp->model != updated_rcp->model) {
@@ -666,8 +661,8 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 
 	if (new_cameras_set != NULL) {
 		for (i = 0; i < new_number_of_cameras; i++) {
-			if (cameras_set->rcp_ptr_array[i]->active) rcp_glist = g_list_prepend (rcp_glist, cameras_set->rcp_ptr_array[i]);
-			else ghost_rcp_glist = g_list_prepend (ghost_rcp_glist, cameras_set->rcp_ptr_array[i]);
+			if (cameras_set->cameras[i]->active) rcp_glist = g_list_prepend (rcp_glist, cameras_set->cameras[i]);
+			else ghost_rcp_glist = g_list_prepend (ghost_rcp_glist, cameras_set->cameras[i]);
 		}
 
 		new_cameras_set = NULL;
@@ -683,8 +678,8 @@ void cameras_set_configuration_window_ok (GtkWidget *button, cameras_set_t *came
 		if (number_of_cameras_sets == 1) gtk_widget_show (scenes_page);
 	} else {
 		for (i = cameras_set->number_of_cameras; i < new_number_of_cameras; i++) {
-			if (rcp->active) rcp_glist = g_list_prepend (rcp_glist, cameras_set->rcp_ptr_array[i]);
-			else ghost_rcp_glist = g_list_prepend (ghost_rcp_glist, cameras_set->rcp_ptr_array[i]);
+			if (rcp->active) rcp_glist = g_list_prepend (rcp_glist, cameras_set->cameras[i]);
+			else ghost_rcp_glist = g_list_prepend (ghost_rcp_glist, cameras_set->cameras[i]);
 		}
 	}
 
@@ -707,11 +702,11 @@ void cameras_set_configuration_window_cancel (void)
 		gtk_widget_destroy (new_cameras_set->rcp_box);
 
 		for (i = 0; i < 5; i++) {
-			g_mutex_clear (&new_cameras_set->rcp_ptr_array[i]->other_rcp_mutex);
-			g_mutex_clear (&new_cameras_set->rcp_ptr_array[i]->cmd_mutex);
-			g_free (new_cameras_set->rcp_ptr_array[i]);
+			g_mutex_clear (&new_cameras_set->cameras[i]->other_rcp_mutex);
+			g_mutex_clear (&new_cameras_set->cameras[i]->cmd_mutex);
+			g_free (new_cameras_set->cameras[i]);
 		}
-		g_free (new_cameras_set->rcp_ptr_array);
+		g_free (new_cameras_set->cameras);
 		g_free (new_cameras_set);
 		new_cameras_set = NULL;
 	}
@@ -807,7 +802,7 @@ void show_cameras_set_configuration_window (void)
 		old_number_of_cameras = cameras_set->number_of_cameras;
 
 		for (i = 0, j = 1; i < cameras_set->number_of_cameras; i++, j++) {
-			rcp = cameras_set->rcp_ptr_array[i];
+			rcp = cameras_set->cameras[i];
 
 			widget = gtk_switch_new ();
 			gtk_switch_set_active (GTK_SWITCH (widget), rcp->active);
@@ -998,11 +993,10 @@ void add_cameras_set (void)
 	new_cameras_set = g_malloc (sizeof (cameras_set_t));
 	new_cameras_set->name[0] = '\0';
 	new_cameras_set->number_of_cameras = 5;
-	new_cameras_set->rcp_ptr_array = g_malloc (5 * sizeof (rcp_t*));
 
 	for (i = 0; i < 5; i++) {
 		rcp = g_malloc (sizeof (rcp_t));
-		new_cameras_set->rcp_ptr_array[i] = rcp;
+		new_cameras_set->cameras[i] = rcp;
 		rcp->cameras_set = new_cameras_set;
 		sprintf (rcp->name, "%d", i + 1);
 		init_rcp (rcp);
@@ -1050,7 +1044,7 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 		}
 
 		for (i = 0; i < cameras_set_tmp->number_of_cameras; i++) {
-			rcp = cameras_set_tmp->rcp_ptr_array[i];
+			rcp = cameras_set_tmp->cameras[i];
 
 			g_mutex_lock (&sw_p_08_mutex);
 			if (rcp == rcp_vision) rcp_vision = NULL;
@@ -1106,7 +1100,6 @@ void delete_cameras_set (GtkButton *button, GtkWidget *confirmation_window)
 				g_free (rcp);
 			}
 		}
-		g_free (cameras_set_tmp->rcp_ptr_array);
 
 		gtk_notebook_remove_page (GTK_NOTEBOOK (main_window_notebook), cameras_set_tmp->page_num);
 

@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,16 +17,13 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "gamma.h"
+
 #include "cam_cmd_define.h"
-
-#include "protocol.h"
-#include "misc.h"
-
 #include "cameras_set.h"
-
 #include "main_window.h"
+#include "misc.h"
+#include "protocol.h"
 
 
 char gamma_type_tooltip_AW_HE130[] = "HD: Gamma caractéristique pour la vidéo en haute définition.\nSD: Le gain dans les zones sombres est plus élevé que dans le gamma HD.\nFILMLIKE1: Capacité de reproduire de meilleurs dégradés dans les zones\n       fortement éclairées que le gamma HD.\nFILMLIKE2: Capacité de reproduire de meilleurs dégradés dans les zones\n       fortement éclairées que [FILMLIKE1].\nFILMLIKE3: Capacité de reproduire de meilleurs dégradés dans les zones\n       fortement éclairées que [FILMLIKE2].";

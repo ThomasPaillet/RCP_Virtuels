@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,6 +19,9 @@
 
 #ifndef __UPDATE_NOTIFICATION_H
 #define __UPDATE_NOTIFICATION_H
+
+
+#include "network_header.h"
 
 
 #define UPDATE_NOTIFICATION_TCP_PORT 31004

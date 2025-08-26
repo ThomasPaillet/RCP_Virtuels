@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -19,6 +19,9 @@
 
 #ifndef __SHUTTER_H
 #define __SHUTTER_H
+
+
+#include "rcp.h"
 
 
 void set_shutter_type_AW_HE130 (rcp_t *rcp);

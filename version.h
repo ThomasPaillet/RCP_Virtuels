@@ -1,5 +1,5 @@
 ﻿/*
- * copyright (c) 2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -21,10 +21,10 @@
 #define __VERSION_H
 
 
-#define RCP_VIRTUELS_VERSION "4.0"
+#define RCP_VIRTUELS_VERSION "5.0"
 
 
-//#define MAIN_SETTINGS_READ_ONLY
+#define MAIN_SETTINGS_READ_ONLY
 
 
 #endif

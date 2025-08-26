@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2018-2022 Thomas Paillet <thomas.paillet@net-c.fr>
+ * copyright (c) 2018-2022 2025 Thomas Paillet <thomas.paillet@net-c.fr>
 
  * This file is part of RCP-Virtuels.
 
@@ -17,7 +17,6 @@
  * along with RCP-Virtuels. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "rcp.h"
 #include "misc.h"
 
 #include "rcp_AW_HE130.h"
@@ -41,8 +40,6 @@
 #include "settings.h"
 #include "sw_p_08.h"
 #include "physical_rcp.h"
-
-//#include "main_window.h"
 
 #include <string.h>
 
@@ -73,11 +70,8 @@ void init_rcp (rcp_t *rcp)
 
 	rcp->model = AW_UE150;
 
-//	rcp->last_version_information_notification_time = 0;
-
 	rcp->thread = NULL;
-	rcp->last_time.tv_sec = 0;
-	rcp->last_time.tv_usec = 0;
+	rcp->last_time = 0;
 	rcp->timeout_id = 0;
 	rcp->r_b = TRUE;
 
@@ -469,8 +463,8 @@ gboolean set_rcp_off (rcp_t *rcp)
 	cameras_set = (cameras_set_t*)(rcp->cameras_set);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		if (!cameras_set->rcp_ptr_array[i]->active) j++;
-		else if (!cameras_set->rcp_ptr_array[i]->camera_is_on) j++;
+		if (!cameras_set->cameras[i]->active) j++;
+		else if (!cameras_set->cameras[i]->camera_is_on) j++;
 	}
 
 	if (j == cameras_set->number_of_cameras) {
@@ -1284,8 +1278,8 @@ gboolean rcp_work_end (rcp_t *rcp)
 	cameras_set = (cameras_set_t*)(rcp->cameras_set);
 
 	for (i = 0; i < cameras_set->number_of_cameras; i++) {
-		if (!cameras_set->rcp_ptr_array[i]->active) j++;
-		else if (cameras_set->rcp_ptr_array[i]->camera_is_on) j++;
+		if (!cameras_set->cameras[i]->active) j++;
+		else if (cameras_set->cameras[i]->camera_is_on) j++;
 	}
 
 	if (j == cameras_set->number_of_cameras) {
